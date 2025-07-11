@@ -1,6 +1,4 @@
 "use client";
-
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -9,33 +7,35 @@ import { HiDocumentReport } from "react-icons/hi";
 import { IoMapSharp } from "react-icons/io5";
 import { MdSpaceDashboard } from "react-icons/md";
 
+import BmisLogo from "./bmisLogo";
+
 export default function Sidebar({ sidebarOpen }) {
   const pathname = usePathname().toLowerCase();
 
   const navItems = [
     {
-      href: "/home/dashboard",
+      href: "/dashboard",
       label: "Dashboard",
       icon: <MdSpaceDashboard className="text-2xl" />,
-      isActive: pathname === "/home/dashboard",
+      isActive: pathname === "/dashboard",
     },
     {
-      href: "/home/household",
+      href: "/household",
       label: "Households",
       icon: <BsFillHousesFill className="text-2xl" />,
-      isActive: pathname.startsWith("/home/household"),
+      isActive: pathname.startsWith("/household"),
     },
     {
-      href: "/home/maps",
+      href: "/maps",
       label: "Maps",
       icon: <IoMapSharp className="text-2xl" />,
-      isActive: pathname.startsWith("/home/maps"),
+      isActive: pathname.startsWith("/maps"),
     },
     {
-      href: "/home/reports",
+      href: "/reports",
       label: "Reports",
       icon: <HiDocumentReport className="text-2xl" />,
-      isActive: pathname.startsWith("/home/reports"),
+      isActive: pathname.startsWith("/reports"),
     },
   ];
 
@@ -47,13 +47,7 @@ export default function Sidebar({ sidebarOpen }) {
     >
       {/* Logo + Title */}
       <div className="flex flex-col items-center mb-6 space-y-2">
-        <Image
-          src="/BmisLogo.png"
-          alt="BMIS Logo"
-          width={120}
-          height={120}
-          className="rounded-full"
-        />
+        <BmisLogo/>
         <div className="text-xl font-bold text-[#0BAD4A]">BMIS</div>
       </div>
 

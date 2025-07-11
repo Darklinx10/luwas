@@ -6,7 +6,7 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/auth/login"); // default route redirection
+    router.replace("/login"); // default route redirection
   }, [router]);
 
   return null; // could show a spinner while redirecting

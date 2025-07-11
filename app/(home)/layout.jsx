@@ -9,7 +9,7 @@ export default function DashboardLayout({ children }) {
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex">
       {/* Sidebar */}
       <div
         className={`transition-transform duration-300 ease-in-out ${
@@ -20,13 +20,14 @@ export default function DashboardLayout({ children }) {
       </div>
 
       {/* Content area (with margin left for sidebar) */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
+      <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-67' : 'ml-0'}`}>
         {/* Topbar */}
         <Topbar toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
+     
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto bg-white p-6 pt-20">
-          {children}
+        <main className="flex-1 bg-white p-6 ">
+        {children}
         </main>
       </div>
     </div>
