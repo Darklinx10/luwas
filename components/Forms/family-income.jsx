@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { db } from '@/firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 export default function FamilyIncome({ householdId, goToNext }) {
@@ -36,6 +36,57 @@ export default function FamilyIncome({ householdId, goToNext }) {
     totalCombinedIncome: '',
     respondentConsent: '',
   });
+
+  const [memberOptions, setMemberOptions] = useState([]);
+
+  useEffect(() => {
+  const fetchHouseholdPeople = async () => {
+    if (!householdId) return; // ✅ Guard clause
+
+    try {
+      const people = [];
+
+      // Fetch household head
+      const geoDocRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
+      const geoSnap = await getDoc(geoDocRef);
+
+      if (geoSnap.exists()) {
+        const geo = geoSnap.data();
+        const headFullName = `${geo.headFirstName || ''} ${geo.headMiddleName || ''} ${geo.headLastName || ''} ${
+          geo.headSuffix && geo.headSuffix !== 'n/a' ? geo.headSuffix : ''
+        }`.trim();
+        people.push({ id: 'head', fullName: headFullName });
+      }
+
+      // Fetch members
+      const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
+
+      for (const memberDoc of membersSnap.docs) {
+        const memberId = memberDoc.id;
+
+        const demoSnap = await getDocs(
+          collection(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics')
+        );
+
+        demoSnap.forEach((doc) => {
+          const demo = doc.data();
+          const fullName = `${demo.firstName || ''} ${demo.middleName || ''} ${demo.lastName || ''} ${
+            demo.suffix && demo.suffix !== 'n/a' ? demo.suffix : ''
+          }`.trim();
+
+          people.push({ id: memberId, fullName });
+        });
+      }
+
+      setMemberOptions(people);
+    } catch (err) {
+      console.error('Error fetching household head and members:', err);
+    }
+  };
+
+  fetchHouseholdPeople();
+}, [householdId]);
+
 
   const handleCheckbox = (e) => {
     const { name, checked } = e.target;
@@ -86,7 +137,7 @@ export default function FamilyIncome({ householdId, goToNext }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="h-full overflow-y-auto max-w-5xl mx-auto p-4 space-y-6"
+      className="max-w-5xl mx-auto p-4 space-y-6"
     >
       <h2 className="text-xl font-bold text-green-600 mb-4">
         H. FAMILY INCOME <br />
@@ -94,16 +145,22 @@ export default function FamilyIncome({ householdId, goToNext }) {
       </h2>
 
       <div>
-        <label className="font-semibold">
+        <label className="font-semibold block mb-1">
           (01) Who among the family members were regularly and seasonally employed in the past 12 months?
         </label>
-        <textarea
+        <select
           name="regularSeasonalMembers"
           value={form.regularSeasonalMembers}
           onChange={handleTextChange}
-          rows={3}
-          className="border p-2 rounded w-full mt-1"
-        />
+          className="border p-2 rounded w-full"
+        >
+          <option value="">-- Select Family Member --</option>
+          {memberOptions.map((member) => (
+            <option key={member.id} value={member.fullName}>
+              {member.fullName}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* SOURCE A–C */}
@@ -227,12 +284,15 @@ export default function FamilyIncome({ householdId, goToNext }) {
         </select>
       </div>
 
-      <button
-        type="submit"
-        className="mt-4 bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800"
-      >
-        Save & Continue &gt;
-      </button>
+      {/* Submit Button */}
+      <div className="pt-6 flex justify-end">
+        <button
+          type="submit"
+          className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto"
+        >
+          Save & Continue &gt;
+        </button>
+      </div>
     </form>
   );
 }

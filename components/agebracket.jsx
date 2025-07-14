@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import { useEffect, useState } from 'react';
 import { db } from '@/firebase/config';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 
 export default function AgeBracketChart() {
   const [ageData, setAgeData] = useState([]);
@@ -20,6 +20,7 @@ export default function AgeBracketChart() {
     const fetchAgeBrackets = async () => {
       try {
         const householdSnapshot = await getDocs(collection(db, 'households'));
+
         const ageCounts = {
           'Under 1': 0,
           '1-4': 0,
@@ -39,31 +40,42 @@ export default function AgeBracketChart() {
 
         for (const householdDoc of householdSnapshot.docs) {
           const householdId = householdDoc.id;
-          const demoSnap = await getDocs(
-            collection(db, 'households', householdId, 'demographicCharacteristics')
-          );
+          const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
 
-          demoSnap.forEach((doc) => {
-            const data = doc.data();
-            const rawAge = parseInt(data.age);
+          for (const memberDoc of membersSnap.docs) {
+            const memberId = memberDoc.id;
+            const demoRef = doc(
+              db,
+              'households',
+              householdId,
+              'members',
+              memberId,
+              'demographicCharacteristics',
+              'main'
+            );
+            const demoSnap = await getDoc(demoRef);
+            if (demoSnap.exists()) {
+              const data = demoSnap.data();
+              const rawAge = parseInt(data.age);
 
-            if (!isNaN(rawAge)) {
-              if (rawAge < 1) ageCounts['Under 1']++;
-              else if (rawAge <= 4) ageCounts['1-4']++;
-              else if (rawAge <= 9) ageCounts['5-9']++;
-              else if (rawAge <= 14) ageCounts['10-14']++;
-              else if (rawAge <= 19) ageCounts['15-19']++;
-              else if (rawAge <= 24) ageCounts['20-24']++;
-              else if (rawAge <= 29) ageCounts['25-29']++;
-              else if (rawAge <= 34) ageCounts['30-34']++;
-              else if (rawAge <= 39) ageCounts['35-39']++;
-              else if (rawAge <= 44) ageCounts['40-44']++;
-              else if (rawAge <= 49) ageCounts['45-49']++;
-              else if (rawAge <= 54) ageCounts['50-54']++;
-              else if (rawAge <= 59) ageCounts['55-59']++;
-              else ageCounts['60 and over']++;
+              if (!isNaN(rawAge)) {
+                if (rawAge < 1) ageCounts['Under 1']++;
+                else if (rawAge <= 4) ageCounts['1-4']++;
+                else if (rawAge <= 9) ageCounts['5-9']++;
+                else if (rawAge <= 14) ageCounts['10-14']++;
+                else if (rawAge <= 19) ageCounts['15-19']++;
+                else if (rawAge <= 24) ageCounts['20-24']++;
+                else if (rawAge <= 29) ageCounts['25-29']++;
+                else if (rawAge <= 34) ageCounts['30-34']++;
+                else if (rawAge <= 39) ageCounts['35-39']++;
+                else if (rawAge <= 44) ageCounts['40-44']++;
+                else if (rawAge <= 49) ageCounts['45-49']++;
+                else if (rawAge <= 54) ageCounts['50-54']++;
+                else if (rawAge <= 59) ageCounts['55-59']++;
+                else ageCounts['60 and over']++;
+              }
             }
-          });
+          }
         }
 
         const formatted = Object.entries(ageCounts).map(([age, count]) => ({ age, count }));

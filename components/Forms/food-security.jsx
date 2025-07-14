@@ -56,7 +56,7 @@ export default function FoodSecurityExperience({ householdId, goToNext }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="h-full overflow-y-auto max-w-5xl mx-auto p-6 space-y-6">
+    <form onSubmit={handleSubmit} className="p-6 space-y-6">
       <h2 className="text-xl font-bold text-green-700 mb-4">
         Food Security Experience (July 01, 2021 - June 30, 2022)
       </h2>
@@ -81,10 +81,11 @@ export default function FoodSecurityExperience({ householdId, goToNext }) {
         </div>
       ))}
 
-      <div className="pt-4">
+      {/* Submit Button */}
+      <div className="pt-6 flex justify-end">
         <button
           type="submit"
-          className="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800"
+          className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto"
         >
           Save & Continue &gt;
         </button>

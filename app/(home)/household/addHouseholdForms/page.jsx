@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '@/firebase/config';
 
@@ -56,6 +56,7 @@ export default function AddHouseholdFormPage() {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [savedMembers, setSavedMembers] = useState([]);
 
   const sectionKeys = Object.keys(formSections);
 
@@ -69,31 +70,30 @@ export default function AddHouseholdFormPage() {
       setUser(currentUser);
 
       try {
-        // Get user info
+        // Fetch user data
         const userRef = doc(db, 'users', currentUser.uid);
         const userSnap = await getDoc(userRef);
+
         if (userSnap.exists()) {
           setUserData(userSnap.data());
-        }
 
-        // Prevent creating multiple household docs
-        if (!householdId) {
+          // ✅ Create household document and set its ID
           const householdRef = await addDoc(collection(db, 'households'), {
-            createdAt: serverTimestamp(),
             createdBy: currentUser.uid,
-            status: 'in-progress',
+            createdAt: new Date(),
           });
+
           setHouseholdId(householdRef.id);
         }
       } catch (error) {
-        console.error('Error initializing household or fetching user:', error);
+        console.error('❌ Error initializing household form:', error);
       } finally {
         setLoading(false);
       }
     });
 
     return () => unsubscribe();
-  }, [householdId]);
+  }, []);
 
   const goToNext = () => {
     const currentIndex = sectionKeys.indexOf(currentSection);
@@ -102,7 +102,6 @@ export default function AddHouseholdFormPage() {
       setCurrentSection(nextSection);
     } else {
       console.log('✅ All form sections completed');
-      // Optional: set status to 'completed' in Firestore
     }
   };
 
@@ -112,28 +111,32 @@ export default function AddHouseholdFormPage() {
     return <div className="p-6 text-gray-600">Loading...</div>;
   }
 
-  if (!user || !userData || !householdId) {
+  if (!user || !userData) {
     return (
       <div className="p-6 text-red-500">
-        ❌ Unable to load form. Make sure you're logged in and household was created.
+        ❌ Unable to load form. Make sure you're logged in.
       </div>
     );
   }
 
+  if (!householdId) {
+    return <div className="p-6 text-gray-500">Creating household record...</div>;
+  }
+
   return (
-    <div className="flex">
+    <div className="flex h-screen">
       <FormSectionSidebar current={currentSection} setSection={setCurrentSection} />
 
-      <main className="flex-1 p-6 bg-white shadow-md text-sm border-t border-gray-200">
+      <main className="flex-1 p-6 bg-white shadow-md text-sm border-t border-gray-200 overflow-y-auto h-screen">
         <div className="h-full overflow-y-auto pr-2">
           <h2 className="text-2xl font-bold mb-1">{currentSection}</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Respondent:{' '}
-            <strong>{`${userData.firstName || ''} ${userData.middleName || ''} ${userData.lastName || ''}`}</strong>
-          </p>
+        
 
           <SectionComponent
             householdId={householdId}
+            setHouseholdId={setHouseholdId}
+            members={savedMembers}
+            setSavedMembers={setSavedMembers}
             user={user}
             userData={userData}
             goToNext={goToNext}

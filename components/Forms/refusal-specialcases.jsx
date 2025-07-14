@@ -368,13 +368,13 @@ export default function RefusalAndHousingForm({ householdId }) {
         />
       </label>
 
-      {/* Save buttons */}
+      {/* Submit Button */}
       <div className="pt-6 flex justify-end">
         <button
-          className="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800"
           type="submit"
+          className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto"
         >
-          Save &amp; Continue &gt;
+          Save Data
         </button>
       </div>
     </form>

@@ -1,13 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
+import Image from 'next/image';
 import { BsFillHousesFill } from "react-icons/bs";
 import { HiDocumentReport } from "react-icons/hi";
 import { IoMapSharp } from "react-icons/io5";
 import { MdSpaceDashboard } from "react-icons/md";
 
-import BmisLogo from "./bmisLogo";
+
 
 export default function Sidebar({ sidebarOpen }) {
   const pathname = usePathname().toLowerCase();
@@ -47,7 +47,14 @@ export default function Sidebar({ sidebarOpen }) {
     >
       {/* Logo + Title */}
       <div className="flex flex-col items-center mb-6 space-y-2">
-        <BmisLogo/>
+        <Image
+          src="/clarinLogo.png"
+          alt="BMIS Logo"
+          width={80}
+          height={60}
+          className="rounded-full"
+          priority
+        />
         <div className="text-xl font-bold text-[#0BAD4A]">BMIS</div>
       </div>
 

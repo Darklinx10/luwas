@@ -224,10 +224,220 @@ export default function WaterSanitationForm({ householdId, goToNext }) {
       )}
 
       {/* Sanitation Section (continue as needed) */}
+      {/* Toilet Facility */}
+      <label className="block">
+        Type of toilet facility used:
+        <select
+          className="w-full border p-2 rounded"
+          value={toiletFacility}
+          onChange={e => setToiletFacility(e.target.value)}
+        >
+          <option value="">-- Select --</option>
+          {toiletFacilities.map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      </label>
 
-      <div className="pt-6">
-        <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-800">
-          Save &amp; Continue &gt;
+      {/* Septic Tank Outlet */}
+      <label className="block">
+        Septic tank outlet:
+        <select
+          className="w-full border p-2 rounded"
+          value={septicTankOutlet}
+          onChange={e => setSepticTankOutlet(e.target.value)}
+        >
+          <option value="">-- Select --</option>
+          {septicOutlets.map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      </label>
+
+      {/* Emptied Septic Tank */}
+      <label className="block">
+        Has the septic tank been emptied?
+        <select
+          className="w-full border p-2 rounded"
+          value={emptiedSepticTank}
+          onChange={e => setEmptiedSepticTank(e.target.value)}
+        >
+          <option value="">-- Select --</option>
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+          <option value="DON'T KNOW">DON'T KNOW</option>
+        </select>
+      </label>
+
+      {/* Emptied Location */}
+      {emptiedSepticTank === 'YES' && (
+        <label className="block">
+          Where was it emptied?
+          <input
+            className="w-full border p-2 rounded"
+            value={emptiedLocation}
+            onChange={e => setEmptiedLocation(e.target.value)}
+          />
+        </label>
+      )}
+
+      {/* Toilet Location */}
+      <label className="block">
+        Location of toilet facility:
+        <select
+          className="w-full border p-2 rounded"
+          value={toiletLocation}
+          onChange={e => setToiletLocation(e.target.value)}
+        >
+          <option value="">-- Select --</option>
+          {locations.map(loc => (
+            <option key={loc} value={loc}>{loc}</option>
+          ))}
+        </select>
+      </label>
+
+      {/* Shared Facility */}
+      <label className="block">
+        Is the toilet facility shared with other households?
+        <select
+          className="w-full border p-2 rounded"
+          value={sharedFacility}
+          onChange={e => setSharedFacility(e.target.value)}
+        >
+          <option value="">-- Select --</option>
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+          <option value="DON'T KNOW">DON'T KNOW</option>
+        </select>
+      </label>
+
+      {/* Number of Households Sharing */}
+      {sharedFacility === 'YES' && (
+        <>
+          <label className="block">
+            How many households share the toilet?
+            <input
+              type="number"
+              className="w-full border p-2 rounded"
+              min="1"
+              value={numHouseholdsSharing}
+              onChange={e => setNumHouseholdsSharing(e.target.value)}
+            />
+          </label>
+
+          <label className="block">
+            Type of sharing arrangement:
+            <input
+              className="w-full border p-2 rounded"
+              value={sharingType}
+              onChange={e => setSharingType(e.target.value)}
+            />
+          </label>
+        </>
+      )}
+
+      {/* Garbage Disposal */}
+      <label className="block">
+        Garbage disposal method:
+        <input
+          className="w-full border p-2 rounded"
+          value={garbageDisposal}
+          onChange={e => setGarbageDisposal(e.target.value)}
+        />
+      </label>
+
+      {/* Handwashing Facilities */}
+      <label className="block">
+        Location of handwashing facility:
+        <input
+          className="w-full border p-2 rounded"
+          value={handwashLocation}
+          onChange={e => setHandwashLocation(e.target.value)}
+        />
+      </label>
+
+      <label className="block">
+        If "Other", specify:
+        <input
+          className="w-full border p-2 rounded"
+          value={otherHandwashLocation}
+          onChange={e => setOtherHandwashLocation(e.target.value)}
+        />
+      </label>
+
+      <label className="block">
+        Is water available for handwashing?
+        <select
+          className="w-full border p-2 rounded"
+          value={handwashWaterAvailable === null ? '' : handwashWaterAvailable ? 'YES' : 'NO'}
+          onChange={e => setHandwashWaterAvailable(e.target.value === 'YES')}
+        >
+          <option value="">-- Select --</option>
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+        </select>
+      </label>
+
+      <label className="block">
+        Is soap available for handwashing?
+        <select
+          className="w-full border p-2 rounded"
+          value={handwashSoapAvailable}
+          onChange={e => setHandwashSoapAvailable(e.target.value)}
+        >
+          <option value="">-- Select --</option>
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+        </select>
+      </label>
+
+      {/* Observed by Enumerator */}
+      <label className="block">
+        Water observed at handwashing area?
+        <select
+          className="w-full border p-2 rounded"
+          value={householdHandwashWater === null ? '' : householdHandwashWater ? 'YES' : 'NO'}
+          onChange={e => setHouseholdHandwashWater(e.target.value === 'YES')}
+        >
+          <option value="">-- Select --</option>
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+        </select>
+      </label>
+
+      <label className="block">
+        Soap or detergent observed?
+        <select
+          className="w-full border p-2 rounded"
+          value={householdSoapDetergent === null ? '' : householdSoapDetergent ? 'YES' : 'NO'}
+          onChange={e => setHouseholdSoapDetergent(e.target.value === 'YES')}
+        >
+          <option value="">-- Select --</option>
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+        </select>
+      </label>
+
+      <label className="block">
+        Did respondent show the soap?
+        <select
+          className="w-full border p-2 rounded"
+          value={shownSoap === null ? '' : shownSoap ? 'YES' : 'NO'}
+          onChange={e => setShownSoap(e.target.value === 'YES')}
+        >
+          <option value="">-- Select --</option>
+          <option value="YES">YES</option>
+          <option value="NO">NO</option>
+        </select>
+      </label>
+
+      {/* Submit Button */}
+      <div className="pt-6 flex justify-end">
+        <button
+          type="submit"
+          className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto"
+        >
+          Save & Continue &gt;
         </button>
       </div>
     </form>

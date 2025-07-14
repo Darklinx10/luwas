@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 
 export default function PWDPage() {
@@ -17,36 +17,42 @@ export default function PWDPage() {
         for (const docSnap of householdsSnap.docs) {
           const householdId = docSnap.id;
 
-          const demoSnap = await getDocs(collection(db, 'households', householdId, 'demographicCharacteristics'));
-          const healthSnap = await getDocs(collection(db, 'households', householdId, 'health'));
+          // 1. Fetch health/main doc
+          const healthMainDoc = await getDoc(doc(db, 'households', householdId, 'health', 'main'));
+          const health = healthMainDoc.exists() ? healthMainDoc.data() : null;
 
-          if (!demoSnap.empty && !healthSnap.empty) {
-            demoSnap.forEach((demoDoc) => {
-              const demo = demoDoc.data();
-              const personId = demoDoc.id;
+          const pwdLineNumber = health?.pwdLineNumber;
 
-              // Match the corresponding health record
-              const matchedHealth = healthSnap.docs.find((h) => h.id === personId);
-              const healthData = matchedHealth?.data();
+          if (health?.isPWD && pwdLineNumber) {
+            // 2. Fetch member details (name, contact)
+            const memberDoc = await getDoc(doc(db, 'households', householdId, 'members', pwdLineNumber));
+            const member = memberDoc.exists() ? memberDoc.data() : null;
 
-              // Only include if marked as PWD
-              if (healthData?.isPWD === true) {
-                const fullName = `${demo.firstName || ''} ${demo.middleName || ''} ${demo.lastName || ''} ${
-                  demo.suffix && demo.suffix !== 'n/a' ? demo.suffix : ''
-                }`.trim();
+            // 3. Fetch demographic details (age, sex) — FIXED PATH
+            const demoDoc = await getDoc(doc(db, 'households', householdId, 'members', pwdLineNumber, 'demographicCharacteristics', 'main'));
+            const demo = demoDoc.exists() ? demoDoc.data() : null;
 
-                allData.push({
-                  id: personId,
-                  name: fullName,
-                  age: demo.age || '—',
-                  sex: demo.sex || '—',
-                  barangay: demo.barangay || '—',
-                  contact: demo.contactNumber || '—',
-                  disability: healthData.pwdDisabilityType || '—',
-                  assistance: healthData.assistanceReceived || '—',
-                });
-              }
-            });
+
+            // 4. Fetch barangay from geo info
+            const geoDoc = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
+            const geo = geoDoc.exists() ? geoDoc.data() : null;
+
+            if (member && demo && geo) {
+              const fullName = `${member.firstName || ''} ${member.middleName || ''} ${member.lastName || ''} ${
+                member.suffix && member.suffix !== 'n/a' ? member.suffix : ''
+              }`.trim();
+
+              allData.push({
+                id: memberDoc.id,
+                name: fullName,
+                age: demo.age || '—',
+                sex: demo.sex || '—',
+                barangay: geo.barangay || '—',
+                contact: member.contactNumber || '—',
+                disability: health.pwdDisabilityType || '—',
+                assistance: health.assistanceReceived || '—',
+              });
+            }
           }
         }
 
@@ -58,6 +64,8 @@ export default function PWDPage() {
 
     fetchPWDs();
   }, []);
+
+
 
   const filteredData = pwds.filter((item) =>
     Object.values(item).some((val) =>
@@ -90,7 +98,7 @@ export default function PWDPage() {
       <div className="text-sm text-right text-gray-500 mb-2">Home / Reports / PWD</div>
 
       <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg">
-        List of Person with Disability (2025)
+      Person With Disability Information(2025)
       </div>
 
       {/* Controls */}
@@ -122,32 +130,39 @@ export default function PWDPage() {
       {/* Table */}
       <div className="overflow-x-auto border border-t-0 rounded-b-md bg-white p-4">
         {filteredData.length > 0 ? (
-          <table className="w-full text-sm text-center print:text-xs print:w-full">
-            <thead className="bg-gray-100 text-gray-600">
-              <tr>
-                <th className="px-4 py-2 border">Name</th>
-                <th className="px-4 py-2 border">Sex</th>
-                <th className="px-4 py-2 border">Age</th>
-                <th className="px-4 py-2 border">Barangay</th>
-                <th className="px-4 py-2 border">Contact</th>
-                <th className="px-4 py-2 border">Disability</th>
-                <th className="px-4 py-2 border">Assistance Received</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredData.map((item, i) => (
-                <tr key={i} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 border">{item.name}</td>
-                  <td className="px-4 py-2 border">{item.sex}</td>
-                  <td className="px-4 py-2 border">{item.age}</td>
-                  <td className="px-4 py-2 border">{item.barangay}</td>
-                  <td className="px-4 py-2 border">{item.contact}</td>
-                  <td className="px-4 py-2 border">{item.disability}</td>
-                  <td className="px-4 py-2 border">{item.assistance}</td>
+          <>
+            <table className="w-full text-sm text-center print:text-xs print:w-full">
+              <thead className="bg-gray-100 text-gray-600">
+                <tr>
+                  <th className="px-4 py-2 border">Name</th>
+                  <th className="px-4 py-2 border">Sex</th>
+                  <th className="px-4 py-2 border">Age</th>
+                  <th className="px-4 py-2 border">Barangay</th>
+                  <th className="px-4 py-2 border">Contact</th>
+                  <th className="px-4 py-2 border">Disability</th>
+                  <th className="px-4 py-2 border">Assistance Received</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredData.map((item, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 border">{item.name}</td>
+                    <td className="px-4 py-2 border">{item.sex}</td>
+                    <td className="px-4 py-2 border">{item.age}</td>
+                    <td className="px-4 py-2 border">{item.barangay}</td>
+                    <td className="px-4 py-2 border">{item.contact}</td>
+                    <td className="px-4 py-2 border">{item.disability}</td>
+                    <td className="px-4 py-2 border">{item.assistance}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* ✅ PWD count below table */}
+            <p className="text-sm text-gray-700 mt-4">
+              Total PWDs found: <span className="font-semibold">{filteredData.length}</span>
+            </p>
+          </>
         ) : (
           <p className="text-center text-gray-500 py-6">No PWD records found.</p>
         )}

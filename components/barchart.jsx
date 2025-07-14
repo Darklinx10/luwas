@@ -24,6 +24,8 @@ export default function BarChartComponent() {
 
         for (const doc of snapshot.docs) {
           const householdId = doc.id;
+
+          // Get the barangay from geographicIdentification/main
           const geoSnap = await getDocs(
             collection(db, 'households', householdId, 'geographicIdentification')
           );
@@ -33,7 +35,24 @@ export default function BarChartComponent() {
             const barangay = geoData.barangay;
 
             if (barangay) {
+              // Count 1 for the household head
               barangayCounts[barangay] = (barangayCounts[barangay] || 0) + 1;
+            }
+          });
+
+          // Get member count for each household
+          const membersSnap = await getDocs(
+            collection(db, 'households', householdId, 'members')
+          );
+          const memberCount = membersSnap.size;
+
+          geoSnap.forEach((geoDoc) => {
+            const geoData = geoDoc.data();
+            const barangay = geoData.barangay;
+
+            if (barangay) {
+              // Add all members
+              barangayCounts[barangay] = (barangayCounts[barangay] || 0) + memberCount;
             }
           });
         }
@@ -43,7 +62,7 @@ export default function BarChartComponent() {
           residents,
         }));
 
-        // Optional: Sort by residents count descending
+        // Sort by descending resident count
         chartData.sort((a, b) => b.residents - a.residents);
 
         setData(chartData);
@@ -57,10 +76,7 @@ export default function BarChartComponent() {
 
   return (
     <ResponsiveContainer width="100%" height={500}>
-      <BarChart
-        data={data}
-        margin={{ top: 20, right: 30, left: 0, bottom: 80 }}
-      >
+      <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 80 }}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis
           dataKey="name"

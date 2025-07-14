@@ -1,37 +1,43 @@
 'use client';
 
 import { useState } from 'react';
-import { db } from '@/firebase/config';
-import { collection, addDoc } from 'firebase/firestore';
+import { db, auth } from '@/firebase/config';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
+import { v4 as uuidv4 } from 'uuid';
 
-export default function DemographicCharacteristics({ householdId, goToNext }) {
-  const [form, setForm] = useState({
-    lastName: '',
-    firstName: '',
-    suffix: '',
-    middleName: '',
-    age: '',
-    relationshipToHead: '',
-    nuclearRelation: '',
-    birthdate: '',
-    sex: '',
-    nuclearBelonging: '',
-    birthRegistered: '',
-    maritalStatus: '',
-    ethnicity: '',
-    religion: '',
-    hasNationalID: '',
-    philsysNumber: '',
-    hasBiometric: '',
-    hasLGUID: '',
-    lguIdNumber: '',
-    soloParent: '',
-    soloParentId: '',
-    seniorCitizenId: '',
-    difficulties: {},
-  });
+export default function DemographicCharacteristics({ householdId, goToNext, setSavedMembers }) {
+  // 👨‍👩‍👧‍👦 Initialize one member with default values
+  const [members, setMembers] = useState([
+    {
+      id: uuidv4(),
+      lastName: '',
+      firstName: '',
+      middleName: '',
+      suffix: '',
+      relationshipToHead: '',
+      nuclearRelation: '',
+      birthdate: '',
+      sex: '',
+      age: '',
+      nuclearBelonging: '',
+      birthRegistered: '',
+      maritalStatus: '',
+      ethnicity: '',
+      religion: '',
+      hasNationalID: '',
+      philsysNumber: '',
+      hasBiometric: '',
+      hasLGUID: '',
+      lguIdNumber: '',
+      soloParent: '',
+      soloParentId: '',
+      seniorCitizenId: '',
+      difficulties: {}, // for 5+ years old
+    },
+  ]);
 
+  // 🧠 Disability categories for 5+ years old
   const difficultyOptions = [
     'Seeing (even with glasses)',
     'Hearing (even with hearing aid)',
@@ -41,331 +47,273 @@ export default function DemographicCharacteristics({ householdId, goToNext }) {
     'Communicating (usual language)',
   ];
 
-  const handleChange = (field) => (e) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: e.target.value,
-    }));
+  // 📋 Dropdown fields and options
+  const selectFields = {
+    relationshipToHead: ['', 'Head', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister', 'Father', 'Mother', 'Father-in-law', 'Mother-in-law', 'Sister', 'Brother-in-law', 'Sister-in-law', 'Uncle', 'Aunt', 'Nephew', 'Niece', 'Other Relative', 'Border', 'Domestic Helper', 'Nonrelative'],
+    nuclearRelation: ['', 'None', 'Family Head', 'Spouse', 'Partner', 'Son', 'Daughter', 'Brother', 'Sister', 'Father', 'Mother',  'Other'],
+    sex: ['', 'Male', 'Female'],
+    birthRegistered: ['', 'Yes', 'No', "Don't Know"],
+    maritalStatus: ['', 'Single', 'Married', 'Common Law/Live-in', 'Widowed', 'Separated', 'Divorced', 'Annulled', 'Not Open to Share'],
+    hasNationalID: ['', 'Yes', 'No', "Don't Know"],
+    hasBiometric: ['', 'Yes', 'No', "Don't Know"],
+    hasLGUID: ['', 'Yes', 'No', "Don't Know"],
+    soloParent: ['', 'Yes', 'No'],
+    soloParentId: ['', 'Yes', 'No', "Don't Know"],
+    seniorCitizenId: ['', 'Yes', 'No', "Don't Know"]
   };
 
-  const handleDifficultyChange = (question) => (e) => {
-    setForm((prev) => ({
+  // 🖊️ Handle basic field change
+  const handleMemberChange = (index, field) => (e) => {
+    const newMembers = [...members];
+    newMembers[index][field] = e.target.value;
+    setMembers(newMembers);
+  };
+
+  // 👁️ Handle disability/difficulty field change
+  const handleDifficultyChange = (index, question) => (e) => {
+    const newMembers = [...members];
+    newMembers[index].difficulties[question] = e.target.value;
+    setMembers(newMembers);
+  };
+
+  // ➕ Add member
+  const addMember = () => {
+    setMembers((prev) => [
       ...prev,
-      difficulties: {
-        ...prev.difficulties,
-        [question]: e.target.value,
+      {
+        id: uuidv4(),
+        lastName: '',
+        firstName: '',
+        middleName: '',
+        suffix: '',
+        relationshipToHead: '',
+        nuclearRelation: '',
+        birthdate: '',
+        sex: '',
+        age: '',
+        nuclearBelonging: '',
+        birthRegistered: '',
+        maritalStatus: '',
+        ethnicity: '',
+        religion: '',
+        hasNationalID: '',
+        philsysNumber: '',
+        hasBiometric: '',
+        hasLGUID: '',
+        lguIdNumber: '',
+        soloParent: '',
+        soloParentId: '',
+        seniorCitizenId: '',
+        difficulties: {},
       },
-    }));
+    ]);
   };
 
-  const handleAutofill = (e) => {
-    const value = e.target.value;
-    setForm((prev) => ({
-      ...prev,
-      relationshipToHead: value,
-      ...(value === 'Head'
-        ? {
-            lastName: 'Dela Cruz',
-            firstName: 'Juan',
-            suffix: '',
-            middleName: 'Reyes',
-            age: '40',
-          }
-        : {}),
-    }));
+  // ❌ Remove member
+  const removeMember = (index) => {
+    setMembers(members.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const user = auth.currentUser;
+    if (!user) {
+      toast.error('User not authenticated.');
+      return;
+    }
+
     try {
-      await addDoc(collection(db, 'households', householdId, 'demographicCharacteristics'), {
-        ...form,
+      const saveTasks = members.map(async (member) => {
+        const memberRef = doc(db, 'households', householdId, 'members', member.id);
+
+        // Step 1: Save base member info
+        await setDoc(memberRef, {
+          firstName: member.firstName,
+          lastName: member.lastName,
+          middleName: member.middleName,
+          suffix: member.suffix,
+          uid: user.uid,
+        });
+
+        // Step 2: Save demographic details
+        const demoRef = doc(memberRef, 'demographicCharacteristics', 'main');
+        await setDoc(demoRef, member);
       });
+
+      await Promise.all(saveTasks);
+
+      // ✅ Save demographic summary in household root
+      await updateDoc(doc(db, 'households', householdId), {
+        demographicCharacteristics: members,
+      });
+
+      // ⬆️ Pass to parent
+      if (setSavedMembers) {
+        setSavedMembers(members);
+      }
+
       toast.success('Demographic information saved!');
-      goToNext(); // Go to next section
+      goToNext();
     } catch (error) {
-      console.error('Error saving form:', error);
+      console.error('❌ Error saving demographic info:', error);
       toast.error('Failed to save data.');
     }
   };
+
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pr-2">
       <h2 className="text-lg font-semibold text-green-600">For all Household Members</h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {[
-          { id: 'lastName', label: 'Last Name' },
-          { id: 'firstName', label: 'First Name' },
-          { id: 'suffix', label: 'Suffix' },
-          { id: 'middleName', label: 'Middle Name' },
-        ].map(({ id, label }) => (
-          <label key={id} className="flex flex-col">
-            {label}
-            <input
-              id={id}
-              name={id}
-              type="text"
-              placeholder={label}
-              value={form[id]}
-              onChange={handleChange(id)}
-              className="border p-2 rounded w-full"
-              required
-            />
-          </label>
-        ))}
 
-        <label className="flex flex-col">
-          Relationship to Head
-          <select
-            id="relationshipToHead"
-            value={form.relationshipToHead}
-            onChange={handleAutofill}
-            className="border p-2 rounded w-full"
-            required
-          >
-            <option value="">Select relationship</option>
-            <option>Head</option>
-            <option>Spouse</option>
-            <option>Child</option>
-            <option>Partner</option>
-            <option>Other Relative</option>
-            <option>Nonrelative</option>
-          </select>
-        </label>
+      {members.map((member, index) => (
+        <fieldset key={member.id} className="border border-gray-300 rounded p-4 mb-4 space-y-4">
+          <legend className="text-sm font-semibold text-gray-600 px-2">
+            Household Member {index + 1}
+          </legend>
 
-        <label className="flex flex-col">
-          Relationship to Head of Nuclear Family
-          <select
-            value={form.nuclearRelation}
-            onChange={handleChange('nuclearRelation')}
-            className="border p-2 rounded w-full"
-            required
-          >
-            <option value="">Select nuclear relationship</option>
-            <option>Head</option>
-            <option>Spouse</option>
-            <option>Child</option>
-          </select>
-        </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Text Inputs */}
+            {[
+              { id: 'lastName', label: 'Last Name' },
+              { id: 'firstName', label: 'First Name' },
+              { id: 'middleName', label: 'Middle Name' },
+              { id: 'suffix', label: 'Suffix' },
+              { id: 'birthdate', label: 'Birthdate', type: 'date' },
+              { id: 'age', label: 'Age', type: 'number' },
+              { id: 'ethnicity', label: 'Ethnicity' },
+              { id: 'religion', label: 'Religion' },
+              { id: 'philsysNumber', label: 'PhilSys Card Number (PCN)' },
+              { id: 'lguIdNumber', label: 'LGU ID Number' },
+              { id: 'nuclearBelonging', label: 'In whitch Nuclear Family Belong?' },
+            ].map(({ id, label, type = 'text' }) => (
+              <label key={id} className="flex flex-col">
+                {label}
+                <input
+                  type={type}
+                  value={member[id]}
+                  onChange={handleMemberChange(index, id)}
+                  className="border p-2 rounded w-full"
+                  required={!['middleName', 'suffix', 'philsysNumber', 'lguIdNumber'].includes(id)}
+                />
+              </label>
+            ))}
 
-        <label className="flex flex-col">
-          Birthdate
-          <input
-            type="date"
-            value={form.birthdate}
-            onChange={handleChange('birthdate')}
-            className="border p-2 rounded w-full"
-            required
-          />
-        </label>
+            {/* Select Dropdowns */}
+            {[
+              'relationshipToHead',
+              'nuclearRelation',
+              'sex',
+              'birthRegistered',
+              'maritalStatus',
+              'hasNationalID',
+              'hasBiometric',
+              'hasLGUID',
+            ].map((id) => (
+              <label key={id} className="flex flex-col">
+                {id.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
+                <select
+                  value={member[id] || ''}
+                  onChange={handleMemberChange(index, id)}
+                  className="border p-2 rounded w-full"
+                  required
+                >
+                  {selectFields[id].map((opt, i) => (
+                    <option key={i} value={opt}>
+                      {opt || 'Select answer'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
 
-        <label className="flex flex-col">
-          Sex
-          <select
-            value={form.sex}
-            onChange={handleChange('sex')}
-            className="border p-2 rounded w-full"
-            required
-          >
-            <option value="">Select sex</option>
-            <option>Male</option>
-            <option>Female</option>
-          </select>
-        </label>
+            {/* 10+ years */}
+            <p className="sm:col-span-2 font-semibold pt-2">For 10 years old and over</p>
+            {['soloParent', 'soloParentId'].map((id) => (
+              <label key={id} className="flex flex-col">
+                {id.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
+                <select
+                  value={member[id] || ''}
+                  onChange={handleMemberChange(index, id)}
+                  className="border p-2 rounded w-full"
+                >
+                  {selectFields[id].map((opt, i) => (
+                    <option key={i} value={opt}>
+                      {opt || 'Select answer'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
 
-        <label className="flex flex-col">
-          Age
-          <input
-            type="number"
-            value={form.age}
-            onChange={handleChange('age')}
-            className="border p-2 rounded w-full"
-            required
-          />
-        </label>
+            {/* 60+ years */}
+            <p className="sm:col-span-2 font-semibold pt-2">For 60 years old and over</p>
+            <label className="flex flex-col">
+              Senior Citizen Id
+              <select
+                value={member.seniorCitizenId || ''}
+                onChange={handleMemberChange(index, 'seniorCitizenId')}
+                className="border p-2 rounded w-full"
+              >
+                {selectFields.seniorCitizenId.map((opt, i) => (
+                  <option key={i} value={opt}>
+                    {opt || 'Select answer'}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <label className="flex flex-col">
-          Nuclear Family Belonging
-          <input
-            type="text"
-            placeholder="e.g., Nuclear A, B"
-            value={form.nuclearBelonging}
-            onChange={handleChange('nuclearBelonging')}
-            className="border p-2 rounded w-full"
-          />
-        </label>
-      </div>
+            {/* Disability (5+ years) */}
+            <p className="sm:col-span-2 font-semibold pt-2">For all persons 5 years old and over</p>
+            {difficultyOptions.map((q, dIdx) => (
+              <label key={dIdx} className="flex flex-col">
+                {q}
+                <select
+                  className="border p-2 rounded w-full"
+                  value={member.difficulties[q] || ''}
+                  onChange={handleDifficultyChange(index, q)}
+                >
+                  <option value="">Select difficulty level</option>
+                  <option value="1">1 - No difficulty</option>
+                  <option value="2">2 - Some difficulty</option>
+                  <option value="3">3 - A lot of difficulty</option>
+                  <option value="4">4 - Cannot do at all</option>
+                </select>
+              </label>
+            ))}
+          </div>
 
-      <h2 className="text-lg font-semibold text-green-600 pt-4">Legal & Cultural</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <label className="flex flex-col">
-          Birth Registered?
-          <select
-            value={form.birthRegistered}
-            onChange={handleChange('birthRegistered')}
-            className="border p-2 rounded w-full"
-            required
-          >
-            <option value="">Select answer</option>
-            <option>Yes</option>
-            <option>No</option>
-            <option>Don't Know</option>
-          </select>
-        </label>
+          {/* Remove button (if more than one member) */}
+          {members.length > 1 && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => removeMember(index)}
+                className="text-red-600 text-sm hover:underline"
+              >
+                Remove Member
+              </button>
+            </div>
+          )}
+        </fieldset>
+      ))}
 
-        <label className="flex flex-col">
-          Marital Status
-          <select
-            value={form.maritalStatus}
-            onChange={handleChange('maritalStatus')}
-            className="border p-2 rounded w-full"
-            required
-          >
-            <option value="">Select status</option>
-            <option>Single</option>
-            <option>Married</option>
-            <option>Common Law/Live-in</option>
-            <option>Widowed</option>
-            <option>Separated</option>
-            <option>Divorced</option>
-            <option>Annulled</option>
-            <option>Not Open to Share</option>
-          </select>
-        </label>
+      {/* Add another member button */}
+      <button
+        type="button"
+        onClick={addMember}
+        className="text-green-600 font-medium hover:underline"
+      >
+        + Add another member
+      </button>
 
-        <label className="flex flex-col">
-          Ethnicity
-          <input
-            type="text"
-            value={form.ethnicity}
-            onChange={handleChange('ethnicity')}
-            className="border p-2 rounded w-full"
-          />
-        </label>
-
-        <label className="flex flex-col">
-          Religion
-          <input
-            type="text"
-            value={form.religion}
-            onChange={handleChange('religion')}
-            className="border p-2 rounded w-full"
-          />
-        </label>
-      </div>
-
-      <h2 className="text-lg font-semibold text-green-600 pt-4">Identification</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {['hasNationalID', 'hasBiometric', 'hasLGUID'].map((id) => (
-          <label key={id} className="flex flex-col">
-            {id === 'hasNationalID'
-              ? 'Has National ID?'
-              : id === 'hasBiometric'
-              ? 'Has Biometric Validation?'
-              : 'Has Municipal LGU ID?'}
-            <select
-              value={form[id]}
-              onChange={handleChange(id)}
-              className="border p-2 rounded w-full"
-              required
-            >
-              <option value="">Select answer</option>
-              <option>Yes</option>
-              <option>No</option>
-              <option>Don't Know</option>
-            </select>
-          </label>
-        ))}
-
-        <label className="flex flex-col">
-          PhilSys Card Number (PCN)
-          <input
-            type="text"
-            value={form.philsysNumber}
-            onChange={handleChange('philsysNumber')}
-            className="border p-2 rounded w-full"
-          />
-        </label>
-
-        <label className="flex flex-col">
-          LGU ID Number
-          <input
-            type="text"
-            value={form.lguIdNumber}
-            onChange={handleChange('lguIdNumber')}
-            className="border p-2 rounded w-full"
-          />
-        </label>
-      </div>
-
-      <h2 className="text-lg font-semibold text-green-600 pt-4">For 10+ Years Old</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <label className="flex flex-col">
-          Solo Parent?
-          <select
-            value={form.soloParent}
-            onChange={handleChange('soloParent')}
-            className="border p-2 rounded w-full"
-          >
-            <option value="">Select answer</option>
-            <option>Yes</option>
-            <option>No</option>
-          </select>
-        </label>
-
-        <label className="flex flex-col">
-          Has Solo Parent ID?
-          <select
-            value={form.soloParentId}
-            onChange={handleChange('soloParentId')}
-            className="border p-2 rounded w-full"
-          >
-            <option value="">Select answer</option>
-            <option>Yes</option>
-            <option>No</option>
-            <option>Don't Know</option>
-          </select>
-        </label>
-      </div>
-
-      <h2 className="text-lg font-semibold text-green-600 pt-4">For 60+ Years Old</h2>
-      <label className="flex flex-col sm:w-1/2">
-        Has Senior Citizen ID?
-        <select
-          value={form.seniorCitizenId}
-          onChange={handleChange('seniorCitizenId')}
-          className="border p-2 rounded w-full"
+      {/* Submit button */}
+      <div className="pt-6 flex justify-end">
+        <button
+          type="submit"
+          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
         >
-          <option value="">Select answer</option>
-          <option>Yes</option>
-          <option>No</option>
-          <option>Don't Know</option>
-        </select>
-      </label>
-
-      <h2 className="text-lg font-semibold text-green-600 pt-4">For 5+ Years Old — Difficulties</h2>
-      <div className="space-y-2">
-        {difficultyOptions.map((q, idx) => (
-          <label key={idx} className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <span className="w-full sm:w-1/2">{q}</span>
-            <select
-              className="border p-2 rounded w-full sm:w-1/2"
-              value={form.difficulties[q] || ''}
-              onChange={handleDifficultyChange(q)}
-            >
-              <option value="">Select difficulty level</option>
-              <option value="1">1 - No difficulty</option>
-              <option value="2">2 - Some difficulty</option>
-              <option value="3">3 - A lot of difficulty</option>
-              <option value="4">4 - Cannot do at all</option>
-            </select>
-          </label>
-        ))}
-      </div>
-
-      <div className="pt-6">
-        <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
           Save & Continue &gt;
         </button>
       </div>

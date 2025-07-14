@@ -20,7 +20,7 @@ export default function DashboardLayout({ children }) {
       </div>
 
       {/* Content area (with margin left for sidebar) */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-67' : 'ml-0'}`}>
+      <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-66' : 'ml-0'}`}>
         {/* Topbar */}
         <Topbar toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
      

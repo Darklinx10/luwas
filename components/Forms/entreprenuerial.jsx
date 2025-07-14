@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { db } from '@/firebase/config';
 import { doc, setDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
+import { v4 as uuidv4 } from 'uuid'; // ✅ Import UUID
 
 export default function Entrepreneurship({ householdId, goToNext }) {
   const [form, setForm] = useState({
@@ -11,16 +12,23 @@ export default function Entrepreneurship({ householdId, goToNext }) {
     sustenanceActivities: '',
     entrepreneurialActivities: '',
     specificPSIC: '',
-    psicCode: '',
-    useEcommerce: '',
-    useSocialMedia: '',
-    startYear: '',
-    monthsOperated: [],
-    workingOwners: '',
-    unpaidWorkers: '',
-    paidEmployees: '',
-    registrationAgency: '', // ✅ unified to match form element
+    specificPSICs: [
+      {
+        id: uuidv4(),
+        value: '',
+        psicCode: '',
+        useEcommerce: '',
+        useSocialMedia: '',
+        startYear: '',
+        monthsOperated: [],
+        workingOwners: '',
+        unpaidWorkers: '',
+        paidEmployees: '',
+        registrationAgency: '',
+      },
+    ],
   });
+
 
   const years = Array.from({ length: new Date().getFullYear() - 1999 }, (_, i) => 2000 + i);
 
@@ -68,23 +76,56 @@ export default function Entrepreneurship({ householdId, goToNext }) {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    if (type === 'checkbox') {
-      if (name === 'monthsOperated') {
-        let newMonths = [...form.monthsOperated];
-        if (value === 'All Months') {
-          newMonths = checked ? [...months] : [];
-        } else {
-          newMonths = checked
-            ? [...newMonths, value]
-            : newMonths.filter((m) => m !== value && m !== 'All Months');
-        }
-        setForm({ ...form, monthsOperated: newMonths });
+    if (type === 'checkbox' && name === 'monthsOperated') {
+      let newMonths = [...form.monthsOperated];
+      if (value === 'All Months') {
+        newMonths = checked ? [...months] : [];
+      } else {
+        newMonths = checked
+          ? [...newMonths, value]
+          : newMonths.filter((m) => m !== value && m !== 'All Months');
       }
+      setForm({ ...form, monthsOperated: newMonths });
     } else {
       setForm({ ...form, [name]: value });
     }
   };
 
+  const handleSpecificPSICChange = (index, field, value) => {
+    const updated = [...form.specificPSICs];
+    updated[index][field] = value;
+    setForm({ ...form, specificPSICs: updated });
+  };
+
+
+  const addPSIC = () => {
+    setForm({
+      ...form,
+      specificPSICs: [
+        ...form.specificPSICs,
+        {
+          id: uuidv4(),
+          value: '',
+          psicCode: '',
+          useEcommerce: '',
+          useSocialMedia: '',
+          startYear: '',
+          monthsOperated: [],
+          workingOwners: '',
+          unpaidWorkers: '',
+          paidEmployees: '',
+          registrationAgency: '',
+        },
+      ],
+    });
+  };
+
+  const removePSIC = (index) => {
+    const updated = form.specificPSICs.filter((_, i) => i !== index);
+    setForm({ ...form, specificPSICs: updated });
+  };
+
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -101,12 +142,29 @@ export default function Entrepreneurship({ householdId, goToNext }) {
     }
   };
 
+  const handleMonthChange = (index, month, checked) => {
+    const updated = [...form.specificPSICs];
+    let months = [...updated[index].monthsOperated];
+
+    if (month === 'All Months') {
+      months = checked ? [...months.filter((m) => months.includes(m)), ...months] : [];
+    } else {
+      months = checked
+        ? [...new Set([...months, month])]
+        : months.filter((m) => m !== month && m !== 'All Months');
+    }
+
+    updated[index].monthsOperated = months;
+    setForm({ ...form, specificPSICs: updated });
+  };
+
+
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-4 space-y-6">
+      {/* Home Consumption */}
       <div>
         <label htmlFor="homeConsumption" className="block mb-1">
-          In the past 12 months (July 01, 2021 - June 30, 2022), did you or any
-          member of your household produce goods mainly for home consumption?
+          Did you or any household member produce goods mainly for home consumption (July 2021–June 2022)?
         </label>
         <select
           id="homeConsumption"
@@ -122,30 +180,16 @@ export default function Entrepreneurship({ householdId, goToNext }) {
         </select>
       </div>
 
+      {/* Sustenance Activities */}
       <div>
         <label htmlFor="sustenanceActivities" className="block mb-1">
           What is/are the sustenance activity/ies conducted by your household?
         </label>
-        <textarea
+        <select
           id="sustenanceActivities"
           name="sustenanceActivities"
           value={form.sustenanceActivities}
           onChange={handleChange}
-          rows={3}
-          className="border p-2 rounded w-full"
-        />
-      </div>
-
-      <div>
-        <label htmlFor="entrepreneurialActivities" className="block mb-1">
-          In the past 12 months (...), did you or any member ...?
-        </label>
-        <select
-          id="entrepreneurialActivities"
-          name="entrepreneurialActivities"
-          value={form.entrepreneurialActivities}
-          onChange={handleChange}
-          required
           className="border p-2 rounded w-full"
         >
           <option value="">-- Select --</option>
@@ -157,15 +201,17 @@ export default function Entrepreneurship({ householdId, goToNext }) {
         </select>
       </div>
 
+      {/* Entrepreneurial Activity Type */}
       <div>
-        <label htmlFor="specificPSIC" className="block mb-1">
-          What is/are the specific entrepreneurial activity/ies of the household?
+        <label htmlFor="entrepreneurialActivities" className="block mb-1">
+          Did you or any household member engage in any of the following entrepreneurial activities?
         </label>
         <select
-          id="specificPSIC"
-          name="specificPSIC"
-          value={form.specificPSIC}
+          id="entrepreneurialActivities"
+          name="entrepreneurialActivities"
+          value={form.entrepreneurialActivities}
           onChange={handleChange}
+          required
           className="border p-2 rounded w-full"
         >
           <option value="">-- Select --</option>
@@ -177,158 +223,156 @@ export default function Entrepreneurship({ householdId, goToNext }) {
         </select>
       </div>
 
-      <div>
-        <label htmlFor="psicCode" className="block mb-1">Enter PSIC Code</label>
-        <input
-          id="psicCode"
-          name="psicCode"
-          value={form.psicCode}
-          onChange={handleChange}
-          className="border p-2 rounded w-full"
-        />
-      </div>
+      {/* Specific PSIC Activities */}
+      {form.specificPSICs.map((item, index) => (
+        <div key={item.id} className="border p-4 rounded mb-4">
+          {/* Activity Dropdown */}
+          <label className="block mb-1">What are the specific entrepreneurial activities?</label>
+          <select
+            value={item.value}
+            onChange={(e) => handleSpecificPSICChange(index, 'value', e.target.value)}
+            className="border p-2 rounded w-full"
+          >
+            <option value="">-- Select --</option>
+            {psihCodes.map(({ label, code }) => (
+              <option key={code} value={code}>
+                {label}
+              </option>
+            ))}
+          </select>
 
-      <div>
-        <label htmlFor="useEcommerce" className="block mb-1">Does the entrepreneurial activity/ies use e-commerce?</label>
-        <select
-          id="useEcommerce"
-          name="useEcommerce"
-          value={form.useEcommerce}
-          onChange={handleChange}
-          required
-          className="border p-2 rounded w-full"
-        >
-          <option value="">-- Select --</option>
-          <option value="yes">YES</option>
-          <option value="no">NO</option>
-        </select>
-      </div>
+          {/* PSIC Code */}
+          <label className="block mt-4 mb-1">Enter PSIC Code</label>
+          <input
+            value={item.psicCode}
+            onChange={(e) => handleSpecificPSICChange(index, 'psicCode', e.target.value)}
+            className="border p-2 rounded w-full"
+          />
 
-      <div>
-        <label htmlFor="useSocialMedia" className="block mb-1">Does the activity use social media?</label>
-        <select
-          id="useSocialMedia"
-          name="useSocialMedia"
-          value={form.useSocialMedia}
-          onChange={handleChange}
-          required
-          className="border p-2 rounded w-full"
-        >
-          <option value="">-- Select --</option>
-          <option value="yes">YES</option>
-          <option value="no">NO</option>
-        </select>
-      </div>
+          {/* E-commerce */}
+          <label className="block mt-4 mb-1">Does the activity use e-commerce?</label>
+          <select
+            value={item.useEcommerce}
+            onChange={(e) => handleSpecificPSICChange(index, 'useEcommerce', e.target.value)}
+            className="border p-2 rounded w-full"
+          >
+            <option value="">-- Select --</option>
+            <option value="yes">YES</option>
+            <option value="no">NO</option>
+          </select>
 
-      <div>
-        <label htmlFor="startYear" className="block mb-1">What year did it start?</label>
-        <select
-          id="startYear"
-          name="startYear"
-          value={form.startYear}
-          onChange={handleChange}
-          className="border p-2 rounded w-full"
-        >
-          <option value="">-- Select Year --</option>
-          {years.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </select>
-      </div>
+          {/* Social Media */}
+          <label className="block mt-4 mb-1">Does the activity use social media?</label>
+          <select
+            value={item.useSocialMedia}
+            onChange={(e) => handleSpecificPSICChange(index, 'useSocialMedia', e.target.value)}
+            className="border p-2 rounded w-full"
+          >
+            <option value="">-- Select --</option>
+            <option value="yes">YES</option>
+            <option value="no">NO</option>
+          </select>
 
-      <div>
-        <label className="block mb-1">Which months was the activity operated?</label>
-        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-auto border p-2 rounded">
-          {months.map((month, i) => (
-            <div key={month}>
-              <input
-                id={`month-${i}`}
-                type="checkbox"
-                name="monthsOperated"
-                value={month}
-                checked={form.monthsOperated.includes(month)}
-                onChange={handleChange}
-                className="mr-2"
-              />
-              <label htmlFor={`month-${i}`}>{month}</label>
-            </div>
-          ))}
+          {/* Start Year */}
+          <label className="block mt-4 mb-1">What year did it start?</label>
+          <select
+            value={item.startYear}
+            onChange={(e) => handleSpecificPSICChange(index, 'startYear', e.target.value)}
+            className="border p-2 rounded w-full"
+          >
+            <option value="">-- Select Year --</option>
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+
+          {/* Months Operated */}
+          <label className="block mt-4 mb-1">Which months was the activity operated?</label>
+          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-auto border p-2 rounded">
+            {months.map((month, i) => (
+              <div key={month}>
+                <input
+                  type="checkbox"
+                  id={`month-${index}-${i}`}
+                  checked={item.monthsOperated.includes(month)}
+                  onChange={(e) =>
+                    handleMonthChange(index, month, e.target.checked)
+                  }
+                  className="mr-2"
+                />
+                <label htmlFor={`month-${index}-${i}`}>{month}</label>
+              </div>
+            ))}
+          </div>
+
+          {/* Workers Count */}
+          <label className="block mt-4 mb-2">Average persons working per month?</label>
+          <div className="grid grid-cols-3 gap-4">
+            {['workingOwners', 'unpaidWorkers', 'paidEmployees'].map((field) => (
+              <div key={field}>
+                <label className="block mb-1 capitalize">{field.replace(/([A-Z])/g, ' $1')}</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={item[field]}
+                  onChange={(e) => handleSpecificPSICChange(index, field, e.target.value)}
+                  className="border p-2 rounded w-full"
+                  placeholder="Number"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Registration Agency */}
+          <label className="block mt-4 mb-1">In which agency is it registered?</label>
+          <select
+            value={item.registrationAgency}
+            onChange={(e) => handleSpecificPSICChange(index, 'registrationAgency', e.target.value)}
+            className="border p-2 rounded w-full"
+          >
+            <option value="">-- Select an agency --</option>
+            {registrationOptions.map(({ label, code }) => (
+              <option key={code} value={code}>
+                {label}
+              </option>
+            ))}
+          </select>
+
+          {/* Remove Button */}
+          {form.specificPSICs.length > 1 && (
+            <button
+              type="button"
+              onClick={() => removePSIC(index)}
+              className="text-red-500 hover:underline mt-2 block"
+            >
+              Remove
+            </button>
+          )}
         </div>
-      </div>
+      ))}
 
-      <div>
-        <label className="block mb-2">Average persons working per month?</label>
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="workingOwners" className="block mb-1">Working Owners</label>
-            <input
-              id="workingOwners"
-              type="number"
-              min="0"
-              name="workingOwners"
-              value={form.workingOwners}
-              onChange={handleChange}
-              className="border p-2 rounded w-full"
-              placeholder="Number"
-            />
-          </div>
-          <div>
-            <label htmlFor="unpaidWorkers" className="block mb-1">Unpaid Workers</label>
-            <input
-              id="unpaidWorkers"
-              type="number"
-              min="0"
-              name="unpaidWorkers"
-              value={form.unpaidWorkers}
-              onChange={handleChange}
-              className="border p-2 rounded w-full"
-              placeholder="Number"
-            />
-          </div>
-          <div>
-            <label htmlFor="paidEmployees" className="block mb-1">Paid Employees</label>
-            <input
-              id="paidEmployees"
-              type="number"
-              min="0"
-              name="paidEmployees"
-              value={form.paidEmployees}
-              onChange={handleChange}
-              className="border p-2 rounded w-full"
-              placeholder="Number"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor="registrationAgency" className="block mb-1">
-          In which agency is it registered?
-        </label>
-        <select
-          id="registrationAgency"
-          name="registrationAgency"
-          value={form.registrationAgency || ""}
-          onChange={handleChange}
-          className="border p-2 rounded w-full"
+      {/* Add Another Activity Button */}
+      <div className="w-full">
+        <button
+          type="button"
+          onClick={addPSIC}
+          className="text-blue-600 hover:underline mt-4 block w-full text-left"
         >
-          <option value="">-- Select an agency --</option>
-          {registrationOptions.map(({ label, code }) => (
-            <option key={code} value={code}>
-              {label}
-            </option>
-          ))}
-        </select>
+          + Add another activity
+        </button>
       </div>
 
-      <button
-        type="submit"
-        className="mt-4 bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800"
-      >
-        Save & Continue &gt;
-      </button>
+      {/* Submit Button */}
+      <div className="pt-6 flex justify-end">
+        <button
+          type="submit"
+          className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto"
+        >
+          Save & Continue &gt;
+        </button>
+      </div>
     </form>
   );
 }

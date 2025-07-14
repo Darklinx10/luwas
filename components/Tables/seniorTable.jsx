@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collectionGroup, getDocs, collection } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 
 export default function SeniorPage() {
@@ -11,52 +11,45 @@ export default function SeniorPage() {
   useEffect(() => {
     const fetchSeniors = async () => {
       try {
-        const demoSnap = await getDocs(collectionGroup(db, 'demographicCharacteristics'));
-        const result = [];
+        const householdsSnap = await getDocs(collection(db, 'households'));
+        const allData = [];
 
-        for (const docSnap of demoSnap.docs) {
-          const data = docSnap.data();
-          const age = parseInt(data.age);
+        for (const docSnap of householdsSnap.docs) {
+          const householdId = docSnap.id;
 
-          if (!isNaN(age) && age >= 60) {
-            const pathParts = docSnap.ref.path.split('/');
-            const householdId = pathParts[1];
+          const demoSnap = await getDocs(collection(db, 'households', householdId, 'demographicCharacteristics'));
+          const geoSnap = await getDocs(collection(db, 'households', householdId, 'geographicIdentification'));
 
-            let barangay = '—';
-            let contact = data.contactNumber || '—';
+          let barangay = '—';
+          geoSnap.forEach((geoDoc) => {
+            const geo = geoDoc.data();
+            barangay = geo.barangay || barangay;
+          });
 
-            const geoSnap = await getDocs(
-              collection(db, 'households', householdId, 'geographicIdentification')
-            );
-            geoSnap.forEach((geo) => {
-              const geoData = geo.data();
-              barangay = geoData.barangay || barangay;
-            });
+          demoSnap.forEach((demoDoc) => {
+            const demo = demoDoc.data();
+            const age = parseInt(demo.age);
 
-            const fullName = [
-              data.firstName || '',
-              data.middleName || '',
-              data.lastName || '',
-              data.suffix !== 'n/a' ? data.suffix : ''
-            ]
-              .filter(Boolean)
-              .join(' ')
-              .trim();
+            if (!isNaN(age) && age >= 60) {
+              const fullName = `${demo.firstName || ''} ${demo.middleName || ''} ${demo.lastName || ''} ${
+                demo.suffix && demo.suffix !== 'n/a' ? demo.suffix : ''
+              }`.trim();
 
-            result.push({
-              id: docSnap.id,
-              name: fullName,
-              sex: data.sex || '—',
-              age,
-              barangay,
-              contact,
-            });
-          }
+              allData.push({
+                id: demoDoc.id,
+                name: fullName,
+                age: age || '—',
+                sex: demo.sex || '—',
+                barangay,
+                contact: demo.contactNumber || '—',
+              });
+            }
+          });
         }
 
-        setSeniors(result);
+        setSeniors(allData);
       } catch (error) {
-        console.error('Error fetching senior citizens:', error);
+        console.error('Error fetching senior citizen data:', error);
       }
     };
 
@@ -91,14 +84,13 @@ export default function SeniorPage() {
 
   return (
     <div className="p-4">
-      <div className="text-sm text-right text-gray-500 mb-2">
-        Home / Reports / Senior Citizens
-      </div>
+      <div className="text-sm text-right text-gray-500 mb-2">Home / Reports / Senior Citizens</div>
 
       <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg">
-        List of Senior Citizens (2025)
+        Senior Citizens Information (2025)
       </div>
 
+      {/* Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2 bg-white border border-t-0 px-4 py-3">
         <input
           type="text"
@@ -124,32 +116,33 @@ export default function SeniorPage() {
         </div>
       </div>
 
-      <div className="bg-white p-4 border border-t-0 rounded-b-md overflow-x-auto">
+      {/* Table */}
+      <div className="overflow-x-auto border border-t-0 rounded-b-md bg-white p-4">
         {filteredData.length > 0 ? (
-          <table className="w-full border-collapse border border-gray-400 text-sm text-center">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border p-2">👤</th>
-                <th className="border p-2">Name</th>
-                <th className="border p-2">Barangay</th>
-                <th className="border p-2">Sex</th>
-                <th className="border p-2">Age</th>
+          <table className="w-full text-sm text-center print:text-xs print:w-full">
+            <thead className="bg-gray-100 text-gray-600">
+              <tr>
+                <th className="px-4 py-2 border">Name</th>
+                <th className="px-4 py-2 border">Sex</th>
+                <th className="px-4 py-2 border">Age</th>
+                <th className="px-4 py-2 border">Barangay</th>
+                <th className="px-4 py-2 border">Contact</th>
               </tr>
             </thead>
             <tbody>
-              {filteredData.map((item, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="border p-2">👤</td>
-                  <td className="border p-2">{item.name}</td>
-                  <td className="border p-2">{item.barangay}</td>
-                  <td className="border p-2">{item.sex}</td>
-                  <td className="border p-2">{item.age}</td>
+              {filteredData.map((item, i) => (
+                <tr key={i} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 border">{item.name}</td>
+                  <td className="px-4 py-2 border">{item.sex}</td>
+                  <td className="px-4 py-2 border">{item.age}</td>
+                  <td className="px-4 py-2 border">{item.barangay}</td>
+                  <td className="px-4 py-2 border">{item.contact}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p className="text-center text-gray-500 py-6">No matching records found.</p>
+          <p className="text-center text-gray-500 py-6">No senior citizen records found.</p>
         )}
       </div>
     </div>

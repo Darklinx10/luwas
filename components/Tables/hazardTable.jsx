@@ -7,14 +7,14 @@ export default function HazardTable({ data, title }) {
       <div className="text-sm text-right text-gray-500 mb-2">
         Home / Reports / Hazards
       </div>
-
+      
       {/* ✅ Table */}
-      <table className="w-full border-collapse border border-gray-400 text-sm">
+      <table className="w-full border-collapse  border-gray-400 text-sm ">
         <thead>
           <tr>
             <th
               colSpan="4"
-              className="text-lg font-semibold text-white bg-green-600 p-3 text-left"
+              className="text-lg font-semibold text-white bg-green-600 p-3 text-left rounded-t-md" 
             >
               {title}
             </th>
@@ -43,7 +43,7 @@ export default function HazardTable({ data, title }) {
           ) : (
             <tr>
               <td colSpan="4" className="text-center text-gray-500 p-4">
-                No hazard records found.
+                Loading...
               </td>
             </tr>
           )}

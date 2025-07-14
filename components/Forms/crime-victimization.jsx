@@ -209,7 +209,7 @@ export default function CrimeVictimizationForm({ householdId, goToNext }) {
         </>
       )}
 
-      <div className="pt-6">
+      <div className="pt-6 flex justify-end">
         <button
           onClick={handleSubmit}
           className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"

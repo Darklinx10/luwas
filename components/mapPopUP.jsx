@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useState } from 'react';
 import {
   MapContainer,
@@ -8,13 +6,13 @@ import {
   Popup,
   useMapEvents,
   LayersControl,
+  GeoJSON,
 } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const { BaseLayer } = LayersControl;
 
-// Fix Leaflet's default icon paths
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon-2x.png',
@@ -39,10 +37,11 @@ export default function MapPopup({
   onSave,
   location = null,
   readOnly = false,
-  mode = 'household', // ✨ NEW: mode = 'household' | 'accident'
+  mode = 'household',
 }) {
-  const defaultLocation = { lat: 9.9611, lng: 124.0247 }; // Clarin, Bohol
+  const defaultLocation = { lat: 9.9611, lng: 124.0247 };
   const [position, setPosition] = useState(location || defaultLocation);
+  const [hazardGeoJSON, setHazardGeoJSON] = useState(null); // ✅ State to hold loaded GeoJSON
 
   useEffect(() => {
     if (location) {
@@ -50,9 +49,16 @@ export default function MapPopup({
     }
   }, [location]);
 
+  // ✅ Fetch hazard route from public folder
+  useEffect(() => {
+    fetch('/data/map.geojson')
+      .then((res) => res.json())
+      .then((data) => setHazardGeoJSON(data))
+      .catch((err) => console.error('Error loading GeoJSON:', err));
+  }, []);
+
   if (!isOpen) return null;
 
-  // ✨ Dynamic Labels
   const label = mode === 'accident' ? 'Accident Location' : 'Household Location';
   const title = readOnly ? label : `Set ${label}`;
 
@@ -67,17 +73,28 @@ export default function MapPopup({
               <BaseLayer checked name="OpenStreetMap">
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+                  attribution='&copy; OpenStreetMap contributors'
                 />
               </BaseLayer>
-
               <BaseLayer name="Satellite (Esri)">
                 <TileLayer
                   url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                  attribution='&copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+                  attribution="Tiles &copy; Esri"
                 />
               </BaseLayer>
             </LayersControl>
+
+            {/* ✅ Hazard GeoJSON Layer */}
+            {hazardGeoJSON && (
+              <GeoJSON data={hazardGeoJSON} 
+                style={{
+                  color: 'black',        // black line
+                  weight: 1,             // line thickness
+                  fillOpacity: 0,        // transparent fill
+                  
+                }}
+             />
+            )}
 
             <Marker position={position}>
               {readOnly && <Popup>{label}</Popup>}

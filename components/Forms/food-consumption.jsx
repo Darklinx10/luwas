@@ -88,10 +88,11 @@ export default function FoodConsumption({ householdId, goToNext }) {
         />
       </div>
 
-      <div className="pt-4">
+      {/* Submit Button */}
+      <div className="pt-6 flex justify-end">
         <button
           type="submit"
-          className="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800"
+          className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto"
         >
           Save & Continue &gt;
         </button>

@@ -441,7 +441,7 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
       </div>
 
 
-      <div className="pt-6">
+      <div className="pt-6 flex justify-end">
         <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
           Save & Continue &gt;
         </button>

@@ -24,7 +24,8 @@ const formSections = [
 
 export default function FormSectionSidebar({ current, setSection }) {
   return (
-    <aside className="w-64 bg-white p-4 shadow-md text-sm border-r border-t border-gray-200 ">
+    <aside className="w-48 sm:w-56 md:w-64 lg:w-72 h-screen overflow-y-auto bg-white p-4 shadow-md text-sm border-r border-t border-gray-200">
+
       <h2 className="text-lg font-bold text-[#0BAD4A] mb-4">Form Sections</h2>
       <ul className="space-y-1">
         {formSections.map((section) => {

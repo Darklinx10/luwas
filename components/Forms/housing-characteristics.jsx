@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { db } from '@/firebase/config';
-import { collection, addDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 const buildingTypes = [
@@ -176,7 +176,7 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
 
 
   return (
-    <form onSubmit={handleSubmit} className="p-6 space-y-6">
+    <form onSubmit={handleSubmit} className="max-w-5xl mx-auto p-6 space-y-6">
       <h2 className="text-xl font-bold mb-4">Housing & Amenities Section</h2>
 
       <label className="block">

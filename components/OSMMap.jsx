@@ -7,19 +7,21 @@ import {
   Marker,
   Popup,
   LayersControl,
+  GeoJSON,
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import AccidentMapForm from '@/components/accidentMap';
+import AccidentMapForm from '@/components/accidentMapForm';
+import ActiveFaultLine from '@/components/hazards/activeFaultLine';
+import GroundShaking from '@/components/hazards/groundShaking';
+import StormSurge from '@/components/hazards/stormSurge'
+import ImageOverlayComponent from './hazards/stormImage';
 
-// Fix Leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x.src,
@@ -40,7 +42,7 @@ const accidentIcon = new L.Icon({
 });
 
 const { BaseLayer } = LayersControl;
-const defaultPosition = [9.9611, 124.0247];
+const defaultPosition = [9.941975, 124.033194];
 
 export default function MapPage() {
   const [activeMap, setActiveMap] = useState('Household Map');
@@ -48,9 +50,17 @@ export default function MapPage() {
   const [householdMarkers, setHouseholdMarkers] = useState([]);
   const [accidents, setAccidents] = useState([]);
   const [addingAccident, setAddingAccident] = useState(false);
+  const [clarinBoundary, setClarinBoundary] = useState(null);
 
   const isHouseholdMap = activeMap === 'Household Map';
   const isAccidentMap = activeMap === 'Accident Map';
+
+  useEffect(() => {
+    fetch('/data/map.geojson')
+      .then((res) => res.json())
+      .then((data) => setClarinBoundary(data))
+      .catch((err) => console.error('Failed to load GeoJSON:', err));
+  }, []);
 
   useEffect(() => {
     const fetchHouseholds = async () => {
@@ -122,7 +132,7 @@ export default function MapPage() {
 
       <MapContainer
         center={defaultPosition}
-        zoom={16}
+        zoom={13}
         scrollWheelZoom
         style={{ height: '700px', width: '100%' }}
       >
@@ -136,10 +146,22 @@ export default function MapPage() {
           <BaseLayer name="Satellite (Esri)">
             <TileLayer
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              attribution="Tiles &copy; Esri, Maxar, Earthstar Geographics"
+              attribution="© Esri, Maxar, Earthstar Geographics"
             />
           </BaseLayer>
         </LayersControl>
+
+        {clarinBoundary && (
+          <GeoJSON
+            data={clarinBoundary}
+            style={{
+              color: 'black',
+              weight: 0.5,
+              fillOpacity: 0.5,
+              
+            }}
+          />
+        )}
 
         {/* Hazards Dropdown */}
         {isHouseholdMap && (
@@ -152,9 +174,14 @@ export default function MapPage() {
                 onChange={(e) => setActiveHazard(e.target.value)}
               >
                 <option value="">None</option>
+                <option value="Active Faults">Active Faults</option>
+                <option value="Liquefaction">Liquefaction</option>
+                <option value="Rain Induced Landslide">Rain Induced Landslide</option>
+                <option value="Earthquake Induced Landslide">Earthquake Induced Landslide</option>
+                <option value="Ground Shaking">Ground Shaking</option>
+                <option value="Storm Surge">Storm Surge</option>
                 <option value="Earthquake">Earthquake</option>
                 <option value="Landslide">Landslide</option>
-                <option value="Ground Shaking">Ground Shaking</option>
                 <option value="Tsunami">Tsunami</option>
               </select>
             </div>
@@ -222,26 +249,24 @@ export default function MapPage() {
           ))}
 
         {/* Hazard Markers */}
-        {isHouseholdMap && activeHazard === 'Earthquake' && (
-          <Marker position={[9.9615, 124.025]}>
-            <Popup>🌋 Earthquake Zone</Popup>
-          </Marker>
-        )}
+        
+        {isHouseholdMap && activeHazard === 'Active Faults' && <ActiveFaultLine />}
+
+
         {isHouseholdMap && activeHazard === 'Landslide' && (
           <Marker position={[9.9605, 124.026]}>
             <Popup>⛰️ Landslide Risk Area</Popup>
           </Marker>
         )}
-        {isHouseholdMap && activeHazard === 'Ground Shaking' && (
-          <Marker position={[9.9595, 124.027]}>
-            <Popup>💥 Ground Shaking Zone</Popup>
-          </Marker>
-        )}
-        {isHouseholdMap && activeHazard === 'Tsunami' && (
-          <Marker position={[9.9625, 124.023]}>
-            <Popup>🌊 Tsunami Alert Zone</Popup>
-          </Marker>
-        )}
+        {isHouseholdMap && activeHazard === 'Ground Shaking' && <GroundShaking/>}
+
+        {isHouseholdMap && activeHazard === 'Storm Surge' && (
+          <>
+            <StormSurge/>
+            <ImageOverlayComponent/>
+          </>
+        
+       )}
       </MapContainer>
     </div>
   );

@@ -13,7 +13,7 @@ import {
 
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
-import { collection, collectionGroup, getDocs } from 'firebase/firestore';
+import { collection, collectionGroup, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 
 const BarChartComponent = dynamic(() => import('@/components/barchart'), { ssr: false });
@@ -22,6 +22,8 @@ const AgeBracketChart = dynamic(() => import('@/components/agebracket'), { ssr: 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
     residents: 0,
+    householdHeads: 0,
+    householdMembers: 0,
     households: 0,
     families: 0,
     pwd: 0,
@@ -34,61 +36,80 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Households
         const householdSnap = await getDocs(collection(db, 'households'));
         const householdCount = householdSnap.size;
 
         let residentCount = 0;
+        let householdHeads = 0;
+        let householdMembers = 0;
         let pwdCount = 0;
         let seniorCount = 0;
         let totalAge = 0;
 
-        // Loop through each household and read residents
-        for (const doc of householdSnap.docs) {
-          const householdId = doc.id;
+        for (const householdDoc  of householdSnap.docs) {
+          const householdId = householdDoc.id;
 
-          // Demographic data
-          const demoSnap = await getDocs(collection(db, 'households', householdId, 'demographicCharacteristics'));
+          // Count head
+          residentCount++;
+          householdHeads++;
+
+          const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
           const healthSnap = await getDocs(collection(db, 'households', householdId, 'health'));
-
           const healthMap = new Map(healthSnap.docs.map((h) => [h.id, h.data()]));
 
-          demoSnap.forEach((demoDoc) => {
-            const demo = demoDoc.data();
-            residentCount++;
+          // ✅ Count PWD if `isPWD === true` in health/main
+          try {
+            const mainHealthDoc = await getDoc(doc(db, 'households', householdId, 'health', 'main'));
+            if (mainHealthDoc.exists()) {
+              const mainHealth = mainHealthDoc.data();
+              if (mainHealth?.isPWD === true) {
+                pwdCount++;
+              }
+            }
+          } catch (e) {
+            console.warn(`⚠️ No main health document for household ${householdId}`);
+          }
 
-            const age = parseInt(demo.age);
+          // Count members
+          residentCount += membersSnap.size;
+          householdMembers += membersSnap.size;
+
+          // Loop through members for senior count + age
+          for (const memberDoc of membersSnap.docs) {
+            const member = memberDoc.data();
+            const age = parseInt(member.age);
             if (!isNaN(age)) {
               totalAge += age;
               if (age >= 60) seniorCount++;
             }
 
-            const health = healthMap.get(demoDoc.id);
-            if (health?.isPWD === true) pwdCount++;
-          });
+            const health = healthMap.get(memberDoc.id);
+            if (health?.isPWD === true) {
+              pwdCount++;
+            }
+          }
         }
 
-        // Optional: Hazards (only if you store them)
+        // ✅ Hazards count from any `hazards` collection
         let hazardsCount = 0;
         try {
           const hazardSnap = await getDocs(collectionGroup(db, 'hazards'));
           hazardsCount = hazardSnap.size;
         } catch (e) {
-          console.warn('No hazards collection found, skipping...');
+          console.warn('No hazards collection found.');
         }
-
-        // Simulated growth rate (static or computed)
-        const growthRate = '3.6%'; // or compute this
 
         setStats({
           residents: residentCount,
+          householdHeads,
+          householdMembers,
           households: householdCount,
-          families: householdCount, // 1 family per household
+          families: householdCount,
           pwd: pwdCount,
           seniors: seniorCount,
           totalAge,
           hazards: hazardsCount,
-          growthRate,
+          growthRate: '0%',
         });
       } catch (err) {
         console.error('Error fetching dashboard stats:', err);
@@ -97,6 +118,7 @@ export default function DashboardPage() {
 
     fetchStats();
   }, []);
+
 
   return (
     <div className="space-y-6">

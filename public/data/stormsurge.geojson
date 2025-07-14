@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"@geometry-type":"groundoverlay","icon":"/flood.png"},"geometry":{"type":"Polygon","coordinates":[[[123.96051782723252,10.007746498969967],[123.96051782723252,9.856276942863262],[124.17412873969035,9.856276942863262],[124.17412873969035,10.007746498969967],[123.96051782723252,10.007746498969967]]]}}]}
