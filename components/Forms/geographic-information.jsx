@@ -534,7 +534,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
           <button
             type="button"
             onClick={() => setMapOpen(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer"
           >
             Pick Location from Map
           </button>
@@ -543,7 +543,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
 
       {/* ✅ Submit button */}
       <div className="pt-6 flex justify-end">
-        <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+        <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer">
           Save & Continue &gt;
         </button>
       </div>

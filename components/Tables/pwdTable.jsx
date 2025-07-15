@@ -3,13 +3,16 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import {FiSearch} from 'react-icons/fi';
 
 export default function PWDPage() {
   const [pwds, setPwds] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPWDs = async () => {
+       setLoading(true);
       try {
         const householdsSnap = await getDocs(collection(db, 'households'));
         const allData = [];
@@ -59,6 +62,8 @@ export default function PWDPage() {
         setPwds(allData);
       } catch (error) {
         console.error('Error fetching PWD data:', error);
+      }finally {
+        setLoading(false); 
       }
     };
 
@@ -103,24 +108,28 @@ export default function PWDPage() {
 
       {/* Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2 bg-white border border-t-0 px-4 py-3">
-        <input
-          type="text"
-          placeholder="Search Here"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="p-2 border border-gray-300 rounded w-full max-w-xs"
-        />
+        <div className="relative w-full max-w-xs">
+          <FiSearch className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search Here"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 border border-gray-300 rounded w-full focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+        </div>
+
 
         <div className="flex gap-2">
           <button
             onClick={handlePrint}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer"
           >
             Print
           </button>
           <button
             onClick={handleDownloadCSV}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer"
           >
             Download CSV
           </button>
@@ -129,7 +138,13 @@ export default function PWDPage() {
 
       {/* Table */}
       <div className="overflow-x-auto border border-t-0 rounded-b-md bg-white p-4">
-        {filteredData.length > 0 ? (
+        {loading ? (
+          <p className="text-center text-gray-500 py-6 animate-pulse">Loading PWD records...</p>
+        ) : pwds.length === 0 ? (
+          <p className="text-center text-gray-500 py-6">No PWD records found.</p>
+        ) : filteredData.length === 0 ? (
+          <p className="text-center text-gray-500 py-6">No results matched your search.</p>
+        ) : (
           <>
             <table className="w-full text-sm text-center print:text-xs print:w-full">
               <thead className="bg-gray-100 text-gray-600">
@@ -158,13 +173,11 @@ export default function PWDPage() {
               </tbody>
             </table>
 
-            {/* ✅ PWD count below table */}
+            {/* ✅ Total PWD Count */}
             <p className="text-sm text-gray-700 mt-4">
               Total PWDs found: <span className="font-semibold">{filteredData.length}</span>
             </p>
           </>
-        ) : (
-          <p className="text-center text-gray-500 py-6">No PWD records found.</p>
         )}
       </div>
     </div>

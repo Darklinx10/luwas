@@ -44,7 +44,7 @@ export default function ReportsPage() {
           <button
             key={key}
             onClick={() => setSelectedReport(key)}
-            className={`px-4 py-2 rounded ${
+            className={`px-4 py-2 rounded cursor-pointer ${
               selectedReport === key
                 ? 'bg-green-600 text-white'
                 : 'bg-gray-200 text-gray-800 hover:bg-green-100'

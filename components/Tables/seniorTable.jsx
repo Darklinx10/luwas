@@ -1,60 +1,73 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { FiSearch,  FiEdit, FiTrash2 } from 'react-icons/fi';
+
+
 
 export default function SeniorPage() {
   const [seniors, setSeniors] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true); // 🟢 NEW
 
   useEffect(() => {
     const fetchSeniors = async () => {
+      setLoading(true);
       try {
         const householdsSnap = await getDocs(collection(db, 'households'));
         const allData = [];
 
-        for (const docSnap of householdsSnap.docs) {
-          const householdId = docSnap.id;
+        for (const householdDoc of householdsSnap.docs) {
+          const householdId = householdDoc.id;
 
-          const demoSnap = await getDocs(collection(db, 'households', householdId, 'demographicCharacteristics'));
+          // 📍 Get barangay from geo data
           const geoSnap = await getDocs(collection(db, 'households', householdId, 'geographicIdentification'));
+          const geoDoc = geoSnap.docs[0]?.data();
+          const barangay = geoDoc?.barangay || '—';
 
-          let barangay = '—';
-          geoSnap.forEach((geoDoc) => {
-            const geo = geoDoc.data();
-            barangay = geo.barangay || barangay;
-          });
+          // 👨‍👩‍👧 Loop members
+          const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
+          for (const memberDoc of membersSnap.docs) {
+            const memberId = memberDoc.id;
 
-          demoSnap.forEach((demoDoc) => {
-            const demo = demoDoc.data();
-            const age = parseInt(demo.age);
+            // ✅ Fetch 'main' demographicCharacteristics subdoc
+            const demoSnap = await getDoc(doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main'));
+            const demo = demoSnap.exists() ? demoSnap.data() : null;
 
-            if (!isNaN(age) && age >= 60) {
-              const fullName = `${demo.firstName || ''} ${demo.middleName || ''} ${demo.lastName || ''} ${
-                demo.suffix && demo.suffix !== 'n/a' ? demo.suffix : ''
-              }`.trim();
+            if (demo) {
+              const age = parseInt(demo.age);
+              if (!isNaN(age) && age >= 60) {
+                const fullName = `${demo.firstName || ''} ${demo.middleName || ''} ${demo.lastName || ''} ${
+                  demo.suffix && demo.suffix.trim() && demo.suffix.toLowerCase() !== 'n/a' ? demo.suffix : ''
+                }`.trim();
 
-              allData.push({
-                id: demoDoc.id,
-                name: fullName,
-                age: age || '—',
-                sex: demo.sex || '—',
-                barangay,
-                contact: demo.contactNumber || '—',
-              });
+                allData.push({
+                  id: demo.id || memberId,
+                  name: fullName,
+                  age,
+                  sex: demo.sex || '—',
+                  barangay,
+                  contact: demo.contactNumber || '—',
+                });
+              }
             }
-          });
+          }
         }
 
         setSeniors(allData);
       } catch (error) {
         console.error('Error fetching senior citizen data:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchSeniors();
   }, []);
+
+
 
   const filteredData = seniors.filter((item) =>
     Object.values(item).some((val) =>
@@ -92,33 +105,42 @@ export default function SeniorPage() {
 
       {/* Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2 bg-white border border-t-0 px-4 py-3">
-        <input
-          type="text"
-          placeholder="Search Here"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="p-2 border border-gray-300 rounded w-full max-w-xs"
-        />
+        <div className="relative w-full max-w-xs">
+          <FiSearch className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search Here"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 border border-gray-300 rounded w-full focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+        </div>
 
         <div className="flex gap-2">
           <button
             onClick={handlePrint}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer"
           >
             Print
           </button>
           <button
             onClick={handleDownloadCSV}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer"
           >
             Download CSV
           </button>
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table or Message */}
       <div className="overflow-x-auto border border-t-0 rounded-b-md bg-white p-4">
-        {filteredData.length > 0 ? (
+        {loading ? (
+          <p className="text-center text-gray-500 py-6 animate-pulse">Loading senior citizen records...</p>
+        ) : seniors.length === 0 ? (
+          <p className="text-center text-gray-500 py-6">No senior citizen records found.</p>
+        ) : filteredData.length === 0 ? (
+          <p className="text-center text-gray-500 py-6">No results matched your search.</p>
+        ) : (
           <table className="w-full text-sm text-center print:text-xs print:w-full">
             <thead className="bg-gray-100 text-gray-600">
               <tr>
@@ -127,6 +149,7 @@ export default function SeniorPage() {
                 <th className="px-4 py-2 border">Age</th>
                 <th className="px-4 py-2 border">Barangay</th>
                 <th className="px-4 py-2 border">Contact</th>
+                <th className="px-4 py-2 border">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -137,12 +160,20 @@ export default function SeniorPage() {
                   <td className="px-4 py-2 border">{item.age}</td>
                   <td className="px-4 py-2 border">{item.barangay}</td>
                   <td className="px-4 py-2 border">{item.contact}</td>
+                  <td className="px-4 py-2 border">
+                    <div className="flex justify-center gap-3">
+                      <button className="text-blue-600 hover:text-blue-800 cursor-pointer" title="Edit">
+                        <FiEdit />
+                      </button>
+                      <button className="text-red-600 hover:text-red-800 cursor-pointer" title="Delete">
+                        <FiTrash2 />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        ) : (
-          <p className="text-center text-gray-500 py-6">No senior citizen records found.</p>
         )}
       </div>
     </div>

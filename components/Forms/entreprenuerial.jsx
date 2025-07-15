@@ -345,7 +345,7 @@ export default function Entrepreneurship({ householdId, goToNext }) {
             <button
               type="button"
               onClick={() => removePSIC(index)}
-              className="text-red-500 hover:underline mt-2 block"
+              className="text-red-500 hover:underline mt-2 block cursor-pointer"
             >
               Remove
             </button>
@@ -358,7 +358,7 @@ export default function Entrepreneurship({ householdId, goToNext }) {
         <button
           type="button"
           onClick={addPSIC}
-          className="text-blue-600 hover:underline mt-4 block w-full text-left"
+          className="text-green-600 hover:underline mt-4 block w-full text-left cursor-pointer"
         >
           + Add another activity
         </button>
@@ -368,7 +368,7 @@ export default function Entrepreneurship({ householdId, goToNext }) {
       <div className="pt-6 flex justify-end">
         <button
           type="submit"
-          className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto"
+          className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto cursor-pointer"
         >
           Save & Continue &gt;
         </button>

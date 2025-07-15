@@ -229,7 +229,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
             ))}
 
             {/* 10+ years */}
-            <p className="sm:col-span-2 font-semibold pt-2">For 10 years old and over</p>
+            <p className="text-green-700 sm:col-span-2 font-semibold pt-2">For 10 years old and over</p>
             {['soloParent', 'soloParentId'].map((id) => (
               <label key={id} className="flex flex-col">
                 {id.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
@@ -248,7 +248,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
             ))}
 
             {/* 60+ years */}
-            <p className="sm:col-span-2 font-semibold pt-2">For 60 years old and over</p>
+            <p className="text-green-700 sm:col-span-2 font-semibold pt-2">For 60 years old and over</p>
             <label className="flex flex-col">
               Senior Citizen Id
               <select
@@ -265,7 +265,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
             </label>
 
             {/* Disability (5+ years) */}
-            <p className="sm:col-span-2 font-semibold pt-2">For all persons 5 years old and over</p>
+            <p className="text-green-700 sm:col-span-2 font-semibold pt-2">For all persons 5 years old and over</p>
             {difficultyOptions.map((q, dIdx) => (
               <label key={dIdx} className="flex flex-col">
                 {q}
@@ -303,7 +303,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
       <button
         type="button"
         onClick={addMember}
-        className="text-green-600 font-medium hover:underline"
+        className="text-green-600 font-medium hover:underline cursor-pointer"
       >
         + Add another member
       </button>
@@ -312,7 +312,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
       <div className="pt-6 flex justify-end">
         <button
           type="submit"
-          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
+          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer"
         >
           Save & Continue &gt;
         </button>

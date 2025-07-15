@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { doc, getDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '@/firebase/config';
 
@@ -70,17 +70,39 @@ export default function AddHouseholdFormPage() {
       setUser(currentUser);
 
       try {
-        // Fetch user data
         const userRef = doc(db, 'users', currentUser.uid);
         const userSnap = await getDoc(userRef);
 
         if (userSnap.exists()) {
           setUserData(userSnap.data());
 
-          // ✅ Create household document and set its ID
+          const q = query(
+            collection(db, 'households'),
+            where('createdBy', '==', currentUser.uid),
+            where('isComplete', '==', false)
+          );
+
+          const snap = await getDocs(q);
+
+          if (!snap.empty) {
+            const existing = snap.docs[0];
+            const confirmResume = window.confirm('You have an unfinished form. Do you want to continue?');
+
+            if (confirmResume) {
+              setHouseholdId(existing.id);
+              setCurrentSection(existing.data().lastSection || 'Geographic Identification');
+              setLoading(false);
+              return;
+            } else {
+              await setDoc(doc(db, 'households', existing.id), { discarded: true }, { merge: true });
+            }
+          }
+
           const householdRef = await addDoc(collection(db, 'households'), {
             createdBy: currentUser.uid,
             createdAt: new Date(),
+            isComplete: false,
+            lastSection: 'Geographic Identification',
           });
 
           setHouseholdId(householdRef.id);
@@ -95,13 +117,29 @@ export default function AddHouseholdFormPage() {
     return () => unsubscribe();
   }, []);
 
-  const goToNext = () => {
+  const goToNext = async () => {
     const currentIndex = sectionKeys.indexOf(currentSection);
     const nextSection = sectionKeys[currentIndex + 1];
+
     if (nextSection) {
       setCurrentSection(nextSection);
+
+      if (householdId) {
+        const householdRef = doc(db, 'households', householdId);
+        await setDoc(householdRef, {
+          lastSection: nextSection,
+          updatedAt: new Date(),
+        }, { merge: true });
+      }
     } else {
       console.log('✅ All form sections completed');
+      if (householdId) {
+        const householdRef = doc(db, 'households', householdId);
+        await setDoc(householdRef, {
+          isComplete: true,
+          updatedAt: new Date(),
+        }, { merge: true });
+      }
     }
   };
 
@@ -130,7 +168,6 @@ export default function AddHouseholdFormPage() {
       <main className="flex-1 p-6 bg-white shadow-md text-sm border-t border-gray-200 overflow-y-auto h-screen">
         <div className="h-full overflow-y-auto pr-2">
           <h2 className="text-2xl font-bold mb-1">{currentSection}</h2>
-        
 
           <SectionComponent
             householdId={householdId}

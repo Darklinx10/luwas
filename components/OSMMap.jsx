@@ -110,7 +110,7 @@ export default function MapPage() {
 
   return (
     <div className="p-4 relative">
-      <div className="mb-4 flex gap-2 z-30 relative">
+      <div className="mb-4 flex gap-2 z-30 relative ">
         {['Household Map', 'Accident Map'].map((option) => (
           <button
             key={option}
@@ -119,7 +119,7 @@ export default function MapPage() {
               setActiveHazard('');
               setAddingAccident(false);
             }}
-            className={`px-4 py-2 rounded ${
+            className={`px-4 py-2 rounded cursor-pointer ${
               activeMap === option
                 ? 'bg-green-600 text-white'
                 : 'bg-gray-200 text-gray-800 hover:bg-green-100'
@@ -134,7 +134,7 @@ export default function MapPage() {
         center={defaultPosition}
         zoom={13}
         scrollWheelZoom
-        style={{ height: '700px', width: '100%' }}
+        style={{ height: '700px', width: '100%', cursor: 'pointer' }}
       >
         <LayersControl position="topright">
           <BaseLayer checked name="OpenStreetMap">
@@ -165,11 +165,11 @@ export default function MapPage() {
 
         {/* Hazards Dropdown */}
         {isHouseholdMap && (
-          <div className="leaflet-top leaflet-left ml-10">
+          <div className="leaflet-top leaflet-left ml-10 ">
             <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2">
               <label className="text-sm font-medium block mb-1">Hazards</label>
               <select
-                className="text-sm border rounded p-1"
+                className="text-sm border rounded p-1 cursor-pointer focus:outline-none "
                 value={activeHazard}
                 onChange={(e) => setActiveHazard(e.target.value)}
               >
@@ -194,7 +194,7 @@ export default function MapPage() {
             <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2">
               <button
                 onClick={() => setAddingAccident((prev) => !prev)}
-                className="text-sm bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 w-full"
+                className="text-sm bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 w-full cursor-pointer"
               >
                 {addingAccident ? 'Cancel' : 'Add Accident'}
               </button>

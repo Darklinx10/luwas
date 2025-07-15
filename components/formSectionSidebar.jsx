@@ -34,7 +34,7 @@ export default function FormSectionSidebar({ current, setSection }) {
             <li key={section}>
               <button
                 onClick={() => setSection(section)}
-                className={`w-full text-left block px-2 py-2 rounded-md ${
+                className={`w-full text-left block px-2 py-2 rounded-md cursor-pointer ${
                   isActive
                     ? 'bg-[#0BAD4A] text-white font-semibold'
                     : 'text-gray-700 hover:bg-gray-100'

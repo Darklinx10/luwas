@@ -69,7 +69,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
       {/* Hamburger Button */}
       <button
         onClick={toggleSidebar}
-        className="text-2xl text-gray-700 hover:text-black focus:outline-none"
+        className="text-2xl text-gray-700 hover:text-black focus:outline-none cursor-pointer"
         aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
       >
         <GiHamburgerMenu />
@@ -94,13 +94,13 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
           <div className="absolute right-0 mt-2 bg-white  rounded shadow-xl z-50 w-40">
             <a
               href="/dashboard/profile"
-              className="block px-4 py-2 text-gray-700 rounded hover:bg-gray-100 text-center"
+              className="block px-4 py-2 text-gray-700 rounded hover:bg-gray-100 text-center cursor-pointer"
             >
               Profile
             </a>
             <button
               onClick={handleLogout}
-              className="w-full px-4 py-2 text-gray-700 rounded hover:bg-gray-100 text-center"
+              className="w-full px-4 py-2 text-gray-700 rounded hover:bg-gray-100 text-center cursor-pointer"
             >
               Logout
             </button>

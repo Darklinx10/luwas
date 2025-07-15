@@ -14,6 +14,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,6 +25,7 @@ export default function LoginPage() {
       return;
     }
 
+    setLoading(true);
     try {
       // Login user
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -58,6 +61,8 @@ export default function LoginPage() {
       } else {
         toast.error("Login failed. Please check your credentials.");
       }
+    }finally {
+      setLoading(false);
     }
   };
 
@@ -91,7 +96,7 @@ export default function LoginPage() {
 
 
       {/* Login form container */}
-      <div className="bg-white border border-gray-300 p-8 rounded-2xl shadow-md w-[342px] h-[445px] mt-4">
+      <div className="bg-white border border-gray-300 p-8 rounded-2xl shadow-md w-[342px] h-[400px] mt-4">
         <h2 className="text-xl font-bold text-gray-700 mb-6 text-center">Login</h2>
 
         <form onSubmit={handleSubmit}>
@@ -155,9 +160,29 @@ export default function LoginPage() {
           <div className="flex justify-center">
             <button
               type="submit"
-              className="w-[200px] bg-[#0BAD4A] hover:bg-[#0a9c43] text-white font-medium py-2 rounded-lg transition"
+              className="w-[200px] bg-[#0BAD4A] hover:bg-[#0a9c43] text-white font-medium py-2 rounded-lg transition flex justify-center items-center"
+              disabled={loading}
             >
-              Login
+              {loading ? (
+                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                  />
+                </svg>
+              ) : (
+                "Login"
+              )}
             </button>
           </div>
         </form>

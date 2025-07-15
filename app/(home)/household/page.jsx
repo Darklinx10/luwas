@@ -201,174 +201,170 @@ export default function HouseholdPage() {
 
         <button
           onClick={handleAddClick}
-          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 cursor-pointer"
         >
           <FiPlus />
           Add
         </button>
       </div>
 
-      <table className="w-full text-sm text-center">
-        <thead className="bg-gray-100 text-gray-600">
-          <tr>
-            <th className="p-2 border"></th>
-            <th className="p-2 border">Family Head</th>
-            <th className="p-2 border">Barangay</th>
-            <th className="p-2 border">Sex</th>
-            <th className="p-2 border">Contact Number</th>
-            <th className="p-2 border">Age</th>
-            <th className="p-2 border">Map</th>
-            <th className="p-2 border">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr>
-              <td colSpan="8" className="text-center py-4 text-gray-500">
-                Loading...
-              </td>
-            </tr>
-          ) : filteredHouseholds.length > 0 ? (
-            filteredHouseholds.map((data) => {
-              const fullName = [
-                data.headFirstName,
-                data.headMiddleName,
-                data.headLastName,
-                data.headSuffix !== 'n/a' ? data.headSuffix : '',
-              ]
-                .filter(Boolean)
-                .join(' ');
+      <div className="overflow-x-auto border border-t-0 rounded-b-md bg-white p-4">
+      {loading ? (
+        <p className="text-center text-gray-500 py-6 animate-pulse">Fetching household records...</p>
+      ) : households.length === 0 ? (
+        <p className="text-center text-gray-500 py-6">No household records found.</p>
+      ) : filteredHouseholds.length === 0 ? (
+        <p className="text-center text-gray-500 py-6">No results matched your search.</p>
+      ) : (
+        <>
+          <table className="w-full text-sm text-center print:text-xs print:w-full">
+            <thead className="bg-gray-100 text-gray-600">
+              <tr>
+                <th className="p-2 border"></th>
+                <th className="p-2 border">Family Head</th>
+                <th className="p-2 border">Barangay</th>
+                <th className="p-2 border">Sex</th>
+                <th className="p-2 border">Contact Number</th>
+                <th className="p-2 border">Age</th>
+                <th className="p-2 border">Map</th>
+                <th className="p-2 border">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredHouseholds.map((data) => {
+                const fullName = [
+                  data.headFirstName,
+                  data.headMiddleName,
+                  data.headLastName,
+                  data.headSuffix !== 'n/a' ? data.headSuffix : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ');
 
-              const isExpanded = expandedHouseholds[data.householdId];
-              const members = membersData[data.householdId] || [];
+                const isExpanded = expandedHouseholds[data.householdId];
+                const members = membersData[data.householdId] || [];
 
-              return (
-                <React.Fragment key={data.householdId}>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-2 border text-center">
-                      <button
-                        onClick={() => toggleExpanded(data.householdId)}
-                        title="View Members"
-                      >
-                        <FaArrowRight
-                          className={`text-green-600 inline transition-transform duration-200 ${
-                            isExpanded ? 'rotate-90' : ''
-                          }`}
-                        />
-                      </button>
-                    </td>
-                    <td className="p-2 border">{fullName || '-'}</td>
-                    <td className="p-2 border">{data.barangay || '-'}</td>
-                    <td className="p-2 border">{data.sex || '-'}</td>
-                    <td className="p-2 border">{data.contactNumber || '-'}</td>
-                    <td className="p-2 border">{data.age || '-'}</td>
-                    <td className="p-2 border text-center">
-                      <button
-                        onClick={() => openMapWithLocation(data.latitude, data.longitude)}
-                        className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
-                      >
-                        Map
-                      </button>
-                    </td>
-                    <td className="p-2 border text-center space-x-2">
-                      <button
-                        onClick={() => router.push(`/household/editHousehold`)}
-                        className="text-blue-600 hover:text-blue-800"
-                        title="Edit"
-                      >
-                        <FiEdit />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          const confirmed = confirm(
-                            'Are you sure you want to delete this household?'
-                          );
-                          if (!confirmed) return;
+                return (
+                  <React.Fragment key={data.householdId}>
+                    <tr className="hover:bg-gray-50">
+                      <td className="p-2 border text-center">
+                        <button
+                          onClick={() => toggleExpanded(data.householdId)}
+                          title="View Members"
+                        >
+                          <FaArrowRight
+                            className={`text-green-600 inline transition-transform duration-200 cursor-pointer ${
+                              isExpanded ? 'rotate-90' : ''
+                            }`}
+                          />
+                        </button>
+                      </td>
+                      <td className="p-2 border">{fullName || '-'}</td>
+                      <td className="p-2 border">{data.barangay || '-'}</td>
+                      <td className="p-2 border">{data.sex || '-'}</td>
+                      <td className="p-2 border">{data.contactNumber || '-'}</td>
+                      <td className="p-2 border">{data.age || '-'}</td>
+                      <td className="p-2 border">
+                        <button
+                          onClick={() => openMapWithLocation(data.latitude, data.longitude)}
+                          className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700"
+                        >
+                          Map
+                        </button>
+                      </td>
+                      <td className="p-2 border space-x-2">
+                        <button
+                          onClick={() => router.push(`/household/editHousehold`)}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="Edit"
+                        >
+                          <FiEdit />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const confirmed = confirm('Are you sure you want to delete this household?');
+                            if (!confirmed) return;
 
-                          try {
-                            await deleteData('households', data.householdId);
-                            setHouseholds((prev) =>
-                              prev.filter((hh) => hh.householdId !== data.householdId)
-                            );
-                            alert('Household deleted successfully.');
-                          } catch (error) {
-                            console.error('Error deleting household:', error);
-                            alert('Failed to delete household.');
-                          }
-                        }}
-                        className="text-red-600 hover:text-red-800"
-                        title="Delete"
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </td>
-                  </tr>
-
-                  {isExpanded && (
-                    <tr>
-                      <td colSpan="8" className="p-4 border bg-gray-50 text-center text-sm">
-                        <strong>Household Members:</strong>
-                        {members.length > 0 ? (
-                          <div className="mt-2">
-                            {Object.entries(
-                              members.reduce((acc, m) => {
-                                // Try to get relation label by splitting at ' - '
-                                const rawRelation = m.nuclearRelation || m.relationshipToHead || 'Unspecified';
-                                // Sometimes rawRelation is "02 - Spouse", split to get the label
-                                const relationLabel = rawRelation.includes(' - ') ? rawRelation.split(' - ')[1].trim() : rawRelation.trim();
-
-                                if (!acc[relationLabel]) acc[relationLabel] = [];
-                                acc[relationLabel].push(m);
-                                return acc;
-                              }, {})
-                            ).map(([relation, group]) => (
-                              <div key={relation} className="mt-2">
-                                <p className="font-semibold text-green-700">👤 {relation}</p>
-                                <ul className="list-disc list-inside ml-4">
-                                  {group.map((m) => {
-                                    // Show full name, original relation with code, and age
-                                    const fullName = [m.firstName, m.lastName].filter(Boolean).join(' ');
-                                    const originalRelation = m.nuclearRelation || m.relationshipToHead || 'Relation: N/A';
-                                    const ageStr = m.age ? `${m.age} years old` : 'Age: N/A';
-
-                                    return (
-                                      <li key={m.id}>
-                                        <span className="font-medium">{fullName}</span> — {originalRelation} — {ageStr}
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-gray-500 mt-1">Loading...</p>
-                        )}
-
+                            try {
+                              await deleteData('households', data.householdId);
+                              setHouseholds((prev) =>
+                                prev.filter((hh) => hh.householdId !== data.householdId)
+                              );
+                              alert('Household deleted successfully.');
+                            } catch (error) {
+                              console.error('Error deleting household:', error);
+                              alert('Failed to delete household.');
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-800"
+                          title="Delete"
+                        >
+                          <FiTrash2 />
+                        </button>
                       </td>
                     </tr>
-                  )}
-                </React.Fragment>
-              );
-            })
-          ) : (
-            <tr>
-              <td colSpan="8" className="text-center py-4 text-gray-500">
-                No households found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
 
-      <div className="flex justify-end items-center mt-4 text-sm text-gray-700 space-x-6 px-4">
-        <div>
-          <strong>Total Households:</strong> {totalHouseholds}
-        </div>
-        <div>
-          <strong>Total Residents:</strong> {totalResidents}
-        </div>
-      </div>
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan="8" className="p-4 border bg-gray-50 text-left text-sm">
+                          <strong>Household Members:</strong>
+                          {members.length > 0 ? (
+                            <div className="mt-2">
+                              {Object.entries(
+                                members.reduce((acc, m) => {
+                                  const rawRelation = m.nuclearRelation || m.relationshipToHead || 'Unspecified';
+                                  const relationLabel = rawRelation.includes(' - ')
+                                    ? rawRelation.split(' - ')[1].trim()
+                                    : rawRelation.trim();
+
+                                  if (!acc[relationLabel]) acc[relationLabel] = [];
+                                  acc[relationLabel].push(m);
+                                  return acc;
+                                }, {})
+                              ).map(([relation, group]) => (
+                                <div key={relation} className="mt-2">
+                                  <p className="font-semibold text-green-700">👤 {relation}</p>
+                                  <ul className="list-disc list-inside ml-4">
+                                    {group.map((m) => {
+                                      const name = [m.firstName, m.lastName].filter(Boolean).join(' ');
+                                      const originalRelation = m.nuclearRelation || m.relationshipToHead || 'N/A';
+                                      const ageStr = m.age ? `${m.age} years old` : 'Age: N/A';
+
+                                      return (
+                                        <li key={m.id}>
+                                          <span className="font-medium">{name}</span> — {originalRelation} — {ageStr}
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-gray-500 mt-1">Loading...</p>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* Totals */}
+          <div className="flex justify-end items-center mt-4 text-sm text-gray-700 space-x-6">
+            <div>
+              <strong>Total Households:</strong> {totalHouseholds}
+            </div>
+            <div>
+              <strong>Total Residents:</strong> {totalResidents}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+
 
       <MapPopup
         isOpen={mapOpen}

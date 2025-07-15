@@ -76,8 +76,13 @@ export default function DashboardPage() {
 
           // Loop through members for senior count + age
           for (const memberDoc of membersSnap.docs) {
-            const member = memberDoc.data();
-            const age = parseInt(member.age);
+            const memberId = memberDoc.id;
+
+            // ✅ Get age from demographicCharacteristics/main
+            const demoSnap = await getDoc(doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main'));
+            const demo = demoSnap.exists() ? demoSnap.data() : {};
+            const age = parseInt(demo.age);
+
             if (!isNaN(age)) {
               totalAge += age;
               if (age >= 60) seniorCount++;

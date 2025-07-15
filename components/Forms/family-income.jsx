@@ -6,101 +6,93 @@ import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 export default function FamilyIncome({ householdId, goToNext }) {
+  // 🧾 Initial state for the form
   const [form, setForm] = useState({
-    regularSeasonalMembers: '',
     sources: {
-      salaries: false,
-      commissions: false,
-      honoraria: false,
-      otherCompensation: '',
-      familyEnterprise: false,
-      professionPractice: false,
-      produceSales: false,
-      overseasSupport: false,
-      fourPs: false,
-      seniorPension: false,
-      sap: false,
-      domesticSupport: false,
-      investments: false,
-      rentals: false,
-      interests: false,
-      giftsInKind: false,
-      sustenanceActivity: '',
-      otherSourceZ: '',
+      // 📌 A–C: Regular and Seasonal Employment
+      salaries: '',
+      commissions: '',
+      honoraria: '',
+      totalAC: '',
+
+      // 📌 D–E: Entrepreneurial Activities
+      familyEnterprise: '',
+      professionPractice: '',
+      totalDE: '',
+
+      // 📌 F–Z: Other Sources of Family Income
+      produceSales: '',
+      overseasSupport: '',
+      fourPs: '',
+      seniorPension: '',
+      sap: '',
+      domesticSupport: '',
+      investments: '',
+      rentals: '',
+      interests: '',
+      giftsInKind: '',
+      sustenanceActivity: '', // 📌 Y
+      otherSourceZ: '',       // 📌 Z
+      totalFZ: '',
+
+      // 🔢 Totals
     },
-    totalFromMember: '',
-    totalFromFamily: '',
-    otherMembers: '',
+    // 🧑‍👩‍👧 Regular/seasonal member selection
+    regularSeasonalMembers: '',
+
+    // 💰 Totals
     totalCurrentIncome: '',
     totalFormerIncome: '',
     totalCombinedIncome: '',
+
+    // ➕ Others
+    otherMembers: '',
     respondentConsent: '',
   });
 
+  // 👨‍👩‍👧‍👦 Household member list for dropdown
   const [memberOptions, setMemberOptions] = useState([]);
 
+  // 📥 Fetch household members on load
   useEffect(() => {
-  const fetchHouseholdPeople = async () => {
-    if (!householdId) return; // ✅ Guard clause
+    const fetchMembers = async () => {
+      if (!householdId) return;
 
-    try {
       const people = [];
 
-      // Fetch household head
-      const geoDocRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-      const geoSnap = await getDoc(geoDocRef);
-
+      // 👤 Get head of household
+      const geoSnap = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
       if (geoSnap.exists()) {
         const geo = geoSnap.data();
-        const headFullName = `${geo.headFirstName || ''} ${geo.headMiddleName || ''} ${geo.headLastName || ''} ${
-          geo.headSuffix && geo.headSuffix !== 'n/a' ? geo.headSuffix : ''
-        }`.trim();
-        people.push({ id: 'head', fullName: headFullName });
+        const name = `${geo.headFirstName || ''} ${geo.headMiddleName || ''} ${geo.headLastName || ''}`.trim();
+        people.push({ id: 'head', fullName: name });
       }
 
-      // Fetch members
+      // 👥 Get all members and their names
       const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-
       for (const memberDoc of membersSnap.docs) {
-        const memberId = memberDoc.id;
-
         const demoSnap = await getDocs(
-          collection(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics')
+          collection(db, 'households', householdId, 'members', memberDoc.id, 'demographicCharacteristics')
         );
-
         demoSnap.forEach((doc) => {
-          const demo = doc.data();
-          const fullName = `${demo.firstName || ''} ${demo.middleName || ''} ${demo.lastName || ''} ${
-            demo.suffix && demo.suffix !== 'n/a' ? demo.suffix : ''
-          }`.trim();
-
-          people.push({ id: memberId, fullName });
+          const d = doc.data();
+          const fullName = `${d.firstName || ''} ${d.middleName || ''} ${d.lastName || ''}`.trim();
+          people.push({ id: memberDoc.id, fullName });
         });
       }
 
+      // 📝 Update dropdown list
       setMemberOptions(people);
-    } catch (err) {
-      console.error('Error fetching household head and members:', err);
-    }
-  };
+    };
 
-  fetchHouseholdPeople();
-}, [householdId]);
+    fetchMembers();
+  }, [householdId]);
 
-
-  const handleCheckbox = (e) => {
-    const { name, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      sources: {
-        ...prev.sources,
-        [name]: checked,
-      },
-    }));
-  };
-
-  const handleTextChange = (e) => {
+  // 🖊️ Handle form input change
+  const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // 🔄 Update sources subfields
     if (name in form.sources) {
       setForm((prev) => ({
         ...prev,
@@ -110,186 +102,100 @@ export default function FamilyIncome({ householdId, goToNext }) {
         },
       }));
     } else {
-      setForm((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      // 🔄 Update main-level fields
+      setForm((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const docRef = doc(db, 'households', householdId, 'familyIncome', 'main');
-      await setDoc(docRef, {
-        ...form,
-        timestamp: new Date(),
-      });
-      toast.success('Family income data saved!');
-      if (goToNext) goToNext();
-    } catch (error) {
-      console.error('Error saving family income:', error);
-      toast.error('Failed to save data.');
-    }
-  };
-
+  // 💾 Save data to Firestore
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      try {
+        await setDoc(doc(db, 'households', householdId, 'familyIncome', 'main'), {
+          ...form,
+          timestamp: new Date(),
+        });
+        toast.success('Saved successfully!');
+        if (goToNext) goToNext(); // ➡️ Go to next step if available
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to save.');
+      }
+    };
+  
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="max-w-5xl mx-auto p-4 space-y-6"
-    >
-      <h2 className="text-xl font-bold text-green-600 mb-4">
-        H. FAMILY INCOME <br />
-        (July 01, 2021 - June 30, 2022)
-      </h2>
-
+    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-4 space-y-6">
       <div>
-        <label className="font-semibold block mb-1">
-          (01) Who among the family members were regularly and seasonally employed in the past 12 months?
-        </label>
-        <select
-          name="regularSeasonalMembers"
-          value={form.regularSeasonalMembers}
-          onChange={handleTextChange}
-          className="border p-2 rounded w-full"
-        >
-          <option value="">-- Select Family Member --</option>
-          {memberOptions.map((member) => (
-            <option key={member.id} value={member.fullName}>
-              {member.fullName}
-            </option>
-          ))}
+        <label className="block mb-1">Who among the family members are/were regularly and seasonally employed?</label>
+        <select name="regularSeasonalMembers" value={form.regularSeasonalMembers} onChange={handleChange} className="border p-2 rounded w-full">
+          <option value="">-- Select Member --</option>
+          {memberOptions.map((m) => <option key={m.id} value={m.fullName}>{m.fullName}</option>)}
         </select>
       </div>
 
-      {/* SOURCE A–C */}
-      <div>
-        <label className="font-semibold block mb-2">
-          (02) Income from Regular and Seasonal Employment
-        </label>
-
-        <div className="space-y-2 ml-4">
-          <label><input type="checkbox" name="salaries" checked={form.sources.salaries} onChange={handleCheckbox} /> Salaries and wages</label>
-          <label><input type="checkbox" name="commissions" checked={form.sources.commissions} onChange={handleCheckbox} /> Commissions, tips, etc.</label>
-          <label><input type="checkbox" name="honoraria" checked={form.sources.honoraria} onChange={handleCheckbox} /> Honoraria and transportation</label>
-          <label className="block">
-            Other compensation:
-            <input type="text" name="otherCompensation" value={form.sources.otherCompensation} onChange={handleTextChange} className="border p-1 rounded w-full" />
-          </label>
-        </div>
+      <div className="border-t pt-4">
+        <p className='mb-4 text-lg text-green-700'>(A–C) Income from Regular and Seasonal Employment</p>
+        <label className="block mb-1">(02) How much was received by (NAME) as (A-C SOURCE OF INCOME) in the past 12 months (July 01, 2021 - June 30, 2022)?</label>
+        {['salaries', 'commissions', 'honoraria'].map((key, i) => (
+          <div key={key}>
+            <label>{String.fromCharCode(65 + i)}. {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</label>
+            <input type="text" name={key} value={form.sources[key]} onChange={handleChange} className="border p-2 rounded w-full" />
+          </div>
+        ))}
+        <label>Total A–C</label>
+        <input type="text" name="totalAC" value={form.sources.totalAC} onChange={handleChange} className="border p-2 rounded w-full" />
       </div>
 
-      {/* SOURCE D–P */}
-      <div>
-        <label className="font-semibold block mb-2">
-          (03) Income from Other Sources
-        </label>
-
-        <div className="space-y-2 ml-4">
-          <label><input type="checkbox" name="familyEnterprise" checked={form.sources.familyEnterprise} onChange={handleCheckbox} /> From family enterprise</label>
-          <label><input type="checkbox" name="professionPractice" checked={form.sources.professionPractice} onChange={handleCheckbox} /> Profession/trade</label>
-          <label><input type="checkbox" name="produceSales" checked={form.sources.produceSales} onChange={handleCheckbox} /> Crop/livestock/fish sales</label>
-          <label><input type="checkbox" name="overseasSupport" checked={form.sources.overseasSupport} onChange={handleCheckbox} /> Support from abroad</label>
-          <label><input type="checkbox" name="fourPs" checked={form.sources.fourPs} onChange={handleCheckbox} /> 4Ps (Pantawid)</label>
-          <label><input type="checkbox" name="seniorPension" checked={form.sources.seniorPension} onChange={handleCheckbox} /> Senior citizen pension</label>
-          <label><input type="checkbox" name="sap" checked={form.sources.sap} onChange={handleCheckbox} /> SAP assistance</label>
-          <label><input type="checkbox" name="domesticSupport" checked={form.sources.domesticSupport} onChange={handleCheckbox} /> Domestic support/gifts</label>
-          <label><input type="checkbox" name="investments" checked={form.sources.investments} onChange={handleCheckbox} /> Dividends from investments</label>
-          <label><input type="checkbox" name="rentals" checked={form.sources.rentals} onChange={handleCheckbox} /> Rentals from property</label>
-          <label><input type="checkbox" name="interests" checked={form.sources.interests} onChange={handleCheckbox} /> Interests from banks/loans</label>
-          <label><input type="checkbox" name="giftsInKind" checked={form.sources.giftsInKind} onChange={handleCheckbox} /> Gifts (in kind)</label>
-        </div>
+      <div className="border-t pt-4">
+        <p className='mb-4 text-lg text-green-700'>(D–E) Income from Entrepreneurial Activities</p>
+        <label className="block mb-1">How much was received by the family as (D-P SOURCE OF INCOME, Z) in the past 12 months (July 01, 2021 - June 30, 2022)?</label>
+        {['familyEnterprise', 'professionPractice'].map((key, i) => (
+          <div key={key}>
+            <label>{String.fromCharCode(68 + i)}. {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</label>
+            <input type="text" name={key} value={form.sources[key]} onChange={handleChange} className="border p-2 rounded w-full" />
+          </div>
+        ))}
+        <label>Total D–E</label>
+        <input type="text" name="totalDE" value={form.sources.totalDE} onChange={handleChange} className="border p-2 rounded w-full" />
       </div>
 
-      {/* Z and P */}
-      <div>
-        <label className="font-semibold block mb-2">(Z) Other source of income, specify:</label>
-        <input
-          type="text"
-          name="otherSourceZ"
-          value={form.sources.otherSourceZ}
-          onChange={handleTextChange}
-          className="border p-2 rounded w-full"
-        />
+      <div className="border-t pt-4">
+        <p className='mb-4 text-lg text-green-700'>(F–Z) Other Sources of Income</p>
+        {["produceSales", "overseasSupport", "fourPs", "seniorPension", "sap", "domesticSupport", "investments", "rentals", "interests", "giftsInKind", "sustenanceActivity", "otherSourceZ"].map((key, i) => (
+          <div key={key}>
+            <label>{String.fromCharCode(70 + i)}. {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</label>
+            <input type="text" name={key} value={form.sources[key]} onChange={handleChange} className="border p-2 rounded w-full" />
+          </div>
+        ))}
+        <label>Total F–Z</label>
+        <input type="text" name="totalFZ" value={form.sources.totalFZ} onChange={handleChange} className="border p-2 rounded w-full" />
       </div>
 
       <div>
-        <label className="font-semibold block mb-2">(P) Family sustenance activities:</label>
-        <input
-          type="text"
-          name="sustenanceActivity"
-          value={form.sources.sustenanceActivity}
-          onChange={handleTextChange}
-          className="border p-2 rounded w-full"
-        />
+        <label>Total Annual Income (Current Members)</label>
+        <input type="text" name="totalCurrentIncome" value={form.totalCurrentIncome} onChange={handleChange} className="border p-2 rounded w-full" />
       </div>
 
       <div>
-        <label className="font-semibold block mb-1">(04) Total Annual Income (Current Family Members)</label>
-        <input
-          type="number"
-          name="totalCurrentIncome"
-          value={form.totalCurrentIncome}
-          onChange={handleTextChange}
-          className="border p-2 rounded w-full"
-        />
+        <label>Total Income from Former Members</label>
+        <input type="text" name="totalFormerIncome" value={form.totalFormerIncome} onChange={handleChange} className="border p-2 rounded w-full" />
       </div>
 
       <div>
-        <label className="font-semibold block mb-1">(05) Total from Former Family Members (last 12 months)</label>
-        <input
-          type="number"
-          name="totalFormerIncome"
-          value={form.totalFormerIncome}
-          onChange={handleTextChange}
-          className="border p-2 rounded w-full"
-        />
+        <label>Total Annual Income (Current + Former)</label>
+        <input type="text" name="totalCombinedIncome" value={form.totalCombinedIncome} onChange={handleChange} className="border p-2 rounded w-full" />
       </div>
 
       <div>
-        <label className="font-semibold block mb-1">(06) Total Annual Income (Current + Former Members)</label>
-        <input
-          type="number"
-          name="totalCombinedIncome"
-          value={form.totalCombinedIncome}
-          onChange={handleTextChange}
-          className="border p-2 rounded w-full"
-        />
+        <label>Other Family Members Not Yet Listed</label>
+        <input type="text" name="otherMembers" value={form.otherMembers} onChange={handleChange} className="border p-2 rounded w-full" />
       </div>
 
-      <div>
-        <label className="font-semibold block mb-1">Are there other family members not yet listed?</label>
-        <input
-          type="text"
-          name="otherMembers"
-          value={form.otherMembers}
-          onChange={handleTextChange}
-          className="border p-2 rounded w-full"
-        />
-      </div>
+      
 
-      <div>
-        <label className="block mb-1">Did the respondent agree to answer?</label>
-        <select
-          name="respondentConsent"
-          value={form.respondentConsent}
-          onChange={handleTextChange}
-          className="border p-2 rounded w-full"
-          required
-        >
-          <option value="">-- Select --</option>
-          <option value="yes">YES</option>
-          <option value="no">NO</option>
-        </select>
-      </div>
-
-      {/* Submit Button */}
-      <div className="pt-6 flex justify-end">
-        <button
-          type="submit"
-          className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto"
-        >
+      <div className="pt-6 text-right">
+        <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer">
           Save & Continue &gt;
         </button>
       </div>

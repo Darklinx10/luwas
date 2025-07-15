@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { db } from '@/firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 /**
@@ -290,7 +290,7 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
       <div className="pt-6 flex justify-end">
         <button
           type="submit"
-          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
+          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer"
         >
           Save & Continue &gt;
         </button>
