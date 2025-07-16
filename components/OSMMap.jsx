@@ -156,9 +156,9 @@ export default function MapPage() {
             data={clarinBoundary}
             style={{
               color: 'black',
-              weight: 0.5,
+              weight: 1,
               fillOpacity: 0.5,
-              
+              dashArray: '2 4',
             }}
           />
         )}
@@ -180,7 +180,6 @@ export default function MapPage() {
                 <option value="Earthquake Induced Landslide">Earthquake Induced Landslide</option>
                 <option value="Ground Shaking">Ground Shaking</option>
                 <option value="Storm Surge">Storm Surge</option>
-                <option value="Earthquake">Earthquake</option>
                 <option value="Landslide">Landslide</option>
                 <option value="Tsunami">Tsunami</option>
               </select>
@@ -194,7 +193,7 @@ export default function MapPage() {
             <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2">
               <button
                 onClick={() => setAddingAccident((prev) => !prev)}
-                className="text-sm bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 w-full cursor-pointer"
+                className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 w-full cursor-pointer"
               >
                 {addingAccident ? 'Cancel' : 'Add Accident'}
               </button>

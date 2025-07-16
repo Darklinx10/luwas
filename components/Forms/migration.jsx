@@ -12,6 +12,7 @@ import { toast } from 'react-toastify';
  * @param {function} goToNext - Callback to go to next step
  */
 export default function Migration({ householdId, members, goToNext }) {
+  const [isSaving, setIsSaving] = useState(false);
   // ✅ Initialize one migration form per member
   const [forms, setForms] = useState(() =>
     (members || []).map((member) => ({
@@ -44,6 +45,7 @@ export default function Migration({ householdId, members, goToNext }) {
   // ✅ Handle form submission and write to Firestore
   const handleSubmit = async (e) => {
   e.preventDefault();
+  setIsSaving(true);
 
     try {
       const saveTasks = forms.map(async (form) => {
@@ -67,6 +69,9 @@ export default function Migration({ householdId, members, goToNext }) {
       console.error('❌ Error saving migration data:', error);
       toast.error('Failed to save migration data.');
     }
+      finally {
+        setIsSaving(false); 
+      }
   };
 
   return (
@@ -254,9 +259,40 @@ export default function Migration({ householdId, members, goToNext }) {
         </fieldset>
       ))}
 
+      {/* ✅ Submit button */}
       <div className="pt-6 flex justify-end">
-        <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer">
-          Save & Continue &gt;
+        <button
+          type="submit"
+          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer flex items-center gap-2 disabled:opacity-50"
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <>
+              <svg
+                className="animate-spin h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
+              </svg>
+              Saving...
+            </>
+          ) : (
+            <>Save & Continue &gt;</>
+          )}
         </button>
       </div>
     </form>

@@ -44,6 +44,7 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
   const assistanceSources = ['NGA (incl. RLA), GOCC', 'International Organization', 'LGU', 'Relative', 'Religious Group', 'Private Individual', 'Business Sector', 'Civil Society Organization', 'Others'];
   const calamityTypes = ['Typhoon', 'Landslide/Mudslide', 'Flood', 'Fire', 'Drought', 'Pandemic/Epidemic', 'Earthquake', 'Armed Conflict', 'Volcanic Eruption', 'Others'];
   const impactOptions = ['Death', 'Injuries & Illnesses', 'Damage to Property', 'Damage to Crops/Livestock/Poultry', 'Emotional/Psychological', 'Lack/Inadequate Access to Basic Service', 'Disruption in Daily Economic Activity/Work', 'Decrease in Water Supply', 'Others'];
+  const [isSaving, setIsSaving] = useState(false);
 
   const toggleCheckbox = (value, list, setter) => {
     setter(list.includes(value) ? list.filter(item => item !== value) : [...list, value]);
@@ -55,7 +56,7 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    e.preventDefault();
     const data = {
       hasKit,
       canShowKit,
@@ -98,6 +99,8 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
     } catch (error) {
       console.error('Error saving data:', error);
       toast.error('Failed to save data.');
+    }finally {
+      setIsSaving(false); 
     }
   };  
 
@@ -105,122 +108,8 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
   
   return (
     <form onSubmit={handleSubmit} className="space-y-10 max-w-5xl mx-auto p-6">
-
-      {/* ==== Section 1: Disaster Preparedness ==== */}
-      <h2 className="text-xl font-bold text-green-600">Disaster Preparedness</h2>
-
-      <label className="block">
-        Do you have a disaster preparedness kit?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setHasKit(e.target.value === 'YES')}>
-          <option>-- Select --</option>
-          <option>NO</option>
-          <option>YES</option>
-        </select>
-      </label>
-
-      {hasKit && (
-        <>
-          <label className="block mt-2">
-            Can you please show your disaster preparedness kit to me?
-            <select className="border p-2 rounded w-full mt-1" onChange={e => setCanShowKit(e.target.value === 'YES')}>
-              <option>-- Select --</option>
-              <option>NO</option>
-              <option>YES</option>
-            </select>
-          </label>
-
-          <p className="mt-4 font-medium">What does your preparedness kit contain?</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {kitItems.map(item => (
-              <label key={item} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={kitContents[item] || false}
-                  onChange={() => toggleKitItem(item)}
-                />
-                <span>{item}</span>
-              </label>
-            ))}
-          </div>
-
-          <label className="block mt-4 mb-1">How much is the actual value of the contents of the disaster preparedness kit?</label>
-          <input
-            type="number"
-            placeholder="Estimated value of kit (₱)"
-            className="border p-2 rounded w-full"
-            value={valueOfKit}
-            onChange={(e) => setValueOfKit(e.target.value)}
-          />
-        </>
-      )}
-
-      <label className="block">
-        In the past 12 months, did any member participate in crafting DRRM plan in the barangay?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setParticipatedDRRM(e.target.value === 'YES')}>
-          <option>-- Select --</option>
-          <option>NO</option>
-          <option>YES</option>
-        </select>
-      </label>
-
-      {participatedDRRM && (
-        <div className="mt-2">
-          <label className="block mb-1">In what ways did you or any of your household members participate in crafting the Disaster Risk Reduction Management (DRRM) plan in the barangay?</label>
-          <select className="border p-2 rounded w-full">
-            <option>-- Select Participation Type --</option>
-            <option>Barangay DRRM Committee or Council</option>
-            <option>Barangay Emergency Response Team</option>
-            <option>Barangay Assembly Discussion</option>
-            <option>Written Comments Provided</option>
-            <option>OTHERS</option>
-          </select>
-        </div>
-      )}
-
-
-      <label className="block mt-4">
-        In the past 12 months, did you or any of your household member receive information from the barangay about natural disasters preparedness either through meeting or written notice/ information?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setReceivedInfo(e.target.value === 'YES')}>
-          <option>-- Select --</option>
-          <option>NO</option>
-          <option>YES</option>
-        </select>
-      </label>
-
-      <label className="block">
-       In the past 12 months, did you discuss with your household how to prepare for disaster?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setDiscussedPrep(e.target.value === 'YES')}>
-          <option>NO</option>
-          <option>YES</option>
-        </select>
-      </label>
-
-      <label className="block">
-        Do you know any contact number of hotlines which you can in case of emergency?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setKnowsHotline(e.target.value === 'YES')}>
-          <option>-- Select --</option>
-          <option>NO</option>
-          <option>YES</option>
-        </select>
-      </label>
-
-      <label className="block">
-        Does your household have a written or printed evacuation plan in case of earthquake, flood, landslide, tsunami, strom surge, or fire?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setHasEvacPlan(e.target.value === 'YES')}>
-          <option>-- Select --</option>
-          <option>NO</option>
-          <option>YES</option>
-        </select>
-      </label>
-
-
-
-      {/* ==== Section 2: Climate Change and Disaster Risk Management ==== */}
       
-      <div className="pt-8 border-t">
-        <h2 className="text-xl font-bold text-green-600">Climate Change and Disaster Risk Management</h2>
-      </div>
-
+      {/* ==== Section 1: Climate Change and Disaster Risk Management ==== */}
       
       {/* Water Supply */}
       <label className="block">Did your household experience decrease in water supply in the barangay?
@@ -349,7 +238,7 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
       </label>
 
 
-      {/* ==== Section 3: Climate Change and Disaster Risk Management ==== */}
+      {/* ==== Section 2: Climate Change and Disaster Risk Management ==== */}
       
       {/* Property & Assistance */}
       <div className="pt-6 border-t">
@@ -440,10 +329,155 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
         </div>
       </div>
 
+      {/* ==== Section 3: Climate Change and Disaster Risk Management ==== */}
+      
+      {/* Q19 */}
+      <h2 className="text-xl font-bold text-green-600">Disaster Preparedness</h2>
 
+      <label className="block">
+        Do you have a disaster preparedness kit?
+        <select className="border p-2 rounded w-full mt-1" onChange={e => setHasKit(e.target.value === 'YES')}>
+          <option>-- Select --</option>
+          <option>NO</option>
+          <option>YES</option>
+        </select>
+      </label>
+
+      {hasKit && (
+        <>
+        {/* Q20 */}
+          <label className="block mt-2">
+            Can you please show your disaster preparedness kit to me?
+            <select className="border p-2 rounded w-full mt-1" onChange={e => setCanShowKit(e.target.value === 'YES')}>
+              <option>-- Select --</option>
+              <option>NO</option>
+              <option>YES</option>
+            </select>
+          </label>
+          {/* Q21 */}
+          <p className="mt-4 font-medium">What does your preparedness kit contain?</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {kitItems.map(item => (
+              <label key={item} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={kitContents[item] || false}
+                  onChange={() => toggleKitItem(item)}
+                />
+                <span>{item}</span>
+              </label>
+            ))}
+          </div>
+          {/* Q22 */}
+          <label className="block mt-4 mb-1">How much is the actual value of the contents of the disaster preparedness kit?</label>
+          <input
+            type="number"
+            placeholder="Estimated value of kit (₱)"
+            className="border p-2 rounded w-full"
+            value={valueOfKit}
+            onChange={(e) => setValueOfKit(e.target.value)}
+          />
+        </>
+      )}
+      {/* Q23 */}
+      <label className="block">
+        In the past 12 months, did any member participate in crafting DRRM plan in the barangay?
+        <select className="border p-2 rounded w-full mt-1" onChange={e => setParticipatedDRRM(e.target.value === 'YES')}>
+          <option>-- Select --</option>
+          <option>NO</option>
+          <option>YES</option>
+        </select>
+      </label>
+
+      {participatedDRRM && (
+        <div className="mt-2">
+          {/* Q24 */}
+          <label className="block mb-1">In what ways did you or any of your household members participate in crafting the Disaster Risk Reduction Management (DRRM) plan in the barangay?</label>
+          <select className="border p-2 rounded w-full">
+            <option>-- Select Participation Type --</option>
+            <option>Barangay DRRM Committee or Council</option>
+            <option>Barangay Emergency Response Team</option>
+            <option>Barangay Assembly Discussion</option>
+            <option>Written Comments Provided</option>
+            <option>OTHERS</option>
+          </select>
+        </div>
+      )}
+
+      {/* Q25 */}
+      <label className="block mt-4">
+        In the past 12 months, did you or any of your household member receive information from the barangay about natural disasters preparedness either through meeting or written notice/ information?
+        <select className="border p-2 rounded w-full mt-1" onChange={e => setReceivedInfo(e.target.value === 'YES')}>
+          <option>-- Select --</option>
+          <option>NO</option>
+          <option>YES</option>
+        </select>
+      </label>
+      {/* Q26 */}
+      <label className="block">
+       In the past 12 months, did you discuss with your household how to prepare for disaster?
+        <select className="border p-2 rounded w-full mt-1" onChange={e => setDiscussedPrep(e.target.value === 'YES')}>
+          <option>NO</option>
+          <option>YES</option>
+        </select>
+      </label>
+      {/* Q27 */}
+      <label className="block">
+        Do you know any contact number of hotlines which you can in case of emergency?
+        <select className="border p-2 rounded w-full mt-1" onChange={e => setKnowsHotline(e.target.value === 'YES')}>
+          <option>-- Select --</option>
+          <option>NO</option>
+          <option>YES</option>
+        </select>
+      </label>
+      {/* Q28 */}
+      <label className="block">
+        Does your household have a written or printed evacuation plan in case of earthquake, flood, landslide, tsunami, strom surge, or fire?
+        <select className="border p-2 rounded w-full mt-1" onChange={e => setHasEvacPlan(e.target.value === 'YES')}>
+          <option>-- Select --</option>
+          <option>NO</option>
+          <option>YES</option>
+        </select>
+      </label>
+
+
+
+      
+
+      {/* ✅ Submit button */}
       <div className="pt-6 flex justify-end">
-        <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
-          Save & Continue &gt;
+        <button
+          type="submit"
+          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer flex items-center gap-2 disabled:opacity-50"
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <>
+              <svg
+                className="animate-spin h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
+              </svg>
+              Saving...
+            </>
+          ) : (
+            <>Save & Continue &gt;</>
+          )}
         </button>
       </div>
     </form>

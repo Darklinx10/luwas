@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'react-toastify';
-import { doc, getDocs, deleteDoc, collection } from 'firebase/firestore';
+import { doc, getDocs, getDoc, updateDoc, deleteDoc, collection } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import { FiEdit, FiTrash2, FiSearch } from 'react-icons/fi';
+import { FiEdit, FiTrash2, FiSearch, FiX } from 'react-icons/fi';
 
 const MapPopup = dynamic(() => import('@/components/mapPopUp'), { ssr: false });
 
@@ -15,6 +15,8 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
   const [mapOpen, setMapOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editData, setEditData] = useState(null);
 
   useEffect(() => {
     const fetchAccidents = async () => {
@@ -66,9 +68,45 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
     }
   };
 
-  const handleEdit = (id) => {
-    toast.info(`Edit functionality not implemented. Accident ID: ${id}`);
+  const handleEdit = async (id) => {
+    const docRef = doc(db, 'accidents', id);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return toast.error('Accident not found.');
+    setEditData({ id, ...docSnap.data() });
+    setShowEditModal(true);
   };
+
+    const handleSaveEdit = async () => {
+    if (!editData) return;
+
+    try {
+      const { id, type, severity, description, datetime } = editData;
+
+      // 🟢 Update in Firestore
+      await updateDoc(doc(db, 'accidents', id), {
+        type,
+        severity,
+        description,
+        datetime,
+      });
+
+      // 🟢 Update local state
+      setAccidents((prev) =>
+        prev.map((acc) =>
+          acc.id === id
+            ? { ...acc, type, severity, description, datetime }
+            : acc
+        )
+      );
+
+      setShowEditModal(false);
+      toast.success('Accident updated.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Update failed.');
+    }
+  };
+
 
   const handlePrint = () => window.print();
 
@@ -97,7 +135,6 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
     <div className="p-4">
       <div className="text-sm text-right text-gray-500 mb-2">Home / Reports / Accidents</div>
 
-      {/* Header */}
       <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg">
         {title}
       </div>
@@ -118,13 +155,13 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
         <div className="flex gap-2">
           <button
             onClick={handlePrint}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer"
           >
             Print
           </button>
           <button
             onClick={handleDownloadCSV}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer"
           >
             Download CSV
           </button>
@@ -166,7 +203,7 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
                         onClick={() =>
                           openMapWithLocation(accident.position?.lat, accident.position?.lng)
                         }
-                        className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700"
+                        className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 cursor-pointer"
                       >
                         Map
                       </button>
@@ -174,14 +211,14 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
                     <td className="px-4 py-2 border space-x-2">
                       <button
                         onClick={() => handleEdit(accident.id)}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-blue-600 hover:text-blue-800 cursor-pointer"
                         title="Edit"
                       >
                         <FiEdit size={16} />
                       </button>
                       <button
                         onClick={() => handleDelete(accident.id)}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-red-600 hover:text-red-800 cursor-pointer"
                         title="Delete"
                       >
                         <FiTrash2 size={16} />
@@ -192,9 +229,9 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
               </tbody>
             </table>
 
-            {/* Total Count */}
             <p className="text-sm text-gray-700 mt-4">
-              Total accident records: <span className="font-semibold">{filteredAccidents.length}</span>
+              <strong>Total accident records:</strong>{' '}
+              <span className="font-semibold">{filteredAccidents.length}</span>
             </p>
           </>
         )}
@@ -208,6 +245,89 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
         readOnly={true}
         mode="accident"
       />
+
+      {/* Edit Modal */}
+      {showEditModal && editData && (
+        <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl relative">
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-black"
+              onClick={() => setShowEditModal(false)}
+            >
+              <FiX />
+            </button>
+            <h2 className="text-lg font-bold mb-4">Edit Accident Info</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium">Type</label>
+                <input
+                  type="text"
+                  className="w-full border rounded px-3 py-2"
+                  value={editData.type || ''}
+                  onChange={(e) =>
+                    setEditData((prev) => ({ ...prev, type: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Severity</label>
+                <select
+                  className="w-full border rounded px-3 py-2"
+                  value={editData.severity || ''}
+                  onChange={(e) =>
+                    setEditData((prev) => ({ ...prev, severity: e.target.value }))
+                  }
+                >
+                  <option value="">Select severity</option>
+                  <option value="Minor">Minor</option>
+                  <option value="Moderate">Moderate</option>
+                  <option value="Severe">Severe</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Description</label>
+                <textarea
+                  className="w-full border rounded px-3 py-2"
+                  rows={3}
+                  value={editData.description || ''}
+                  onChange={(e) =>
+                    setEditData((prev) => ({ ...prev, description: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Date & Time</label>
+                <input
+                  type="datetime-local"
+                  className="w-full border rounded px-3 py-2"
+                  value={editData.datetime || ''}
+                  onChange={(e) =>
+                    setEditData((prev) => ({ ...prev, datetime: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

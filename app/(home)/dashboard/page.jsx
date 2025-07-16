@@ -46,12 +46,22 @@ export default function DashboardPage() {
         let seniorCount = 0;
         let totalAge = 0;
 
-        for (const householdDoc  of householdSnap.docs) {
+        for (const householdDoc of householdSnap.docs) {
           const householdId = householdDoc.id;
 
-          // Count head
+          // 🧠 Fetch geo data for household head
+          const geoDocRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
+          const geoSnap = await getDoc(geoDocRef);
+          const geoData = geoSnap.exists() ? geoSnap.data() : {};
+          const headAge = parseInt(geoData.headAge);
+
           residentCount++;
           householdHeads++;
+
+          if (!isNaN(headAge)) {
+            totalAge += headAge;
+            if (headAge >= 60) seniorCount++;
+          }
 
           const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
           const healthSnap = await getDocs(collection(db, 'households', householdId, 'health'));
@@ -78,7 +88,6 @@ export default function DashboardPage() {
           for (const memberDoc of membersSnap.docs) {
             const memberId = memberDoc.id;
 
-            // ✅ Get age from demographicCharacteristics/main
             const demoSnap = await getDoc(doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main'));
             const demo = demoSnap.exists() ? demoSnap.data() : {};
             const age = parseInt(demo.age);
@@ -88,12 +97,13 @@ export default function DashboardPage() {
               if (age >= 60) seniorCount++;
             }
 
-            const health = healthMap.get(memberDoc.id);
+            const health = healthMap.get(memberId);
             if (health?.isPWD === true) {
               pwdCount++;
             }
           }
         }
+
 
         // ✅ Hazards count from any `hazards` collection
         let hazardsCount = 0;

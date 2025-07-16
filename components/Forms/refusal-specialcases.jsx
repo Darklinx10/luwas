@@ -90,37 +90,17 @@ export default function RefusalAndHousingForm({ householdId }) {
     mainFloorMaterial2: '',
     estimatedFloorArea: '',
   });
+  const [isSaving, setIsSaving] = useState(false);
 
-  const saveTimeout = useRef(null);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    setSaving(true);
-    setSaveMessage('Saving...');
-
-    saveTimeout.current = setTimeout(() => {
-      saveData({ ...formData, [field]: value });
-    }, 1500);
   };
 
-  const saveData = async (data) => {
-    try {
-      // Simulated autosave delay
-      await new Promise(r => setTimeout(r, 300));
-      setSaving(false);
-      setSaveMessage('All changes saved.');
-    } catch {
-      setSaving(false);
-      setSaveMessage('Failed to save.');
-    }
-  };
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    setSaveMessage('Saving...');
+    setIsSaving(true);
 
     try {
       const ref = doc(db, 'households', householdId, 'refusalAndSpecialCases', 'main');
@@ -131,15 +111,15 @@ export default function RefusalAndHousingForm({ householdId }) {
       });
 
       toast.success('Refusal & Housing info saved!');
-      setSaving(false);
-      setSaveMessage('All changes saved.');
       router.push('/household');
     } catch (error) {
       console.error('Failed to save refusal and housing info:', error);
       toast.error('Failed to save data.');
-      setSaving(false);
-      setSaveMessage('Failed to save.');
+      
+    } finally {
+      setIsSaving(false); 
     }
+
   };
 
   return (
@@ -368,13 +348,40 @@ export default function RefusalAndHousingForm({ householdId }) {
         />
       </label>
 
-      {/* Submit Button */}
+      {/* ✅ Submit button */}
       <div className="pt-6 flex justify-end">
         <button
           type="submit"
-          className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto"
+          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer flex items-center gap-2 disabled:opacity-50"
+          disabled={isSaving}
         >
-          Save Data
+          {isSaving ? (
+            <>
+              <svg
+                className="animate-spin h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
+              </svg>
+              Saving...
+            </>
+          ) : (
+            <>Save & Continue &gt;</>
+          )}
         </button>
       </div>
     </form>

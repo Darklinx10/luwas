@@ -42,6 +42,8 @@ const autocompleteMap = {
   headFirstName: 'given-name',
   headSuffix: 'honorific-suffix',
   headMiddleName: 'additional-name',
+  headSex: 'sex',
+  headAge: 'bday',
   floorNo: 'address-line1',
   houseNo: 'street-address',
   blockLotNo: 'address-line2',
@@ -52,6 +54,8 @@ const autocompleteMap = {
 export default function GeographicIdentification({ householdId, goToNext }) {
   // 📍 Map modal toggle
   const [mapOpen, setMapOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
 
   // 📝 Main form state
   const [form, setForm] = useState({
@@ -110,6 +114,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
   // 💾 Save data to Firestore
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
 
     try {
       const auth = getAuth();
@@ -133,6 +138,8 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     } catch (error) {
       console.error('Error saving geographic form:', error);
       toast.error('Failed to save data.');
+    }finally {
+      setIsSaving(false); 
     }
   };
 
@@ -436,6 +443,37 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             placeholder="Middle Name"
           />
         </div>
+
+        <div className="flex flex-col">
+          <label htmlFor="headSex" className="mb-1 text-sm font-medium text-gray-700">Sex</label>
+          <select
+            id="headSex"
+            name="headSex"
+            value={form.headSex}
+            onChange={handleChange}
+            required
+            className="border p-2 rounded w-full"
+          >
+            <option value="">Select Sex</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </div>
+
+        <div className="flex flex-col">
+          <label htmlFor="headAge" className="mb-1 text-sm font-medium text-gray-700">Age</label>
+          <input
+            id="headAge"
+            name="headAge"
+            type="number"
+            value={form.headAge}
+            onChange={handleChange}
+            required
+            className="border p-2 rounded w-full"
+            placeholder="Age"
+            min={0}
+          />
+        </div>
       </div>
 
       {/* Physical Address */}
@@ -517,7 +555,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             name="latitude"
             value={form.latitude}
             readOnly
-            className="border p-2 rounded w-full bg-gray-100"
+            className="border p-2 rounded w-full"
           />
         </div>
         <div className="flex flex-col">
@@ -527,7 +565,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             name="longitude"
             value={form.longitude}
             readOnly
-            className="border p-2 rounded w-full bg-gray-100"
+            className="border p-2 rounded w-full "
           />
         </div>
         <div className="sm:col-span-2">
@@ -543,8 +581,38 @@ export default function GeographicIdentification({ householdId, goToNext }) {
 
       {/* ✅ Submit button */}
       <div className="pt-6 flex justify-end">
-        <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer">
-          Save & Continue &gt;
+        <button
+          type="submit"
+          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer flex items-center gap-2 disabled:opacity-50"
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <>
+              <svg
+                className="animate-spin h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
+              </svg>
+              Saving...
+            </>
+          ) : (
+            <>Save & Continue &gt;</>
+          )}
         </button>
       </div>
 

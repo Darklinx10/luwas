@@ -55,7 +55,7 @@ export default function Sidebar({ sidebarOpen }) {
           className="rounded-full"
           priority
         />
-        <div className="text-xl font-bold text-[#0BAD4A]">BMIS</div>
+        <h1 className="text-2xl font-extrabold text-gray-800 tracking-wide mb-2">BMIS</h1>
       </div>
 
       {/* Navigation */}

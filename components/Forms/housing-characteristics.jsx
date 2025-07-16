@@ -123,20 +123,11 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
     cookingFuel: '',
     ownedItemsCount: '',
   });
-
-  const saveTimeout = useRef(null);
+  const [isSaving, setIsSaving] = useState(false);
+ 
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    setSaving(true);
-    setSaveMessage('Saving...');
-
-    saveTimeout.current = setTimeout(() => {
-      setSaving(false);
-      setSaveMessage('All changes saved.');
-    }, 1500);
   };
 
   const toggleMultiSelect = (value) => {
@@ -146,14 +137,13 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
         ? currentArray.filter(i => i !== value)
         : [...currentArray, value];
       handleChange('electricitySources', updated);
-      return { ...prev, electricitySources: updated };
+      
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    setSaveMessage('Saving...');
+    setIsSaving(true);
 
     try {
       const ref = doc(db, 'households', householdId, 'housingCharacteristics', 'main');
@@ -163,14 +153,12 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
       });
 
       toast.success('Housing & Amenities info saved!');
-      setSaving(false);
-      setSaveMessage('All changes saved.');
       if (goToNext) goToNext();
     } catch (error) {
       console.error('Failed to save housing amenities info:', error);
       toast.error('Failed to save data.');
-      setSaving(false);
-      setSaveMessage('Failed to save changes.');
+    } finally {
+      setIsSaving(false); 
     }
   };
 
@@ -422,12 +410,40 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
         />
       </label>
 
+      {/* ✅ Submit button */}
       <div className="pt-6 flex justify-end">
         <button
-          className="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800"
           type="submit"
+          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer flex items-center gap-2 disabled:opacity-50"
+          disabled={isSaving}
         >
-          Save &amp; Continue &gt;
+          {isSaving ? (
+            <>
+              <svg
+                className="animate-spin h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
+              </svg>
+              Saving...
+            </>
+          ) : (
+            <>Save & Continue &gt;</>
+          )}
         </button>
       </div>
     </form>

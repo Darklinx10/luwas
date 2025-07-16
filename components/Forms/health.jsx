@@ -6,6 +6,7 @@ import { doc, setDoc, getDoc, getDocs, collection } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 export default function HealthAndMaternalInfo({ householdId, goToNext }) {
+
   const [isPregnantPast3Years, setIsPregnantPast3Years] = useState(false);
   const [isCurrentlyPregnant, setIsCurrentlyPregnant] = useState(false);
   const [isLactating, setIsLactating] = useState(false);
@@ -44,6 +45,7 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
   const [rareDiseaseUndiagnosedReason, setRareDiseaseUndiagnosedReason] = useState('');
 
   const [memberOptions, setMemberOptions] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -97,8 +99,9 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
     </div>
   );
 
-  const handleSubmit = async () => {
-     e.preventDefault(); // ✅ Prevent full page reload 
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // ✅ Prevent full page reload 
+    setIsSaving(true);
     const data = {
       isPregnantPast3Years,
       isCurrentlyPregnant,
@@ -151,6 +154,8 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
     } catch (error) {
       console.error('Error saving health info:', error);
       toast.error('Failed to save data.');
+    } finally {
+      setIsSaving(false); 
     }
   };
 
@@ -407,13 +412,40 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
               </div>
             </div>
           )}
-        {/* Submit Button */}
+        {/* ✅ Submit button */}
         <div className="pt-6 flex justify-end">
           <button
             type="submit"
-            className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto cursor-pointer"
+            className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer flex items-center gap-2 disabled:opacity-50"
+            disabled={isSaving}
           >
-            Save & Continue &gt;
+            {isSaving ? (
+              <>
+                <svg
+                  className="animate-spin h-4 w-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8z"
+                  />
+                </svg>
+                Saving...
+              </>
+            ) : (
+              <>Save & Continue &gt;</>
+            )}
           </button>
         </div>
       </form>

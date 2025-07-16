@@ -130,8 +130,8 @@ export default function HouseholdPage() {
                 headMiddleName: baseData.middleName || demoData.middleName || '',
                 headLastName: baseData.lastName || demoData.lastName || '',
                 headSuffix: baseData.suffix || demoData.suffix || '',
-                sex: baseData.sex || demoData.sex || '',
-                age: baseData.age || demoData.age || '',
+                headSex: baseData.sex || demoData.sex || '',
+                headAge: baseData.age || demoData.age || '',
                 contactNumber: demoData.contactNumber || '',
               };
               break;
@@ -201,7 +201,7 @@ export default function HouseholdPage() {
 
         <button
           onClick={handleAddClick}
-          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 cursor-pointer"
+          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 cursor-pointer "
         >
           <FiPlus />
           Add
@@ -261,25 +261,26 @@ export default function HouseholdPage() {
                       </td>
                       <td className="p-2 border">{fullName || '-'}</td>
                       <td className="p-2 border">{data.barangay || '-'}</td>
-                      <td className="p-2 border">{data.sex || '-'}</td>
+                      <td className="p-2 border">{data.headSex || '-'}</td>
                       <td className="p-2 border">{data.contactNumber || '-'}</td>
-                      <td className="p-2 border">{data.age || '-'}</td>
+                      <td className="p-2 border">{data.headAge || '-'}</td>
                       <td className="p-2 border">
                         <button
                           onClick={() => openMapWithLocation(data.latitude, data.longitude)}
-                          className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700"
+                          className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 cursor-pointer "
                         >
                           Map
                         </button>
                       </td>
                       <td className="p-2 border space-x-2">
                         <button
-                          onClick={() => router.push(`/household/editHousehold`)}
-                          className="text-blue-600 hover:text-blue-800"
+                          onClick={() => router.push(`/household/editHousehold/${data.householdId}`)}
+                          className="text-blue-600 hover:text-blue-800 cursor-pointer"
                           title="Edit"
                         >
                           <FiEdit />
                         </button>
+                        
                         <button
                           onClick={async () => {
                             const confirmed = confirm('Are you sure you want to delete this household?');
@@ -296,7 +297,7 @@ export default function HouseholdPage() {
                               alert('Failed to delete household.');
                             }
                           }}
-                          className="text-red-600 hover:text-red-800"
+                          className="text-red-600 hover:text-red-800 cursor-pointer"
                           title="Delete"
                         >
                           <FiTrash2 />
@@ -353,7 +354,7 @@ export default function HouseholdPage() {
           </table>
 
           {/* Totals */}
-          <div className="flex justify-end items-center mt-4 text-sm text-gray-700 space-x-6">
+          <div className="flex justify-start items-center mt-4 text-sm text-gray-700 space-x-6">
             <div>
               <strong>Total Households:</strong> {totalHouseholds}
             </div>

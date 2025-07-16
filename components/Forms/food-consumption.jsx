@@ -6,6 +6,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 export default function FoodConsumption({ householdId, goToNext }) {
+  const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
     usualFoodExpenditure: '',
     occasionalFoodExpenditure: '',
@@ -19,6 +20,7 @@ export default function FoodConsumption({ householdId, goToNext }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
       const docRef = doc(db, 'households', householdId, 'foodConsumptionExpenditure', 'main');
       await setDoc(docRef, {
@@ -30,6 +32,8 @@ export default function FoodConsumption({ householdId, goToNext }) {
     } catch (error) {
       console.error('Error saving food consumption:', error);
       toast.error('Failed to save data.');
+    } finally {
+      setIsSaving(false); 
     }
   };
 
@@ -38,7 +42,6 @@ export default function FoodConsumption({ householdId, goToNext }) {
       <h2 className="text-xl text-green-700 mb-4">
         Food Consumption Expenditure (Last 12 Months)
       </h2>
-
       <div>
         <label htmlFor="usualFoodExpenditure" className="block mb-1">
           How much was your family’s <strong>usual or average</strong> expenditure on food?
@@ -54,7 +57,6 @@ export default function FoodConsumption({ householdId, goToNext }) {
           min="0"
         />
       </div>
-
       <div>
         <label htmlFor="occasionalFoodExpenditure" className="block mb-1">
           How much was your family’s expenditure on <strong>occasionally consumed food items</strong>?
@@ -71,7 +73,6 @@ export default function FoodConsumption({ householdId, goToNext }) {
           min="0"
         />
       </div>
-
       <div>
         <label htmlFor="totalFoodConsumption" className="block mb-1">
           What was your family’s <strong>total food consumption</strong> in the past 12 months?
@@ -87,14 +88,40 @@ export default function FoodConsumption({ householdId, goToNext }) {
           min="0"
         />
       </div>
-
-      {/* Submit Button */}
+      {/* ✅ Submit button */}
       <div className="pt-6 flex justify-end">
         <button
           type="submit"
-          className="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 block w-full sm:w-auto cursor-pointer"
+          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer flex items-center gap-2 disabled:opacity-50"
+          disabled={isSaving}
         >
-          Save & Continue &gt;
+          {isSaving ? (
+            <>
+              <svg
+                className="animate-spin h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
+              </svg>
+              Saving...
+            </>
+          ) : (
+            <>Save & Continue &gt;</>
+          )}
         </button>
       </div>
     </form>
