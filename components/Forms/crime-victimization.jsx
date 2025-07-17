@@ -1,11 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '@/firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
+import {doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  collection,
+} from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
-export default function CrimeVictimizationForm({ householdId, goToNext }) {
+export default function CrimeVictimizationForm({ householdId, goToNext}) {
+  const [memberOptions, setMemberOptions] = useState([]);
   const [safetyLevel, setSafetyLevel] = useState('');
   const [wasVictim, setWasVictim] = useState('');
   const [crimeTypes, setCrimeTypes] = useState([]);
@@ -61,13 +67,14 @@ export default function CrimeVictimizationForm({ householdId, goToNext }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+
     const data = {
       safetyLevel,
-      wasVictim,
+      wasVictim: wasVictim === 'YES',
       crimeTypes,
       crimeCount,
       crimeLocation,
-      reportedCrime,
+      reportedCrime: reportedCrime === 'YES',
       notReportedReasons,
       hhVictimizedLine,
       timestamp: new Date(),
@@ -82,9 +89,48 @@ export default function CrimeVictimizationForm({ householdId, goToNext }) {
       console.error('Error saving data:', error);
       toast.error('Failed to save data.');
     } finally {
-      setIsSaving(false); 
+      setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!householdId) return;
+      try {
+        const members = [];
+
+        // Head of household
+        const geoSnap = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
+        if (geoSnap.exists()) {
+          const geo = geoSnap.data();
+          const name = `${geo.headFirstName || ''} ${geo.headMiddleName || ''} ${geo.headLastName || ''}`.trim();
+          members.push({ id: 'head', name: `${name}` });
+        }
+
+        // Members
+        const memSnap = await getDocs(collection(db, 'households', householdId, 'members'));
+        const memberPromises = memSnap.docs.map(async (mem) => {
+          const memId = mem.id;
+          const demoSnap = await getDocs(collection(db, 'households', householdId, 'members', memId, 'demographicCharacteristics'));
+          const memberDocs = [];
+          demoSnap.forEach((doc) => {
+            const d = doc.data();
+            const fullName = `${d.firstName || ''} ${d.middleName || ''} ${d.lastName || ''}`.trim();
+            memberDocs.push({ id: memId, name: fullName });
+          });
+          return memberDocs;
+        });
+
+        const results = await Promise.all(memberPromises);
+        results.forEach((arr) => members.push(...arr));
+        setMemberOptions(members);
+      } catch (err) {
+        console.error('Failed to fetch members:', err);
+      }
+    };
+
+    fetchMembers();
+  }, [householdId]);
 
 
   return (
@@ -100,11 +146,11 @@ export default function CrimeVictimizationForm({ householdId, goToNext }) {
             onChange={(e) => setSafetyLevel(e.target.value)}
           >
             <option value="">-- Select description --</option>
-            <option>VERY SAFE</option>
-            <option>SAFE</option>
-            <option>SOMEWHAT UNSAFE</option>
-            <option>UNSAFE</option>
-            <option>DON'T KNOW</option>
+            <option value="VERY SAFE">VERY SAFE</option>
+            <option value="SAFE">SAFE</option>
+            <option value="SOMEWHAT UNSAFE">SOMEWHAT UNSAFE</option>
+            <option value="UNSAFE">UNSAFE</option>
+            <option value="DON'T KNOW">DON'T KNOW</option>
           </select>
         </label>
 
@@ -113,8 +159,8 @@ export default function CrimeVictimizationForm({ householdId, goToNext }) {
           Were you a victim of crime/s in the past 12 months?
           <select
             className="w-full border p-2 rounded mt-1"
-            value={wasVictim === null ? '' : wasVictim ? 'YES' : 'NO'}
-            onChange={(e) => setWasVictim(e.target.value === 'YES')}
+            value={wasVictim}
+            onChange={(e) => setWasVictim(e.target.value)}
           >
             <option value="">-- Select --</option>
             <option value="YES">YES</option>
@@ -122,7 +168,7 @@ export default function CrimeVictimizationForm({ householdId, goToNext }) {
           </select>
         </label>
 
-        {wasVictim && (
+        {wasVictim === 'YES' && (
           <>
             {/* Crime Types */}
             <fieldset className="mt-3 border rounded p-3">
@@ -177,8 +223,8 @@ export default function CrimeVictimizationForm({ householdId, goToNext }) {
               Was the crime reported to the police/barangay?
               <select
                 className="w-full border p-2 rounded mt-1"
-                value={reportedCrime === null ? '' : reportedCrime ? 'YES' : 'NO'}
-                onChange={(e) => setReportedCrime(e.target.value === 'YES')}
+                value={reportedCrime}
+                onChange={(e) => setReportedCrime(e.target.value)}
               >
                 <option value="">-- Select --</option>
                 <option value="YES">YES</option>
@@ -187,7 +233,7 @@ export default function CrimeVictimizationForm({ householdId, goToNext }) {
             </label>
 
             {/* If no, why not? */}
-            {reportedCrime === false && (
+            {reportedCrime === 'NO' && (
               <fieldset className="mt-3 border rounded p-3">
                 <legend className="font-semibold">
                   If no, state the reason (check all that apply):
@@ -207,16 +253,23 @@ export default function CrimeVictimizationForm({ householdId, goToNext }) {
             )}
 
             {/* Household member victimized */}
-            <label className="block mt-4">
-              Household member victimized by crime (if applicable). Enter LINE NUMBER of HH member:
-              <input
-                type="text"
-                className="w-full border p-2 rounded mt-1"
+            <div className="mt-4">
+              <label className="block font-medium mb-1">
+                Household member victimized by crime (if applicable):
+              </label>
+              <select
+                className="w-full border p-2 rounded"
                 value={hhVictimizedLine}
                 onChange={(e) => setHhVictimizedLine(e.target.value)}
-                placeholder="Enter line number"
-              />
-            </label>
+              >
+                <option value="">-- Select Member --</option>
+                {memberOptions.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </>
         )}
 

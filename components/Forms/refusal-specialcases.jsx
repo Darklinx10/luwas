@@ -110,17 +110,23 @@ export default function RefusalAndHousingForm({ householdId }) {
         timestamp: new Date(),
       });
 
+      // ✅ Mark the household as complete
+      const householdRef = doc(db, 'households', householdId);
+      await setDoc(householdRef, {
+        isComplete: true,
+        updatedAt: new Date(),
+      }, { merge: true });
+
       toast.success('Refusal & Housing info saved!');
       router.push('/household');
     } catch (error) {
       console.error('Failed to save refusal and housing info:', error);
       toast.error('Failed to save data.');
-      
     } finally {
-      setIsSaving(false); 
+      setIsSaving(false);
     }
-
   };
+
 
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-6 space-y-6">

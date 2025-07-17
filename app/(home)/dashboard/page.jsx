@@ -28,7 +28,7 @@ export default function DashboardPage() {
     families: 0,
     pwd: 0,
     seniors: 0,
-    totalAge: 0,
+    ageCount: 0,
     hazards: 0,
     growthRate: '0%',
   });
@@ -44,7 +44,7 @@ export default function DashboardPage() {
         let householdMembers = 0;
         let pwdCount = 0;
         let seniorCount = 0;
-        let totalAge = 0;
+        let ageCount= 0;
 
         for (const householdDoc of householdSnap.docs) {
           const householdId = householdDoc.id;
@@ -59,7 +59,7 @@ export default function DashboardPage() {
           householdHeads++;
 
           if (!isNaN(headAge)) {
-            totalAge += headAge;
+            ageCount += headAge;
             if (headAge >= 60) seniorCount++;
           }
 
@@ -93,7 +93,7 @@ export default function DashboardPage() {
             const age = parseInt(demo.age);
 
             if (!isNaN(age)) {
-              totalAge += age;
+              ageCount += age;
               if (age >= 60) seniorCount++;
             }
 
@@ -122,7 +122,7 @@ export default function DashboardPage() {
           families: householdCount,
           pwd: pwdCount,
           seniors: seniorCount,
-          totalAge,
+          ageCount: residentCount,
           hazards: hazardsCount,
           growthRate: '0%',
         });
@@ -163,7 +163,7 @@ export default function DashboardPage() {
         <BottomStat title="Total PWD" value={stats.pwd} icon={<FaWheelchair />} color="bg-blue-500" />
         <BottomStat title="Total Senior Citizens" value={stats.seniors} icon={<FaUserClock />} color="bg-green-500" />
         <BottomStat title="Total Hazards" value={stats.hazards} icon={<FaExclamationTriangle />} color="bg-yellow-500" />
-        <BottomStat title="Total Age" value={stats.totalAge} icon={<FaBirthdayCake />} color="bg-red-500" />
+        <BottomStat title="Total Age" value={stats.ageCount} icon={<FaBirthdayCake />} color="bg-red-500" />
       </div>
     </div>
   );

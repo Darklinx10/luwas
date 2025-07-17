@@ -371,7 +371,7 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
           {/* Q22 */}
           <label className="block mt-4 mb-1">How much is the actual value of the contents of the disaster preparedness kit?</label>
           <input
-            type="number"
+            type="text"
             placeholder="Estimated value of kit (₱)"
             className="border p-2 rounded w-full"
             value={valueOfKit}

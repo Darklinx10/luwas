@@ -36,7 +36,8 @@ export default function Agriculture({ householdId, goToNext }) {
     cropDecreasePercent: '',
     cropName: '',
     crops: [],
-    selectedMember: '',
+    selectedEngagedMember: '',
+    selectedOperatorMember: '',
     cropsByMember: {},
     engagedInAgriFishery: '',
     ownedQty: '',
@@ -475,8 +476,8 @@ export default function Agriculture({ householdId, goToNext }) {
         <div className="flex gap-2">
           <select
             className="border p-2 rounded w-full"
-            value={form.selectedMember || ''}
-            onChange={(e) => handleChange('selectedMember', e.target.value)}
+            value={form.selectedEngagedMember || ''}
+            onChange={(e) => handleChange('selectedEngagedMember', e.target.value)}
           >
             <option value="">-- Select Household Member --</option>
             {memberOptions
@@ -490,13 +491,13 @@ export default function Agriculture({ householdId, goToNext }) {
           <button
             type="button"
             onClick={() => {
-              if (form.selectedMember) {
+              if (form.selectedEngagedMember) {
                 setForm((prev) => ({
                   ...prev,
-                  engagedMembers: [...(prev.engagedMembers || []), prev.selectedMember],
+                  engagedMembers: [...(prev.engagedMembers || []), prev.selectedEngagedMember],
                   memberData: {
                     ...prev.memberData,
-                    [prev.selectedMember]: {
+                    [prev.selectedEngagedMember]: {
                       memberActivities: {},
                       engagementTypeCrops: '',
                       productionActivitiesAgri: '',
@@ -506,7 +507,7 @@ export default function Agriculture({ householdId, goToNext }) {
                       organizationNames: '',
                     },
                   },
-                  selectedMember: '',
+                  selectedEngagedMember: '',
                 }));
               }
             }}
@@ -750,8 +751,8 @@ export default function Agriculture({ householdId, goToNext }) {
           </label>
           <select
             className="border p-2 rounded w-full"
-            value={form.selectedMember || ''}
-            onChange={(e) => handleChange('selectedMember', e.target.value)}
+            value={form.selectedOperatorMember || ''}
+            onChange={(e) => handleChange('selectedOperatorMember', e.target.value)}
           >
             <option value="">-- Select Household Member --</option>
             {memberOptions
@@ -1062,7 +1063,7 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Q36 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">(36) Where is the aquafarm located?</label>
+        <label className="font-medium block mb-1">Where is the aquafarm located?</label>
         <select
           name="aquafarmLocation"
           className="border p-2 rounded w-full"
@@ -1159,18 +1160,18 @@ export default function Agriculture({ householdId, goToNext }) {
           onChange={(e) => handleChange('tenureStatus', e.target.value)}
         >
           <option value="">-- Select Status --</option>
-          <option value="01">Owned</option>
-          <option value="02">Lessee/Rented</option>
-          <option value="03">Sub-lessee</option>
-          <option value="05">Sub-sub lessee</option>
-          <option value="06">Government-owned with FLA</option>
-          <option value="07">Government-owned without FLA</option>
-          <option value="08">Free</option>
-          <option value="09">Government-owned with gratuitous permit</option>
-          <option value="10">Government-owned with city/municipal license</option>
-          <option value="99">Others</option>
+          <option value="Owned">Owned</option>
+          <option value="Lessee/Rented">Lessee/Rented</option>
+          <option value="Sub-lessee">Sub-lessee</option>
+          <option value="Sub-sub lessee">Sub-sub lessee</option>
+          <option value="Government-owned with FLA">Government-owned with FLA</option>
+          <option value="Government-owned without FLA">Government-owned without FLA</option>
+          <option value="Free">Free</option>
+          <option value="Government-owned with gratuitous permit">Government-owned with gratuitous permit</option>
+          <option value="Government-owned with city/municipal license">Government-owned with city/municipal license</option>
+          <option value="Others">Others</option>
         </select>
-        {form.tenureStatus === '99' && (
+        {form.tenureStatus === 'Others' && (
           <input
             type="text"
             name="tenureOther"
@@ -1272,13 +1273,13 @@ export default function Agriculture({ householdId, goToNext }) {
             onChange={handleChange}
           >
             <option value="">-- Select --</option>
-            <option value="1">Affected by natural calamities</option>
-            <option value="2">Sudden change of weather conditions</option>
-            <option value="3">Pollution/contamination</option>
-            <option value="4">Pests and diseases</option>
-            <option value="5">High cost of material inputs</option>
-            <option value="6">Competition with imported species</option>
-            <option value="9">Others</option>
+            <option value="Affected by natural calamities">Affected by natural calamities</option>
+            <option value="Sudden change of weather conditions">Sudden change of weather conditions</option>
+            <option value="Pollution/contamination">Pollution/contamination</option>
+            <option value="Pests and diseases">Pests and diseases</option>
+            <option value="High cost of material inputs">High cost of material inputs</option>
+            <option value="Competition with imported species">Competition with imported species</option>
+            <option value="Others">Others</option>
           </select>
 
           {/* If 'Others' is selected */}
@@ -1316,8 +1317,8 @@ export default function Agriculture({ householdId, goToNext }) {
           onChange={handleChange}
         >
           <option value="">-- Select --</option>
-          <option value="1">Yes</option>
-          <option value="2">No</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
         </select>
       </div>
 
@@ -1344,8 +1345,8 @@ export default function Agriculture({ householdId, goToNext }) {
             onChange={handleChange}
           >
             <option value="">Owned or Not Owned</option>
-            <option value="1">Owned</option>
-            <option value="2">Not Owned</option>
+            <option value="Owned">Owned</option>
+            <option value="Not Owned">Not Owned</option>
           </select>
           <select
             name={`boat${i}_type`}
@@ -1354,10 +1355,10 @@ export default function Agriculture({ householdId, goToNext }) {
             onChange={handleChange}
           >
             <option value="">Type</option>
-            <option value="1">Motorized with Outrigger</option>
-            <option value="2">Motorized without Outrigger</option>
-            <option value="3">Non-motorized with Outrigger</option>
-            <option value="4">Non-motorized without Outrigger</option>
+            <option value="Motorized with Outrigger">Motorized with Outrigger</option>
+            <option value="Motorized without Outrigger">Motorized without Outrigger</option>
+            <option value="Non-motorized with Outrigger">Non-motorized with Outrigger</option>
+            <option value="Non-motorized without Outrigger">Non-motorized without Outrigger</option>
           </select>
         </div>
       ))}
@@ -1372,9 +1373,9 @@ export default function Agriculture({ householdId, goToNext }) {
           onChange={handleChange}
         >
           <option value="">-- Select --</option>
-          <option value="1">In inland waters only</option>
-          <option value="2">In marine waters only</option>
-          <option value="3">In both inland and marine waters</option>
+          <option value="In inland waters only">In inland waters only</option>
+          <option value="In marine waters only">In marine waters only</option>
+          <option value="In both inland and marine waters">In both inland and marine waters</option>
         </select>
       </div>
 
@@ -1452,8 +1453,8 @@ export default function Agriculture({ householdId, goToNext }) {
           onChange={handleChange}
         >
           <option value="">-- Select --</option>
-          <option value="1">Yes</option>
-          <option value="2">No</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
         </select>
       </div>
 
@@ -1484,21 +1485,21 @@ export default function Agriculture({ householdId, goToNext }) {
             onChange={handleChange}
           >
             <option value="">-- Select --</option>
-            <option value="01">Coral bleaching</option>
-            <option value="02">Fish kill</option>
-            <option value="03">Oil spill/pollution</option>
-            <option value="04">Typhoons</option>
-            <option value="05">Gov’t fishing area restrictions</option>
-            <option value="06">Competition</option>
-            <option value="07">Decrease in fish stock</option>
-            <option value="08">Fuel cost and other expenses</option>
-            <option value="09">Shift to other livelihood</option>
-            <option value="10">Boat/vessel damage</option>
-            <option value="99">Others</option>
+            <option value="Coral bleaching">Coral bleaching</option>
+            <option value="Fish kill">Fish kill</option>
+            <option value="Oil spill/pollution">Oil spill/pollution</option>
+            <option value="Typhoons">Typhoons</option>
+            <option value="Gov’t fishing area restrictions">Gov’t fishing area restrictions</option>
+            <option value="Competitio">Competition</option>
+            <option value="Decrease in fish stock">Decrease in fish stock</option>
+            <option value="0Fuel cost and other expenses8">Fuel cost and other expenses</option>
+            <option value="Shift to other livelihood">Shift to other livelihood</option>
+            <option value="Boat/vessel damage">Boat/vessel damage</option>
+            <option value="Others">Others</option>
           </select>
 
           {/* If "Others", show text input */}
-          {form.fishCatchReason === '99' && (
+          {form.fishCatchReason === 'Others' && (
             <input
               name="fishCatchOther"
               placeholder="If others, specify"

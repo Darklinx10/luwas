@@ -32,13 +32,13 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          const docRef = doc(db, 'users', user.uid); // adjust if your user data path is different
+          const docRef = doc(db, 'users', user.uid);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             const data = docSnap.data();
-            const fullName = `${data.firstName || ''} ${data.middleName || ''} ${data.lastName || ''}`;
-            setUserName(fullName.trim());
-            setUserPhoto(data.photoURL || null); // Add this
+            const fullName = `${data.firstName || ''} ${data.middleName || ''} ${data.lastName || ''}`.trim();
+            setUserName(fullName);
+            setUserPhoto(data.photoURL || null);
           }
         } catch (error) {
           console.error('Failed to fetch user data:', error);
@@ -69,7 +69,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
       {/* Hamburger Button */}
       <button
         onClick={toggleSidebar}
-        className="text-2xl text-gray-700 hover:text-black focus:outline-none cursor-pointer"
+        className="text-2xl text-gray-700 hover:text-black focus:outline-none"
         aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
       >
         <GiHamburgerMenu />
@@ -77,8 +77,10 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
 
       {/* User Info and Dropdown */}
       <div className="relative" ref={menuRef}>
-        <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setShowMenu(!showMenu)}>
-          
+        <div
+          className="flex items-center space-x-2 cursor-pointer"
+          onClick={() => setShowMenu((prev) => !prev)}
+        >
           {userPhoto ? (
             <img
               src={userPhoto}
@@ -91,21 +93,44 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
         </div>
 
         {showMenu && (
-          <div className="absolute right-0 mt-2 bg-white  rounded shadow-xl z-50 w-40">
-            <a
-              href="/dashboard/profile"
-              className="block px-4 py-2 text-gray-700 rounded hover:bg-gray-100 text-center cursor-pointer"
-            >
-              Profile
-            </a>
-            <button
-              onClick={handleLogout}
-              className="w-full px-4 py-2 text-gray-700 rounded hover:bg-gray-100 text-center cursor-pointer"
-            >
-              Logout
-            </button>
-          </div>
-        )}
+  <div className="absolute right-0 mt-2 bg-white rounded-lg shadow-xl z-50 w-56 p-4">
+    {/* User Info */}
+    <div className="flex flex-col items-center mb-4">
+      {userPhoto ? (
+        <img
+          src={userPhoto}
+          alt="Profile"
+          className="w-14 h-14 rounded-full object-cover border border-gray-300"
+        />
+      ) : (
+        <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-3xl">
+          <FaUserCircle />
+        </div>
+      )}
+      <span className="mt-2 text-sm font-semibold text-gray-800 text-center">
+        {userName || 'Guest User'}
+      </span>
+    </div>
+
+    {/* Divider */}
+    <div className="border-t border-gray-200 my-2 w-full" />
+
+    {/* Menu Items */}
+    <a
+      href="/dashboard/profile"
+      className="block w-full text-center px-4 py-2 text-sm text-gray-700 rounded hover:bg-gray-100 transition"
+    >
+      Profile
+    </a>
+    <button
+      onClick={handleLogout}
+      className="w-full text-center px-4 py-2 text-sm text-gray-700 rounded hover:bg-gray-100 transition"
+    >
+      Logout
+    </button>
+  </div>
+)}
+
       </div>
     </div>
   );

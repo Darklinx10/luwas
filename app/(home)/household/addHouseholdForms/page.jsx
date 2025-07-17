@@ -84,17 +84,18 @@
 
             const snap = await getDocs(q);
 
-            if (!snap.empty) {
-              const existing = snap.docs[0];
+            const unfinished = snap.docs.find(doc => !doc.data().discarded);
+
+            if (unfinished) {
               const confirmResume = window.confirm('You have an unfinished form. Do you want to continue?');
 
               if (confirmResume) {
-                setHouseholdId(existing.id);
-                setCurrentSection(existing.data().lastSection || 'Geographic Identification');
+                setHouseholdId(unfinished.id);
+                setCurrentSection(unfinished.data().lastSection || 'Geographic Identification');
                 setLoading(false);
                 return;
               } else {
-                await setDoc(doc(db, 'households', existing.id), { discarded: true }, { merge: true });
+                await setDoc(doc(db, 'households', unfinished.id), { discarded: true }, { merge: true });
               }
             }
 

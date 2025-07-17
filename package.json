@@ -16,6 +16,7 @@
     "eslint-config-next": "15.3.4",
     "esri-leaflet": "^3.0.17",
     "firebase": "^11.10.0",
+    "html2pdf.js": "^0.10.3",
     "leaflet": "^1.9.4",
     "lodash.debounce": "^4.0.8",
     "next": "15.3.4",

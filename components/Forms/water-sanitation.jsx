@@ -1,8 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '@/firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  collection,
+} from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 export default function WaterSanitationForm({ householdId, goToNext }) {
@@ -39,6 +45,7 @@ export default function WaterSanitationForm({ householdId, goToNext }) {
   const [householdSoapDetergent, setHouseholdSoapDetergent] = useState(null);
   const [shownSoap, setShownSoap] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [memberOptions, setMemberOptions] = useState([]);
 
 
   // Helper to toggle checkbox arrays
@@ -100,6 +107,49 @@ export default function WaterSanitationForm({ householdId, goToNext }) {
       setIsSaving(false); 
     }
   };
+    
+  useEffect(() => {
+      const fetchMembers = async () => {
+        if (!householdId) return;
+        try {
+          const members = [];
+
+          // Head of household
+          const geoSnap = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
+          if (geoSnap.exists()) {
+            const geo = geoSnap.data();
+            const name = `${geo.headFirstName || ''} ${geo.headMiddleName || ''} ${geo.headLastName || ''}`.trim();
+            members.push({ id: 'head', name });
+          }
+
+          // Members
+          const memSnap = await getDocs(collection(db, 'households', householdId, 'members'));
+          const memberPromises = memSnap.docs.map(async (mem) => {
+            const memId = mem.id;
+            const demoSnap = await getDocs(
+              collection(db, 'households', householdId, 'members', memId, 'demographicCharacteristics')
+            );
+            const memberDocs = [];
+            demoSnap.forEach((doc) => {
+              const d = doc.data();
+              const fullName = `${d.firstName || ''} ${d.middleName || ''} ${d.lastName || ''}`.trim();
+              memberDocs.push({ id: memId, name: fullName });
+            });
+            return memberDocs;
+          });
+
+          const results = await Promise.all(memberPromises);
+          results.forEach((arr) => members.push(...arr));
+          setMemberOptions(members);
+        } catch (err) {
+          console.error('Failed to fetch members:', err);
+        }
+      };
+
+      fetchMembers();
+    }, [householdId]);
+
+  
 
   // Option arrays (can be used for selects or checkboxes)
   const waterSources = [
@@ -128,6 +178,8 @@ export default function WaterSanitationForm({ householdId, goToNext }) {
   const waterTreatmentOptions = [
     'Boiling', 'Filtration', 'Chlorination', 'Settling', 'Solar disinfection', 'Other',
   ];
+
+  
 
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-4 space-y-6">
@@ -181,10 +233,19 @@ export default function WaterSanitationForm({ householdId, goToNext }) {
         <input type="number" className="w-full border p-2 rounded" value={otherWaterSourceDistance} onChange={e => setOtherWaterSourceDistance(e.target.value)} />
       </label>
 
-      <label className="block">
-        Who collects water:
-        <input className="w-full border p-2 rounded" value={waterCollector} onChange={e => setWaterCollector(e.target.value)} />
-      </label>
+      <label className="block mb-1 font-medium">Who collects water:</label>
+      <select
+        className="w-full border p-2 rounded"
+        value={waterCollector}
+        onChange={(e) => setWaterCollector(e.target.value)}
+      >
+        <option value="">-- Select Member --</option>
+        {memberOptions.map((member) => (
+          <option key={member.id} value={member.name}>
+            {member.name}
+          </option>
+        ))}
+      </select>
 
       <label className="block">
         How many times collected:

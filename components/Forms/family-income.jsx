@@ -191,9 +191,19 @@ export default function FamilyIncome({ householdId, goToNext }) {
       </div>
 
       <div>
-        <label>Other Family Members Not Yet Listed</label>
-        <input type="text" name="otherMembers" value={form.otherMembers} onChange={handleChange} className="border p-2 rounded w-full" />
+        <label className="block mb-1 font-medium">Other Family Members Not Yet Listed</label>
+        <select
+          name="otherMembers"
+          value={form.otherMembers}
+          onChange={handleChange}
+          className="border p-2 rounded w-full"
+        >
+          <option value="">-- Select --</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
       </div>
+
       
       {/* ✅ Submit button */}
       <div className="pt-6 flex justify-end">

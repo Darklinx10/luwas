@@ -38,12 +38,44 @@ export default function AgeBracketChart() {
           '60 and over': 0,
         };
 
+        // Helper function to categorize and count an age
+        const countAge = (age) => {
+          if (age === undefined || age === '') return;
+          const a = parseInt(age);
+          if (isNaN(a)) return;
+
+          if (a < 1) ageCounts['Under 1']++;
+          else if (a <= 4) ageCounts['1-4']++;
+          else if (a <= 9) ageCounts['5-9']++;
+          else if (a <= 14) ageCounts['10-14']++;
+          else if (a <= 19) ageCounts['15-19']++;
+          else if (a <= 24) ageCounts['20-24']++;
+          else if (a <= 29) ageCounts['25-29']++;
+          else if (a <= 34) ageCounts['30-34']++;
+          else if (a <= 39) ageCounts['35-39']++;
+          else if (a <= 44) ageCounts['40-44']++;
+          else if (a <= 49) ageCounts['45-49']++;
+          else if (a <= 54) ageCounts['50-54']++;
+          else if (a <= 59) ageCounts['55-59']++;
+          else ageCounts['60 and over']++;
+        };
+
         for (const householdDoc of householdSnapshot.docs) {
           const householdId = householdDoc.id;
-          const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
 
+          // ✅ Geographic headAge
+          const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
+          const geoSnap = await getDoc(geoRef);
+          if (geoSnap.exists()) {
+            const geoData = geoSnap.data();
+            countAge(geoData.headAge);
+          }
+
+          // ✅ Loop members
+          const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
           for (const memberDoc of membersSnap.docs) {
             const memberId = memberDoc.id;
+
             const demoRef = doc(
               db,
               'households',
@@ -55,28 +87,13 @@ export default function AgeBracketChart() {
             );
             const demoSnap = await getDoc(demoRef);
             if (demoSnap.exists()) {
-              const data = demoSnap.data();
-              const rawAge = parseInt(data.age);
-
-              if (!isNaN(rawAge)) {
-                if (rawAge < 1) ageCounts['Under 1']++;
-                else if (rawAge <= 4) ageCounts['1-4']++;
-                else if (rawAge <= 9) ageCounts['5-9']++;
-                else if (rawAge <= 14) ageCounts['10-14']++;
-                else if (rawAge <= 19) ageCounts['15-19']++;
-                else if (rawAge <= 24) ageCounts['20-24']++;
-                else if (rawAge <= 29) ageCounts['25-29']++;
-                else if (rawAge <= 34) ageCounts['30-34']++;
-                else if (rawAge <= 39) ageCounts['35-39']++;
-                else if (rawAge <= 44) ageCounts['40-44']++;
-                else if (rawAge <= 49) ageCounts['45-49']++;
-                else if (rawAge <= 54) ageCounts['50-54']++;
-                else if (rawAge <= 59) ageCounts['55-59']++;
-                else ageCounts['60 and over']++;
-              }
+              const demoData = demoSnap.data();
+              countAge(demoData.age);
             }
           }
         }
+
+
 
         const formatted = Object.entries(ageCounts).map(([age, count]) => ({ age, count }));
         setAgeData(formatted);
