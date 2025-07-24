@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export default function DemographicCharacteristics({ householdId, goToNext, setSavedMembers }) {
   const [isSaving, setIsSaving] = useState(false);
+
   const [members, setMembers] = useState([
     {
       id: uuidv4(),
@@ -48,7 +49,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
   ];
 
   const selectFields = {
-    relationshipToHead: ['', 'Head', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister', 'Father', 'Mother', 'Father-in-law', 'Mother-in-law', 'Sister', 'Brother-in-law', 'Sister-in-law', 'Uncle', 'Aunt', 'Nephew', 'Niece', 'Other Relative', 'Border', 'Domestic Helper', 'Nonrelative'],
+    relationshipToHead: ['', 'Head', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister', 'Father', 'Mother', 'Father-in-law', 'Mother-in-law', 'Brother-in-law', 'Sister-in-law', 'Uncle', 'Aunt', 'Nephew', 'Niece', 'Other Relative', 'Border', 'Domestic Helper', 'Nonrelative'],
     nuclearRelation: ['', 'None', 'Family Head', 'Spouse', 'Partner', 'Son', 'Daughter', 'Brother', 'Sister', 'Father', 'Mother', 'Other'],
     sex: ['', 'Male', 'Female'],
     birthRegistered: ['', 'Yes', 'No', "Don't Know"],
@@ -115,6 +116,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
     setIsSaving(true);
 
     const user = auth.currentUser;
+
     if (!user) {
       toast.error('User not authenticated.');
       setIsSaving(false);
@@ -124,31 +126,37 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
     try {
       const saveTasks = members.map(async (member) => {
         const memberRef = doc(db, 'households', householdId, 'members', member.id);
-        await setDoc(memberRef, {
+
+        const cleanedMember = {
           firstName: member.firstName,
           lastName: member.lastName,
           middleName: member.middleName,
-          suffix: member.suffix,
+          suffix: member.suffix || '',
           uid: user.uid,
           sex: member.sex,
-          age: member.age,
+          age: Number(member.age),
           relationshipToHead: member.relationshipToHead || '',
-        });
+          updatedAt: new Date(), // <-- Firestore timestamp
+        };
 
+        // Save to /members/{id}
+        await setDoc(memberRef, cleanedMember);
+
+        // Save to /members/{id}/demographicCharacteristics/main
         const demoRef = doc(memberRef, 'demographicCharacteristics', 'main');
-        await setDoc(demoRef, member);
+        await setDoc(demoRef, {
+          ...cleanedMember,
+        }, { merge: true }); // <-- merge to avoid overwriting extra fields
       });
 
       await Promise.all(saveTasks);
 
+      // Save all members to the parent household document (optional flat list)
       await updateDoc(doc(db, 'households', householdId), {
         demographicCharacteristics: members,
       });
 
-      if (setSavedMembers) {
-        setSavedMembers(members);
-      }
-
+      setSavedMembers?.(members);
       toast.success('Demographic information saved!');
       goToNext();
     } catch (error) {
@@ -158,6 +166,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
       setIsSaving(false);
     }
   };
+
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pr-2">
@@ -170,10 +179,33 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
           </legend>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[{ id: 'lastName', label: 'Last Name',placeholder: 'Enter your Last Name' }, { id: 'firstName', label: 'First Name', placeholder: 'Enter your Frist Name' }, { id: 'middleName', label: 'Middle Name', placeholder: 'Enter your Middle Name' }, { id: 'suffix', label: 'Suffix',placeholder: 'Enter your Suffix' }, { id: 'birthdate', label: 'Birthdate', type: 'date',placeholder: 'Enter your Birthdate' }, { id: 'age', label: 'Age', type: 'number' }, { id: 'contactNumber', label: 'Contact Number', type: 'tel', pattern: '^09\\d{9}$', maxLength: 11, placeholder: 'e.g., 09123456789', title: 'Enter an 11-digit number starting with 09' }, { id: 'ethnicity', label: 'Ethnicity',placeholder: 'Enter your Ethnicity' }, { id: 'religion', label: 'Religion' ,placeholder: 'Enter your Religion'}, { id: 'philsysNumber', label: 'PhilSys Card Number (PCN)',placeholder: 'Enter your PhilSys Card Number' }, { id: 'lguIdNumber', label: 'LGU ID Number',placeholder: 'Enter your LGU ID Number' }, { id: 'nuclearBelonging', label: 'In whitch Nuclear Family Belong?' }].map(({ id, label, type = 'text', ...props }) => (
-              <label key={id} className="flex flex-col">
+            {[
+              { id: 'lastName', label: 'Last Name', placeholder: 'Enter your Last Name' },
+              { id: 'firstName', label: 'First Name', placeholder: 'Enter your First Name' },
+              { id: 'middleName', label: 'Middle Name', placeholder: 'Enter your Middle Name' },
+              { id: 'suffix', label: 'Suffix', placeholder: 'Enter your Suffix' },
+              { id: 'birthdate', label: 'Birthdate', type: 'date' },
+              { id: 'age', label: 'Age', type: 'number' },
+              {
+                id: 'contactNumber',
+                label: 'Contact Number',
+                type: 'tel',
+                pattern: '^09\\d{9}$',
+                maxLength: 11,
+                placeholder: 'e.g., 09123456789',
+                title: 'Enter an 11-digit number starting with 09'
+              },
+              { id: 'ethnicity', label: 'Ethnicity', placeholder: 'Enter your Ethnicity' },
+              { id: 'religion', label: 'Religion', placeholder: 'Enter your Religion' },
+              { id: 'philsysNumber', label: 'PhilSys Card Number (PCN)', placeholder: 'Enter your PhilSys Card Number' },
+              { id: 'lguIdNumber', label: 'LGU ID Number', placeholder: 'Enter your LGU ID Number' },
+              { id: 'nuclearBelonging', label: 'In which Nuclear Family Belong?' },
+            ].map(({ id, label, type = 'text', ...props }) => (
+              <label key={id} htmlFor={`${id}-${index}`} className="flex flex-col">
                 {label}
                 <input
+                  id={`${id}-${index}`}
+                  name={id}
                   type={type}
                   value={member[id] ?? ''}
                   onChange={handleMemberChange(index, id)}
@@ -184,10 +216,24 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
               </label>
             ))}
 
-            {[ 'relationshipToHead', 'nuclearRelation', 'sex', 'birthRegistered', 'maritalStatus', 'hasNationalID', 'hasBiometric', 'hasLGUID', ].map((id) => (
-              <label key={id} className="flex flex-col">
-                {id.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
+            {[
+              'relationshipToHead',
+              'nuclearRelation',
+              'sex',
+              'birthRegistered',
+              'maritalStatus',
+              'hasNationalID',
+              'hasBiometric',
+              'hasLGUID',
+              'soloParent',
+              'soloParentId',
+              'seniorCitizenId',
+            ].map((id) => (
+              <label key={id} htmlFor={`${id}-${index}`} className="flex flex-col">
+                {id.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                 <select
+                  id={`${id}-${index}`}
+                  name={id}
                   value={member[id] ?? ''}
                   onChange={handleMemberChange(index, id)}
                   className="border p-2 rounded w-full"
@@ -200,53 +246,28 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
               </label>
             ))}
 
-            <p className="text-green-700 sm:col-span-2 font-semibold pt-2">For 10 years old and over</p>
-            {['soloParent', 'soloParentId'].map((id) => (
-              <label key={id} className="flex flex-col">
-                {id.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
-                <select
-                  value={member[id] ?? ''}
-                  onChange={handleMemberChange(index, id)}
-                  className="border p-2 rounded w-full"
-                >
-                  {selectFields[id].map((opt, i) => (
-                    <option key={i} value={opt}>{opt || 'Select answer'}</option>
-                  ))}
-                </select>
-              </label>
-            ))}
-
-            <p className="text-green-700 sm:col-span-2 font-semibold pt-2">For 60 years old and over</p>
-            <label className="flex flex-col">
-              Senior Citizen Id
-              <select
-                value={member.seniorCitizenId ?? ''}
-                onChange={handleMemberChange(index, 'seniorCitizenId')}
-                className="border p-2 rounded w-full"
-              >
-                {selectFields.seniorCitizenId.map((opt, i) => (
-                  <option key={i} value={opt}>{opt || 'Select answer'}</option>
-                ))}
-              </select>
-            </label>
-
             <p className="text-green-700 sm:col-span-2 font-semibold pt-2">For all persons 5 years old and over</p>
-            {difficultyOptions.map((q, dIdx) => (
-              <label key={dIdx} className="flex flex-col">
-                {q}
-                <select
-                  className="border p-2 rounded w-full"
-                  value={member.difficulties[q] ?? ''}
-                  onChange={handleDifficultyChange(index, q)}
-                >
-                  <option value="">Select difficulty level</option>
-                  <option value="1">1 - No difficulty</option>
-                  <option value="2">2 - Some difficulty</option>
-                  <option value="3">3 - A lot of difficulty</option>
-                  <option value="4">4 - Cannot do at all</option>
-                </select>
-              </label>
-            ))}
+            {difficultyOptions.map((q, dIdx) => {
+              const id = `difficulty-${index}-${dIdx}`;
+              return (
+                <label key={id} htmlFor={id} className="flex flex-col">
+                  {q}
+                  <select
+                    id={id}
+                    name={id}
+                    className="border p-2 rounded w-full"
+                    value={member.difficulties[q] ?? ''}
+                    onChange={handleDifficultyChange(index, q)}
+                  >
+                    <option value="">Select difficulty level</option>
+                    <option value="No difficulty">No difficulty</option>
+                    <option value="Some difficulty">Some difficulty</option>
+                    <option value="A lot of difficulty">A lot of difficulty</option>
+                    <option value="Cannot do at all">Cannot do at all</option>
+                  </select>
+                </label>
+              );
+            })}
           </div>
 
           {members.length > 1 && (
@@ -279,12 +300,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
         >
           {isSaving ? (
             <>
-              <svg
-                className="animate-spin h-4 w-4 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
+              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
               </svg>

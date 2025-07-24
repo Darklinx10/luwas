@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 import { getAuth } from 'firebase/auth';
 import dynamic from 'next/dynamic';
 
-// 🔄 Dynamically import the Map component (client-side only)
+// Dynamically import the Map component (client-side only)
 const MapPopup = dynamic(() => import('@/components/mapPopUp'), { ssr: false });
 
 // 📍 Hierarchical location data used for region/province/city/barangay selection
@@ -24,7 +24,7 @@ const geoData = {
   }
 };
 
-// 📥 Maps input field names to autocomplete hints for better UX
+// Maps input field names to autocomplete hints for better UX
 const autocompleteMap = {
   region: 'address-level1',
   province: 'address-level1',
@@ -52,12 +52,12 @@ const autocompleteMap = {
 };
 
 export default function GeographicIdentification({ householdId, goToNext }) {
-  // 📍 Map modal toggle
+  // Map modal toggle
   const [mapOpen, setMapOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
 
-  // 📝 Main form state
+  // Main form state
   const [form, setForm] = useState({
     region: '',
     province: '',
@@ -86,7 +86,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     longitude: '',
   });
 
-  // 🔄 Handle cascading dropdowns (reset dependents on change)
+  // Handle cascading dropdowns (reset dependents on change)
   const handleChange = (e) => {
     const { name, value } = e.target;
     
@@ -101,7 +101,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     }
   };
 
-  // 📍 Handle setting map coordinates from the popup
+  // Handle setting map coordinates from the popup
   const handleSaveLocation = (location) => {
     setForm((prev) => ({
       ...prev,
@@ -111,7 +111,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     setMapOpen(false);
   };
 
-  // 💾 Save data to Firestore
+  // Save data to Firestore
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -125,12 +125,12 @@ export default function GeographicIdentification({ householdId, goToNext }) {
         return;
       }
 
-      // 📄 Firestore reference: households/{householdId}/geographicIdentification/main
+      // Firestore reference: households/{householdId}/geographicIdentification/main
       const ref = doc(db, 'households', householdId, 'geographicIdentification', 'main');
 
       await setDoc(ref, {
         ...form,
-        uid: user.uid, // 🔐 Tag the user who submitted the form
+        uid: user.uid, // Tag the user who submitted the form
       });
 
       toast.success('Geographic information saved!');
@@ -143,9 +143,9 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     }
   };
 
-  // 🧱 Create input or select field depending on `options`
+  // Create input or select field depending on `options`
   const createInput = (id, label, type = 'text', options = []) => {
-    const auto = autocompleteMap[id] || 'off';
+  const auto = autocompleteMap[id] || 'off';
 
     return (
       <div className="flex flex-col">
@@ -184,7 +184,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     );
   };
 
-  // 📋 Dynamic dropdown values based on selected region/province/city
+  // Dynamic dropdown values based on selected region/province/city
   const regionOptions = Object.keys(geoData);
   const provinceOptions = form.region ? Object.keys(geoData[form.region]) : [];
   const cityOptions = form.province ? Object.keys(geoData[form.region]?.[form.province] || {}) : [];
@@ -204,6 +204,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             required
             className="border p-2 rounded w-full"
+            autoComplete="off"
           >
             <option value="">Select Region</option>
             {regionOptions.map((region) => (
@@ -222,6 +223,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             required
             className="border p-2 rounded w-full"
+            autoComplete="off"
           >
             <option value="">Select Province</option>
             {provinceOptions.map((province) => (
@@ -240,6 +242,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             required
             className="border p-2 rounded w-full"
+            autoComplete="off"
           >
             <option value="">Select City</option>
             {cityOptions.map((city) => (
@@ -258,6 +261,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             required
             className="border p-2 rounded w-full"
+            autoComplete="off"
           >
             <option value="">Select Barangay</option>
             {barangayOptions.map((barangay) => (
@@ -278,6 +282,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             required
             className="border p-2 rounded w-full"
             placeholder="Sitio / Purok"
+            autoComplete="off"
           />
         </div>
 
@@ -293,6 +298,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             required
             className="border p-2 rounded w-full"
             placeholder="Enumeration Area Number"
+            autoComplete="off"
           />
         </div>
 
@@ -308,6 +314,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             required
             className="border p-2 rounded w-full"
             placeholder="Building Serial Number"
+            autoComplete="off"
           />
         </div>
 
@@ -323,6 +330,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             required
             className="border p-2 rounded w-full"
             placeholder="Housing Unit Serial Number"
+            autoComplete="off"
           />
         </div>
 
@@ -338,6 +346,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             required
             className="border p-2 rounded w-full"
             placeholder="Household Serial Number"
+            autoComplete="off"
           />
         </div>
 
@@ -353,6 +362,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             required
             className="border p-2 rounded w-full"
             placeholder="Respondent Line No."
+            autoComplete="off"
           />
         </div>
 
@@ -362,12 +372,15 @@ export default function GeographicIdentification({ householdId, goToNext }) {
           <input
             id="contactNumber"
             name="contactNumber"
-            type="tel"
+            type = 'tel'
+            //pattern = '^09\\d{9}$'
+            maxLength = {11}
             value={form.contactNumber}
             onChange={handleChange}
             required
             className="border p-2 rounded w-full"
-            placeholder="Contact Number"
+            placeholder="e.g., 09123456789"
+           
           />
         </div>
 
@@ -383,6 +396,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             required
             className="border p-2 rounded w-full"
             placeholder="Email Address"
+            autoComplete="off"
           />
         </div>
       </div>
@@ -401,6 +415,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             required
             className="border p-2 rounded w-full"
             placeholder="Last Name"
+            autoComplete="off"
           />
         </div>
 
@@ -415,6 +430,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             required
             className="border p-2 rounded w-full"
             placeholder="First Name"
+            autoComplete="off"
           />
         </div>
 
@@ -428,6 +444,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             className="border p-2 rounded w-full"
             placeholder="Suffix"
+            autoComplete="off"
           />
         </div>
 
@@ -441,6 +458,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             className="border p-2 rounded w-full"
             placeholder="Middle Name"
+            autoComplete="off"
           />
         </div>
 
@@ -453,6 +471,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             required
             className="border p-2 rounded w-full"
+            autoComplete="off"
           >
             <option value="">Select Sex</option>
             <option value="Male">Male</option>
@@ -472,6 +491,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             className="border p-2 rounded w-full"
             placeholder="Age"
             min={0}
+            autoComplete="off"
           />
         </div>
       </div>
@@ -489,6 +509,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             className="border p-2 rounded w-full"
             placeholder="Floor No"
+            autoComplete="off"
           />
         </div>
 
@@ -502,6 +523,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             className="border p-2 rounded w-full"
             placeholder="House / Building No"
+            autoComplete="off"
           />
         </div>
 
@@ -515,6 +537,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             className="border p-2 rounded w-full"
             placeholder="Block / Lot No"
+            autoComplete="off"
           />
         </div>
 
@@ -528,6 +551,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             className="border p-2 rounded w-full"
             placeholder="Street Name"
+            autoComplete="off"
           />
         </div>
 
@@ -541,31 +565,36 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             onChange={handleChange}
             className="border p-2 rounded w-full"
             placeholder="Subdivision / Village"
+            autoComplete="off"
           />
         </div>
       </div>
 
-      {/* 🗺️ GPS Coordinates from map */}
+      {/* GPS Coordinates from map */}
       <h2 className="text-xl font-semibold text-green-600 pt-4">Map Coordinates</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="flex flex-col">
-          <label className="mb-1 text-sm font-medium text-gray-700">Latitude</label>
+          <label htmlFor="latitude" className="mb-1 text-sm font-medium text-gray-700">Latitude</label>
           <input
+            id='latitude'
             type="text"
             name="latitude"
             value={form.latitude}
             readOnly
             className="border p-2 rounded w-full"
+            autoComplete="off"
           />
         </div>
         <div className="flex flex-col">
-          <label className="mb-1 text-sm font-medium text-gray-700">Longitude</label>
+          <label htmlFor='longitude' className="mb-1 text-sm font-medium text-gray-700">Longitude</label>
           <input
+            id='longitude'
             type="text"
             name="longitude"
             value={form.longitude}
             readOnly
             className="border p-2 rounded w-full "
+            autoComplete="off"
           />
         </div>
         <div className="sm:col-span-2">
@@ -579,7 +608,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
         </div>
       </div>
 
-      {/* ✅ Submit button */}
+      {/* Submit button */}
       <div className="pt-6 flex justify-end">
         <button
           type="submit"
@@ -616,7 +645,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
         </button>
       </div>
 
-      {/* 🗺️ Modal popup for choosing map location */}
+      {/* Modal popup for choosing map location */}
       <MapPopup isOpen={mapOpen} onClose={() => setMapOpen(false)} onSave={handleSaveLocation} />
     </form>
   );

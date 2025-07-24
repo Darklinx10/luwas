@@ -1,16 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, getDocs, collection } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { toast } from 'react-toastify';
 import dynamic from 'next/dynamic';
 
+// Dynamically import MapPopup to avoid SSR issues
 const MapPopup = dynamic(() => import('@/components/mapPopUp'), { ssr: false });
 
-export default function EditHouseholdModal({ open, onClose, householdId }) {
+export default function EditHouseholdModal({ open, onClose, householdId, onUpdated }) {
   const [mapOpen, setMapOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // for fetching data
+  const [submitting, setSubmitting] = useState(false); // for form submission
   const [form, setForm] = useState({
     headFirstName: '',
     headMiddleName: '',
@@ -32,19 +34,59 @@ export default function EditHouseholdModal({ open, onClose, householdId }) {
   useEffect(() => {
     const fetchHousehold = async () => {
       if (!open || !householdId) return;
+
       setLoading(true);
       try {
-        const ref = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          setForm((prev) => ({ ...prev, ...snap.data() }));
-        } else {
+        const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
+        const geoSnap = await getDoc(geoRef);
+
+        if (!geoSnap.exists()) {
           toast.error('Household not found');
           onClose();
+          return;
         }
+
+        const geoData = geoSnap.data();
+        const updatedForm = {
+          barangay: geoData.barangay || '',
+          latitude: geoData.latitude || '',
+          longitude: geoData.longitude || '',
+        };
+
+        const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
+        for (const memberDoc of membersSnap.docs) {
+          const memberId = memberDoc.id;
+          const demoRef = doc(
+            db,
+            'households',
+            householdId,
+            'members',
+            memberId,
+            'demographicCharacteristics',
+            'main'
+          );
+          const demoSnap = await getDoc(demoRef);
+
+          if (demoSnap.exists()) {
+            const demoData = demoSnap.data();
+            const relationship = demoData.relationshipToHead || '';
+            if (relationship.toLowerCase() === 'head') {
+              updatedForm.headFirstName = demoData.firstName || '';
+              updatedForm.headMiddleName = demoData.middleName || '';
+              updatedForm.headLastName = demoData.lastName || '';
+              updatedForm.headSuffix = demoData.suffix || '';
+              updatedForm.headSex = demoData.sex || '';
+              updatedForm.headAge = demoData.age || '';
+              updatedForm.contactNumber = demoData.contactNumber || '';
+              break;
+            }
+          }
+        }
+
+        setForm((prev) => ({ ...prev, ...updatedForm }));
       } catch (err) {
+        console.error('Failed to fetch household data:', err);
         toast.error('Failed to fetch household data');
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -55,21 +97,88 @@ export default function EditHouseholdModal({ open, onClose, householdId }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
+
     try {
-      const ref = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-      await updateDoc(ref, {
-        ...form,
+      const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
+      const {
+        headFirstName,
+        headMiddleName,
+        headLastName,
+        headSuffix,
+        headSex,
+        headAge,
+        contactNumber,
+        ...geoFields
+      } = form;
+
+      await updateDoc(geoRef, {
+        ...geoFields,
         updatedAt: new Date(),
       });
 
+      const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
+      let headMemberId = null;
+
+      for (const memberDoc of membersSnap.docs) {
+        const baseData = memberDoc.data();
+        const memberId = memberDoc.id;
+
+        const demoRef = doc(
+          db,
+          'households',
+          householdId,
+          'members',
+          memberId,
+          'demographicCharacteristics',
+          'main'
+        );
+        const demoSnap = await getDoc(demoRef);
+        const demoData = demoSnap.exists() ? demoSnap.data() : {};
+        const relationship = demoData.relationshipToHead || baseData.relationshipToHead || '';
+
+        if (relationship.toLowerCase() === 'head') {
+          headMemberId = memberId;
+          break;
+        }
+      }
+
+      if (headMemberId) {
+        const headDemoRef = doc(
+          db,
+          'households',
+          householdId,
+          'members',
+          headMemberId,
+          'demographicCharacteristics',
+          'main'
+        );
+
+        await updateDoc(headDemoRef, {
+          contactNumber: contactNumber || '',
+          sex: headSex || '',
+          age: headAge || '',
+          updatedAt: new Date(),
+        });
+
+        const headMemberRef = doc(db, 'households', householdId, 'members', headMemberId);
+        await updateDoc(headMemberRef, {
+          firstName: headFirstName || '',
+          middleName: headMiddleName || '',
+          lastName: headLastName || '',
+          suffix: headSuffix || '',
+          updatedAt: new Date(),
+        });
+      }
+
       toast.success('Household updated successfully');
-      onClose(); // Close modal after save
+      onClose();
+      if (typeof onUpdated === 'function') await onUpdated();
     } catch (err) {
+      console.error('Error updating household:', err);
       toast.error('Error updating household');
-      console.error(err);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -99,10 +208,7 @@ export default function EditHouseholdModal({ open, onClose, householdId }) {
         {loading ? (
           <p className="text-center text-gray-500 mb-4 animate-pulse">Loading data...</p>
         ) : (
-          <form
-            onSubmit={handleSubmit}
-            className="grid grid-cols-2 gap-4 bg-white p-2"
-          >
+          <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4 bg-white p-2">
             {[
               ['headFirstName', 'First Name'],
               ['headMiddleName', 'Middle Name'],
@@ -114,8 +220,11 @@ export default function EditHouseholdModal({ open, onClose, householdId }) {
               ['headAge', 'Age'],
             ].map(([name, label]) => (
               <div key={name}>
-                <label className="block text-sm font-medium text-gray-700">{label}</label>
+                <label htmlFor={name} className="block text-sm font-medium text-gray-700">
+                  {label}
+                </label>
                 <input
+                  id={name}
                   type={name === 'headAge' ? 'number' : 'text'}
                   name={name}
                   value={form[name]}
@@ -126,11 +235,13 @@ export default function EditHouseholdModal({ open, onClose, householdId }) {
               </div>
             ))}
 
-            {/* Coordinates Section */}
             <div className="col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-700">Latitude</label>
+                <label htmlFor="latitude" className="text-sm font-medium text-gray-700">
+                  Latitude
+                </label>
                 <input
+                  id="latitude"
                   type="text"
                   name="latitude"
                   value={form.latitude}
@@ -139,8 +250,11 @@ export default function EditHouseholdModal({ open, onClose, householdId }) {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Longitude</label>
+                <label htmlFor="longitude" className="text-sm font-medium text-gray-700">
+                  Longitude
+                </label>
                 <input
+                  id="longitude"
                   type="text"
                   name="longitude"
                   value={form.longitude}
@@ -159,23 +273,45 @@ export default function EditHouseholdModal({ open, onClose, householdId }) {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="col-span-2 flex justify-end gap-3 mt-4">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                className="w-[200px] px-4 py-2 bg-gray-300 text-black font-medium rounded hover:bg-gray-400 transition"
               >
                 Cancel
               </button>
+
               <button
                 type="submit"
-                disabled={loading}
-                className={`px-4 py-2 text-white rounded ${
-                  loading ? 'bg-green-400' : 'bg-green-600 hover:bg-green-700'
+                disabled={submitting}
+                className={`w-[200px] px-4 py-2 text-white font-medium rounded transition flex justify-center items-center gap-2 ${
+                  submitting ? 'bg-green-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
                 }`}
               >
-                {loading ? 'Updating...' : 'Update'}
+                {submitting ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                      />
+                    </svg>
+                    Updating...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
               </button>
             </div>
           </form>

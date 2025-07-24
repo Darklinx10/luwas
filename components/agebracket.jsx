@@ -14,7 +14,105 @@ import { db } from '@/firebase/config';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 
 export default function AgeBracketChart() {
+  // State to hold formatted chart data
   const [ageData, setAgeData] = useState([]);
+
+ {/* useEffect(() => {
+    const fetchAgeBrackets = async () => {
+      try {
+        // Fetch all documents in the households collection
+        const householdSnapshot = await getDocs(collection(db, 'households'));
+
+        // Initialize age group counters
+        const ageCounts = {
+          'Under 1': 0,
+          '1-4': 0,
+          '5-9': 0,
+          '10-14': 0,
+          '15-19': 0,
+          '20-24': 0,
+          '25-29': 0,
+          '30-34': 0,
+          '35-39': 0,
+          '40-44': 0,
+          '45-49': 0,
+          '50-54': 0,
+          '55-59': 0,
+          '60 and over': 0,
+        };
+
+        // Function to increment age group count based on age value
+        const countAge = (age) => {
+          if (age === undefined || age === '') return;
+          const a = parseInt(age);
+          if (isNaN(a)) return;
+
+          // Categorize age into a bracket
+          if (a < 1) ageCounts['Under 1']++;
+          else if (a <= 4) ageCounts['1-4']++;
+          else if (a <= 9) ageCounts['5-9']++;
+          else if (a <= 14) ageCounts['10-14']++;
+          else if (a <= 19) ageCounts['15-19']++;
+          else if (a <= 24) ageCounts['20-24']++;
+          else if (a <= 29) ageCounts['25-29']++;
+          else if (a <= 34) ageCounts['30-34']++;
+          else if (a <= 39) ageCounts['35-39']++;
+          else if (a <= 44) ageCounts['40-44']++;
+          else if (a <= 49) ageCounts['45-49']++;
+          else if (a <= 54) ageCounts['50-54']++;
+          else if (a <= 59) ageCounts['55-59']++;
+          else ageCounts['60 and over']++;
+        };
+
+        // Loop through each household document
+        for (const householdDoc of householdSnapshot.docs) {
+          const householdId = householdDoc.id;
+
+          // ✅ Fetch the household head's age from geographicIdentification
+          const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
+          const geoSnap = await getDoc(geoRef);
+          if (geoSnap.exists()) {
+            const geoData = geoSnap.data();
+            countAge(geoData.headAge); // Count head's age
+          }
+
+          // ✅ Fetch member demographic ages
+          const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
+          for (const memberDoc of membersSnap.docs) {
+            const memberId = memberDoc.id;
+
+            const demoRef = doc(
+              db,
+              'households',
+              householdId,
+              'members',
+              memberId,
+              'demographicCharacteristics',
+              'main'
+            );
+            const demoSnap = await getDoc(demoRef);
+            if (demoSnap.exists()) {
+              const demoData = demoSnap.data();
+              countAge(demoData.age); // Count member's age
+            }
+          }
+        }
+
+        // Format the result into an array of objects for the chart
+        const formatted = Object.entries(ageCounts).map(([age, count]) => ({ age, count }));
+
+        // Update state with formatted data
+        setAgeData(formatted);
+      } catch (error) {
+        // Log any error during fetching
+        console.error('Error fetching age data:', error);
+      }
+    };
+
+    // Run the fetch function when the component mounts
+    fetchAgeBrackets();
+  }, []);
+*/}
 
   useEffect(() => {
     const fetchAgeBrackets = async () => {
@@ -38,7 +136,6 @@ export default function AgeBracketChart() {
           '60 and over': 0,
         };
 
-        // Helper function to categorize and count an age
         const countAge = (age) => {
           if (age === undefined || age === '') return;
           const a = parseInt(age);
@@ -63,16 +160,10 @@ export default function AgeBracketChart() {
         for (const householdDoc of householdSnapshot.docs) {
           const householdId = householdDoc.id;
 
-          // ✅ Geographic headAge
-          const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-          const geoSnap = await getDoc(geoRef);
-          if (geoSnap.exists()) {
-            const geoData = geoSnap.data();
-            countAge(geoData.headAge);
-          }
+          const membersSnap = await getDocs(
+            collection(db, 'households', householdId, 'members')
+          );
 
-          // ✅ Loop members
-          const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
           for (const memberDoc of membersSnap.docs) {
             const memberId = memberDoc.id;
 
@@ -86,14 +177,13 @@ export default function AgeBracketChart() {
               'main'
             );
             const demoSnap = await getDoc(demoRef);
+
             if (demoSnap.exists()) {
               const demoData = demoSnap.data();
               countAge(demoData.age);
             }
           }
         }
-
-
 
         const formatted = Object.entries(ageCounts).map(([age, count]) => ({ age, count }));
         setAgeData(formatted);
@@ -105,6 +195,9 @@ export default function AgeBracketChart() {
     fetchAgeBrackets();
   }, []);
 
+
+
+  // Render the vertical bar chart using recharts
   return (
     <ResponsiveContainer width="100%" height={500}>
       <BarChart
@@ -112,10 +205,17 @@ export default function AgeBracketChart() {
         data={ageData}
         margin={{ top: 20, right: 30, left: 40, bottom: 5 }}
       >
+        {/* Grid background */}
         <CartesianGrid strokeDasharray="3 3" />
+
+        {/* X and Y axes */}
         <XAxis type="number" />
         <YAxis dataKey="age" type="category" />
+
+        {/* Tooltip shows value on hover */}
         <Tooltip />
+
+        {/* Bar represents the age count */}
         <Bar dataKey="count" fill="#fbbf24" />
       </BarChart>
     </ResponsiveContainer>

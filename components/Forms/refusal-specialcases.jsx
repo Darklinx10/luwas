@@ -6,12 +6,14 @@ import { db } from '@/firebase/config';
 import { doc, setDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
+// Relationship options for the dropdown
 const relationships = [
   'Member of the family/occupant of the housing unit',
   'Nonrelative/Household staff',
   'Other, not elsewhere classified',
 ];
 
+// Refusal reason options for the dropdown
 const refusalReasons = [
   'Privacy concerns',
   'No time',
@@ -19,6 +21,7 @@ const refusalReasons = [
   'Other',
 ];
 
+// Building types for the dropdown
 const buildingTypes = [
   'Single house',
   'Duplex house',
@@ -32,6 +35,7 @@ const buildingTypes = [
   'Temporary evacuation center',
 ];
 
+// Roof materials options
 const roofMaterials = [
   'Galvanized Iron/Aluminum',
   'Concrete/Clay Tile',
@@ -43,6 +47,7 @@ const roofMaterials = [
   'Other',
 ];
 
+// Wall materials options
 const wallMaterials = [
   'Concrete/Brick/Stone',
   'Half Concrete/Brick/Stone and Half Wood',
@@ -59,6 +64,7 @@ const wallMaterials = [
   'Other',
 ];
 
+// Floor materials options
 const floorMaterials = [
   'Ceramic Tile/Marble/Granite',
   'Cement/Brick/Stone',
@@ -70,72 +76,87 @@ const floorMaterials = [
   'Other',
 ];
 
+const mainFloorMaterial = [
+  'Concrete',
+  'Coconut Lumber',
+  'Bamboo',
+  'Earth/Sand/Mud',
+  'Vinyl/Carpet Tiles',
+  'Makeshift/Salvaged/Improvised Materials',
+  'Others, Specify',
+]
+
 export default function RefusalAndHousingForm({ householdId }) {
-  const router = useRouter();
+  const router = useRouter(); // For redirecting after submission
   const [formData, setFormData] = useState({
-    lastName: '',
-    firstName: '',
-    suffix: '',
-    middleName: '',
-    relationship: '',
-    ladderStep: '',
-    refusalReason: '',
-    buildingType: '',
-    floorsCount: '',
-    roofMaterial: '',
-    outerWallMaterial: '',
-    floorFinishMaterial1: '',
-    floorFinishMaterial2: '',
-    mainFloorMaterial1: '',
-    mainFloorMaterial2: '',
-    estimatedFloorArea: '',
+    lastName: '',                  // Respondent's last name
+    firstName: '',                 // Respondent's first name
+    suffix: '',                    // Respondent's suffix (e.g., Jr.)
+    middleName: '',                // Respondent's middle name
+    relationship: '',              // Relationship to head
+    ladderStep: '',                // Interview ladder step level
+    refusalReason: '',             // Reason for refusal (if any)
+    buildingType: '',              // Type of building
+    floorsCount: '',               // Number of floors
+    roofMaterial: '',              // Main roof material
+    outerWallMaterial: '',         // Main wall material
+    floorFinishMaterial1: '',      // First floor finishing material
+    floorFinishMaterial2: '',      // Second floor finishing material
+    mainFloorMaterial1: '',        // Main floor material (primary)
+    mainFloorMaterial2: '',        // Main floor material (secondary)
+    estimatedFloorArea: '',        // Estimated floor area in square meters
   });
-  const [isSaving, setIsSaving] = useState(false);
 
+  const [isSaving, setIsSaving] = useState(false); // Track form saving state
 
+  // Update form data when input fields change
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  
+  // Submit form data to Firestore
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSaving(true);
+    e.preventDefault();           
+    setIsSaving(true);            
 
     try {
+      // Reference to subcollection document for refusal/housing info
       const ref = doc(db, 'households', householdId, 'refusalAndSpecialCases', 'main');
 
+      // Save form data + timestamp
       await setDoc(ref, {
         ...formData,
         timestamp: new Date(),
       });
 
-      // ✅ Mark the household as complete
+      // Mark the household document as completed
       const householdRef = doc(db, 'households', householdId);
       await setDoc(householdRef, {
         isComplete: true,
         updatedAt: new Date(),
       }, { merge: true });
 
-      toast.success('Refusal & Housing info saved!');
-      router.push('/household');
+      toast.success('Refusal & Housing info saved!'); // Show success toast
+      router.push('/household'); // Redirect to household listing/dashboard
     } catch (error) {
+      // Handle and log errors
       console.error('Failed to save refusal and housing info:', error);
       toast.error('Failed to save data.');
     } finally {
-      setIsSaving(false);
+      setIsSaving(false); // Re-enable buttons and inputs
     }
   };
-
 
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-6 space-y-6">
       <h2 className="text-xl font-bold mb-4">Household Member & Housing Characteristics</h2>
 
       {/* Names */}
-      <label className="block">
-        LAST NAME
+      <label htmlFor='lastName' className="block">
+        Last Name
         <input
+          id='lastName'
+          name='lastName'
           type="text"
           className="w-full border p-2 rounded mt-1"
           value={formData.lastName}
@@ -144,9 +165,11 @@ export default function RefusalAndHousingForm({ householdId }) {
         />
       </label>
 
-      <label className="block mt-4">
-        FIRST NAME
+      <label htmlFor='firstName' className="block mt-4">
+        First Name
         <input
+          id='firstName'
+          name='firstName'
           type="text"
           className="w-full border p-2 rounded mt-1"
           value={formData.firstName}
@@ -155,9 +178,11 @@ export default function RefusalAndHousingForm({ householdId }) {
         />
       </label>
 
-      <label className="block mt-4">
-        SUFFIX
+      <label htmlFor='suffix' className="block mt-4">
+        Suffix
         <input
+          id='suffix'
+          name='suffix'
           type="text"
           className="w-full border p-2 rounded mt-1"
           value={formData.suffix}
@@ -166,9 +191,11 @@ export default function RefusalAndHousingForm({ householdId }) {
         />
       </label>
 
-      <label className="block mt-4">
-        MIDDLE NAME
+      <label htmlFor='middleName' className="block mt-4">
+        Middle Name
         <input
+          id='middleName'
+          name='middleName'
           type="text"
           className="w-full border p-2 rounded mt-1"
           value={formData.middleName}
@@ -178,9 +205,11 @@ export default function RefusalAndHousingForm({ householdId }) {
       </label>
 
       {/* Relationship */}
-      <label className="block mt-4">
+      <label htmlFor='relationship' className="block mt-4">
         How are you related to the occupants of the housing unit/household?
         <select
+          id='relationship'
+          name='relationship'
           className="w-full border p-2 rounded mt-1"
           value={formData.relationship}
           onChange={e => handleChange('relationship', e.target.value)}
@@ -200,8 +229,9 @@ export default function RefusalAndHousingForm({ householdId }) {
           {[...Array(10)].map((_, i) => {
             const step = i + 1;
             return (
-              <label key={step} className="flex flex-col items-center">
+              <label htmlFor='ladderStep' key={step} className="flex flex-col items-center">
                 <input
+                  id='ladderStep'
                   type="radio"
                   name="ladderStep"
                   value={step}
@@ -217,9 +247,11 @@ export default function RefusalAndHousingForm({ householdId }) {
       </fieldset>
 
       {/* Refusal Reason */}
-      <label className="block mt-6">
+      <label htmlFor='refusalReason' className="block mt-6">
         What is the reason for the refusal of the household?
         <select
+          id='refusalReason'
+          name='refusalReason'
           className="w-full border p-2 rounded mt-1"
           value={formData.refusalReason}
           onChange={e => handleChange('refusalReason', e.target.value)}
@@ -232,9 +264,11 @@ export default function RefusalAndHousingForm({ householdId }) {
       </label>
 
       {/* Housing Characteristics */}
-      <label className="block mt-6">
+      <label htmlFor='buildingType' className="block mt-6">
         What is the type of building occupied by your household?
         <select
+          id='buildingType'
+          name='buildingType'
           className="w-full border p-2 rounded mt-1"
           value={formData.buildingType}
           onChange={e => handleChange('buildingType', e.target.value)}
@@ -246,9 +280,11 @@ export default function RefusalAndHousingForm({ householdId }) {
         </select>
       </label>
 
-      <label className="block mt-4">
+      <label htmlFor='floorsCount' className="block mt-4">
         How many floors are there in this building?
         <input
+          id='floorsCount'
+          name='floorsCount'
           type="number"
           min="1"
           className="w-full border p-2 rounded mt-1"
@@ -258,9 +294,11 @@ export default function RefusalAndHousingForm({ householdId }) {
         />
       </label>
 
-      <label className="block mt-4">
+      <label htmlFor='roofMaterial' className="block mt-4">
         What is the main construction material of the roof of this building/housing unit?
         <select
+          id='roofMaterial'
+          name='roofMaterial'
           className="w-full border p-2 rounded mt-1"
           value={formData.roofMaterial}
           onChange={e => handleChange('roofMaterial', e.target.value)}
@@ -272,9 +310,11 @@ export default function RefusalAndHousingForm({ householdId }) {
         </select>
       </label>
 
-      <label className="block mt-4">
+      <label htmlFor='outerWallMaterial' className="block mt-4">
         What is the construction material of the outer walls of this building/housing unit?
         <select
+          id='outerWallMaterial'
+          name='outerWallMaterial'
           className="w-full border p-2 rounded mt-1"
           value={formData.outerWallMaterial}
           onChange={e => handleChange('outerWallMaterial', e.target.value)}
@@ -286,9 +326,11 @@ export default function RefusalAndHousingForm({ householdId }) {
         </select>
       </label>
 
-      <label className="block mt-4">
+      <label htmlFor='floorFinishMaterial1' className="block mt-4">
         What is the finishing material of the floor of the housing unit?
         <select
+          id='floorFinishMaterial1'
+          name='floorFinishMaterial1'
           className="w-full border p-2 rounded mt-1"
           value={formData.floorFinishMaterial1}
           onChange={e => handleChange('floorFinishMaterial1', e.target.value)}
@@ -300,9 +342,11 @@ export default function RefusalAndHousingForm({ householdId }) {
         </select>
       </label>
 
-      <label className="block mt-4">
+      <label htmlFor='floorFinishMaterial2' className="block mt-4">
         What is the finishing material of the floor of the housing unit? (Second)
         <select
+          id='floorFinishMaterial2'
+          name='floorFinishMaterial2'
           className="w-full border p-2 rounded mt-1"
           value={formData.floorFinishMaterial2}
           onChange={e => handleChange('floorFinishMaterial2', e.target.value)}
@@ -314,9 +358,11 @@ export default function RefusalAndHousingForm({ householdId }) {
         </select>
       </label>
 
-      <label className="block mt-4">
+      <label htmlFor='mainFloorMaterial1' className="block mt-4">
         What is the main construction material of the floor of this housing unit?
         <select
+          id='mainFloorMaterial1'
+          name='mainFloorMaterial1'
           className="w-full border p-2 rounded mt-1"
           value={formData.mainFloorMaterial1}
           onChange={e => handleChange('mainFloorMaterial1', e.target.value)}
@@ -328,23 +374,27 @@ export default function RefusalAndHousingForm({ householdId }) {
         </select>
       </label>
 
-      <label className="block mt-4">
+      <label htmlFor='mainFloorMaterial2' className="block mt-4">
         What is the main construction material of the floor of this housing unit? (Second)
         <select
+          id='mainFloorMaterial2'
+          name='mainFloorMaterial2'
           className="w-full border p-2 rounded mt-1"
           value={formData.mainFloorMaterial2}
           onChange={e => handleChange('mainFloorMaterial2', e.target.value)}
         >
           <option value="">Select type of floor material</option>
-          {floorMaterials.map(material => (
+          {mainFloorMaterial.map(material => (
             <option key={material} value={material}>{material}</option>
           ))}
         </select>
       </label>
 
-      <label className="block mt-4">
+      <label htmlFor='estimatedFloorArea' className="block mt-4">
         What is the estimated floor area of this housing unit? (square meters)
         <input
+          id='estimatedFloorArea'
+          name='estimatedFloorArea'
           type="number"
           min="0"
           className="w-full border p-2 rounded mt-1"

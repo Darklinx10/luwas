@@ -6,39 +6,43 @@ import { doc, setDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import { v4 as uuidv4 } from 'uuid'; // ✅ Import UUID
 
+
 export default function Entrepreneurship({ householdId, goToNext }) {
+  // State to track saving and form data
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
-    homeConsumption: '',
-    sustenanceActivities: '',
-    entrepreneurialActivities: '',
-    specificPSIC: '',
-    specificPSICs: [
+    homeConsumption: '',                      // Q1: Products/services for home use
+    sustenanceActivities: '',                 // Q2: Activities for basic sustenance
+    entrepreneurialActivities: '',            // Q3: Entrepreneurial work
+    specificPSIC: '',                          // Q4: General PSIC category
+    specificPSICs: [                           // Q5: Multiple PSIC entries
       {
-        id: uuidv4(),
-        value: '',
-        psicCode: '',
-        useEcommerce: '',
-        useSocialMedia: '',
-        startYear: '',
-        monthsOperated: [],
-        workingOwners: '',
-        unpaidWorkers: '',
-        paidEmployees: '',
-        registrationAgency: '',
+        id: uuidv4(),                          // Unique ID for list rendering
+        value: '',                             // Business name or description
+        psicCode: '',                          // PSIC code
+        useEcommerce: '',                      // Uses e-commerce?
+        useSocialMedia: '',                    // Uses social media?
+        startYear: '',                         // Year business started
+        monthsOperated: [],                    // Months of operation
+        workingOwners: '',                     // Working owners
+        unpaidWorkers: '',                     // Unpaid workers
+        paidEmployees: '',                     // Paid employees
+        registrationAgency: '',                // Agency registered with
       },
     ],
   });
 
-
+  // Array of years from 2000 to current year
   const years = Array.from({ length: new Date().getFullYear() - 1999 }, (_, i) => 2000 + i);
 
+  // Months used in selection
   const months = [
     'July 2021', 'August 2021', 'September 2021', 'October 2021',
     'November 2021', 'December 2021', 'January 2022', 'February 2022',
     'March 2022', 'April 2022', 'May 2022', 'June 2022', 'All Months',
   ];
 
+  // Registration agency options
   const registrationOptions = [
     { label: 'Barangay LGU', code: 'A' },
     { label: 'City/Municipal LGU', code: 'B' },
@@ -49,6 +53,7 @@ export default function Entrepreneurship({ householdId, goToNext }) {
     { label: "Don't Know", code: 'X' },
   ];
 
+  // PSIC codes
   const psihCodes = [
     { label: 'Crop Farming and Gardening', code: 'A' },
     { label: 'Livestock and Poultry Raising', code: 'B' },
@@ -75,10 +80,14 @@ export default function Entrepreneurship({ householdId, goToNext }) {
     { label: 'Other Services', code: 'W' },
   ];
 
+  // Handle general input change (form-level)
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
     if (type === 'checkbox' && name === 'monthsOperated') {
+      // Handle month toggling (checkbox logic)
       let newMonths = [...form.monthsOperated];
+
       if (value === 'All Months') {
         newMonths = checked ? [...months] : [];
       } else {
@@ -86,19 +95,21 @@ export default function Entrepreneurship({ householdId, goToNext }) {
           ? [...newMonths, value]
           : newMonths.filter((m) => m !== value && m !== 'All Months');
       }
+
       setForm({ ...form, monthsOperated: newMonths });
     } else {
       setForm({ ...form, [name]: value });
     }
   };
 
+  // Handle input changes for specificPSICs[index][field]
   const handleSpecificPSICChange = (index, field, value) => {
     const updated = [...form.specificPSICs];
     updated[index][field] = value;
     setForm({ ...form, specificPSICs: updated });
   };
 
-
+  // Add another PSIC entry
   const addPSIC = () => {
     setForm({
       ...form,
@@ -121,12 +132,13 @@ export default function Entrepreneurship({ householdId, goToNext }) {
     });
   };
 
+  // Remove a specific PSIC entry
   const removePSIC = (index) => {
     const updated = form.specificPSICs.filter((_, i) => i !== index);
     setForm({ ...form, specificPSICs: updated });
   };
 
-  // 💾 Save data to Firestore
+  // Submit handler: save form to Firestore
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -134,18 +146,19 @@ export default function Entrepreneurship({ householdId, goToNext }) {
       const docRef = doc(db, 'households', householdId, 'entrepreneurialAndHousehold', 'main');
       await setDoc(docRef, {
         ...form,
-        timestamp: new Date(),
+        timestamp: new Date(), // 🕒 Record save time
       });
       toast.success('Entrepreneurship data saved!');
-      if (goToNext) goToNext();
+      if (goToNext) goToNext(); // 🔀 Move to next section if needed
     } catch (error) {
-      console.error('Error saving data:', error);
+      console.error('Error saving data:', error); // ❗ Debug log
       toast.error('Failed to save data.');
     } finally {
-      setIsSaving(false); 
+      setIsSaving(false); // ✅ Reset saving state
     }
   };
 
+  // Handle month checkbox changes in a specific PSIC entry
   const handleMonthChange = (index, month, checked) => {
     const updated = [...form.specificPSICs];
     let months = [...updated[index].monthsOperated];
@@ -163,9 +176,13 @@ export default function Entrepreneurship({ householdId, goToNext }) {
   };
 
 
+
+
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-4 space-y-6">
       {/* Home Consumption */}
+
+      {/* Question 1 */}
       <div>
         <label htmlFor="homeConsumption" className="block mb-1">
           Did you or any household member produce goods mainly for home consumption (July 2021–June 2022)?
@@ -231,31 +248,37 @@ export default function Entrepreneurship({ householdId, goToNext }) {
       {form.specificPSICs.map((item, index) => (
         <div key={item.id} className="border p-4 rounded mb-4">
           {/* Activity Dropdown */}
-          <label className="block mb-1">What are the specific entrepreneurial activities?</label>
+          <label htmlFor={`activity-${index}`} className="block mb-1">
+            What are the specific entrepreneurial activities?
+          </label>
           <select
+            id={`activity-${index}`}
+            name={`activity-${index}`}
             value={item.value}
             onChange={(e) => handleSpecificPSICChange(index, 'value', e.target.value)}
             className="border p-2 rounded w-full"
           >
             <option value="">-- Select --</option>
             {psihCodes.map(({ label, code }) => (
-              <option key={code} value={code}>
-                {label}
-              </option>
+              <option key={code} value={code}>{label}</option>
             ))}
           </select>
 
           {/* PSIC Code */}
-          <label className="block mt-4 mb-1">Enter PSIC Code</label>
+          <label htmlFor={`psicCode-${index}`} className="block mt-4 mb-1">Enter PSIC Code</label>
           <input
+            id={`psicCode-${index}`}
+            name={`psicCode-${index}`}
             value={item.psicCode}
             onChange={(e) => handleSpecificPSICChange(index, 'psicCode', e.target.value)}
             className="border p-2 rounded w-full"
           />
 
           {/* E-commerce */}
-          <label className="block mt-4 mb-1">Does the activity use e-commerce?</label>
+          <label htmlFor={`ecommerce-${index}`} className="block mt-4 mb-1">Does the activity use e-commerce?</label>
           <select
+            id={`ecommerce-${index}`}
+            name={`ecommerce-${index}`}
             value={item.useEcommerce}
             onChange={(e) => handleSpecificPSICChange(index, 'useEcommerce', e.target.value)}
             className="border p-2 rounded w-full"
@@ -266,8 +289,10 @@ export default function Entrepreneurship({ householdId, goToNext }) {
           </select>
 
           {/* Social Media */}
-          <label className="block mt-4 mb-1">Does the activity use social media?</label>
+          <label htmlFor={`socialMedia-${index}`} className="block mt-4 mb-1">Does the activity use social media?</label>
           <select
+            id={`socialMedia-${index}`}
+            name={`socialMedia-${index}`}
             value={item.useSocialMedia}
             onChange={(e) => handleSpecificPSICChange(index, 'useSocialMedia', e.target.value)}
             className="border p-2 rounded w-full"
@@ -278,69 +303,88 @@ export default function Entrepreneurship({ householdId, goToNext }) {
           </select>
 
           {/* Start Year */}
-          <label className="block mt-4 mb-1">What year did it start?</label>
+          <label htmlFor={`startYear-${index}`} className="block mt-4 mb-1">What year did it start?</label>
           <select
+            id={`startYear-${index}`}
+            name={`startYear-${index}`}
             value={item.startYear}
             onChange={(e) => handleSpecificPSICChange(index, 'startYear', e.target.value)}
             className="border p-2 rounded w-full"
           >
             <option value="">-- Select Year --</option>
             {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
+              <option key={year} value={year}>{year}</option>
             ))}
           </select>
 
           {/* Months Operated */}
           <label className="block mt-4 mb-1">Which months was the activity operated?</label>
           <div className="grid grid-cols-2 gap-2 max-h-48 overflow-auto border p-2 rounded">
-            {months.map((month, i) => (
-              <div key={month}>
+            {months.map((month) => (
+              <label key={month} className="flex items-center space-x-2">
                 <input
                   type="checkbox"
-                  id={`month-${index}-${i}`}
+                  id={`monthsOperated-${index}-${month}`}
+                  name={`monthsOperated-${index}`}
+                  value={month}
                   checked={item.monthsOperated.includes(month)}
-                  onChange={(e) =>
-                    handleMonthChange(index, month, e.target.checked)
-                  }
-                  className="mr-2"
+                  onChange={(e) => {
+                    handleMonthChange(index, month, e.target.checked);
+                  }}
                 />
-                <label htmlFor={`month-${index}-${i}`}>{month}</label>
-              </div>
+                <span>{month}</span>
+              </label>
             ))}
           </div>
 
-          {/* Workers Count */}
-          <label className="block mt-4 mb-2">Average persons working per month?</label>
-          <div className="grid grid-cols-3 gap-4">
-            {['workingOwners', 'unpaidWorkers', 'paidEmployees'].map((field) => (
-              <div key={field}>
-                <label className="block mb-1 capitalize">{field.replace(/([A-Z])/g, ' $1')}</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={item[field]}
-                  onChange={(e) => handleSpecificPSICChange(index, field, e.target.value)}
-                  className="border p-2 rounded w-full"
-                  placeholder="Number"
-                />
-              </div>
-            ))}
-          </div>
+          {/* Workers Counts */}
+          <label htmlFor={`workingOwners-${index}`} className="block mt-4 mb-1">Number of working owners:</label>
+          <input
+            id={`workingOwners-${index}`}
+            name={`workingOwners-${index}`}
+            type="number"
+            min={0}
+            value={item.workingOwners}
+            onChange={(e) => handleSpecificPSICChange(index, 'workingOwners', e.target.value)}
+            className="border p-2 rounded w-full"
+          />
+
+          <label htmlFor={`unpaidWorkers-${index}`} className="block mt-4 mb-1">Number of unpaid workers:</label>
+          <input
+            id={`unpaidWorkers-${index}`}
+            name={`unpaidWorkers-${index}`}
+            type="number"
+            min={0}
+            value={item.unpaidWorkers}
+            onChange={(e) => handleSpecificPSICChange(index, 'unpaidWorkers', e.target.value)}
+            className="border p-2 rounded w-full"
+          />
+
+          <label htmlFor={`paidEmployees-${index}`} className="block mt-4 mb-1">Number of paid employees:</label>
+          <input
+            id={`paidEmployees-${index}`}
+            name={`paidEmployees-${index}`}
+            type="number"
+            min={0}
+            value={item.paidEmployees}
+            onChange={(e) => handleSpecificPSICChange(index, 'paidEmployees', e.target.value)}
+            className="border p-2 rounded w-full"
+          />
 
           {/* Registration Agency */}
-          <label className="block mt-4 mb-1">In which agency is it registered?</label>
+          <label htmlFor={`registrationAgency-${index}`} className="block mt-4 mb-1">
+            Registration Agency
+          </label>
           <select
+            id={`registrationAgency-${index}`}
+            name={`registrationAgency-${index}`}
             value={item.registrationAgency}
             onChange={(e) => handleSpecificPSICChange(index, 'registrationAgency', e.target.value)}
             className="border p-2 rounded w-full"
           >
-            <option value="">-- Select an agency --</option>
+            <option value="">-- Select --</option>
             {registrationOptions.map(({ label, code }) => (
-              <option key={code} value={code}>
-                {label}
-              </option>
+              <option key={code} value={code}>{label}</option>
             ))}
           </select>
 

@@ -19,9 +19,10 @@ import { db } from '@/firebase/config';
 import AccidentMapForm from '@/components/accidentMapForm';
 import ActiveFaultLine from '@/components/hazards/activeFaultLine';
 import GroundShaking from '@/components/hazards/groundShaking';
-import StormSurge from '@/components/hazards/stormSurge'
+import StormSurge from '@/components/hazards/stormSurge';
 import ImageOverlayComponent from './hazards/stormImage';
 
+// Override Leaflet default icon configuration
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x.src,
@@ -29,12 +30,14 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow.src,
 });
 
+// Custom icon for households
 const houseIcon = new L.Icon({
   iconUrl: 'https://cdn-icons-png.flaticon.com/512/7720/7720546.png',
   iconSize: [30, 30],
   iconAnchor: [15, 30],
 });
 
+// Custom icon for accidents
 const accidentIcon = new L.Icon({
   iconUrl: 'https://cdn-icons-png.flaticon.com/512/564/564619.png',
   iconSize: [30, 30],
@@ -42,19 +45,21 @@ const accidentIcon = new L.Icon({
 });
 
 const { BaseLayer } = LayersControl;
-const defaultPosition = [9.941975, 124.033194];
+const defaultPosition = [9.941975, 124.033194]; // Default map center
 
 export default function MapPage() {
+  // State for current map type
   const [activeMap, setActiveMap] = useState('Household Map');
   const [activeHazard, setActiveHazard] = useState('');
-  const [householdMarkers, setHouseholdMarkers] = useState([]);
-  const [accidents, setAccidents] = useState([]);
-  const [addingAccident, setAddingAccident] = useState(false);
-  const [clarinBoundary, setClarinBoundary] = useState(null);
+  const [householdMarkers, setHouseholdMarkers] = useState([]); // Household locations
+  const [accidents, setAccidents] = useState([]); // Accident locations
+  const [addingAccident, setAddingAccident] = useState(false); // Toggle add accident form
+  const [clarinBoundary, setClarinBoundary] = useState(null); // GeoJSON boundary data
 
   const isHouseholdMap = activeMap === 'Household Map';
   const isAccidentMap = activeMap === 'Accident Map';
 
+  // Load GeoJSON boundary on mount
   useEffect(() => {
     fetch('/data/map.geojson')
       .then((res) => res.json())
@@ -62,6 +67,7 @@ export default function MapPage() {
       .catch((err) => console.error('Failed to load GeoJSON:', err));
   }, []);
 
+  // Fetch all households and their geographic identification
   useEffect(() => {
     const fetchHouseholds = async () => {
       const snapshot = await getDocs(collection(db, 'households'));
@@ -87,12 +93,13 @@ export default function MapPage() {
         });
       }
 
-      setHouseholdMarkers(locations);
+      setHouseholdMarkers(locations); // Store locations in state
     };
 
     fetchHouseholds();
   }, []);
 
+  // Fetch accident records on mount
   useEffect(() => {
     const fetchAccidents = async () => {
       const snapshot = await getDocs(collection(db, 'accidents'));
@@ -103,13 +110,15 @@ export default function MapPage() {
     fetchAccidents();
   }, []);
 
+  // Callback for submitting accident form
   const handleAccidentSubmit = (data) => {
-    setAccidents((prev) => [...prev, data]);
-    setAddingAccident(false);
+    setAccidents((prev) => [...prev, data]); // Add new accident to list
+    setAddingAccident(false); // Close form
   };
 
   return (
     <div className="p-4 relative">
+      {/* Map selection buttons */}
       <div className="mb-4 flex gap-2 z-30 relative ">
         {['Household Map', 'Accident Map'].map((option) => (
           <button
@@ -130,6 +139,7 @@ export default function MapPage() {
         ))}
       </div>
 
+      {/* Leaflet map container */}
       <MapContainer
         center={defaultPosition}
         zoom={13}
@@ -137,6 +147,7 @@ export default function MapPage() {
         style={{ height: '700px', width: '100%', cursor: 'pointer' }}
       >
         <LayersControl position="topright">
+          {/* Base layers for switching map styles */}
           <BaseLayer checked name="OpenStreetMap">
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -151,6 +162,7 @@ export default function MapPage() {
           </BaseLayer>
         </LayersControl>
 
+        {/* Render GeoJSON boundary if available */}
         {clarinBoundary && (
           <GeoJSON
             data={clarinBoundary}
@@ -163,13 +175,16 @@ export default function MapPage() {
           />
         )}
 
-        {/* Hazards Dropdown */}
+        {/* Hazard dropdown - only visible on household map */}
         {isHouseholdMap && (
           <div className="leaflet-top leaflet-left ml-10 ">
             <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2">
-              <label className="text-sm font-medium block mb-1">Hazards</label>
+              <label htmlFor="hazard-select" className="text-sm font-medium block mb-1">
+                Hazards
+              </label>
               <select
-                className="text-sm border rounded p-1 cursor-pointer focus:outline-none "
+                id="hazard-select"
+                className="text-sm border rounded p-1 cursor-pointer focus:outline-none"
                 value={activeHazard}
                 onChange={(e) => setActiveHazard(e.target.value)}
               >
@@ -187,7 +202,7 @@ export default function MapPage() {
           </div>
         )}
 
-        {/* Add Accident Button */}
+        {/* Button for adding accident - only on accident map */}
         {isAccidentMap && (
           <div className="leaflet-top leaflet-left ml-10">
             <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2">
@@ -201,7 +216,7 @@ export default function MapPage() {
           </div>
         )}
 
-        {/* Household Markers */}
+        {/* Render all household markers */}
         {isHouseholdMap &&
           householdMarkers.map((marker) => (
             <Marker
@@ -223,10 +238,10 @@ export default function MapPage() {
             </Marker>
           ))}
 
-        {/* Accident Form */}
+        {/* Show accident form if adding is active */}
         {isAccidentMap && addingAccident && <AccidentMapForm onSubmit={handleAccidentSubmit} />}
 
-        {/* Accident Markers */}
+        {/* Render all accident markers */}
         {isAccidentMap &&
           accidents.map((acc, idx) => (
             <Marker
@@ -247,25 +262,20 @@ export default function MapPage() {
             </Marker>
           ))}
 
-        {/* Hazard Markers */}
-        
+        {/* Conditional rendering of hazard components */}
         {isHouseholdMap && activeHazard === 'Active Faults' && <ActiveFaultLine />}
-
-
         {isHouseholdMap && activeHazard === 'Landslide' && (
           <Marker position={[9.9605, 124.026]}>
             <Popup>⛰️ Landslide Risk Area</Popup>
           </Marker>
         )}
-        {isHouseholdMap && activeHazard === 'Ground Shaking' && <GroundShaking/>}
-
+        {isHouseholdMap && activeHazard === 'Ground Shaking' && <GroundShaking />}
         {isHouseholdMap && activeHazard === 'Storm Surge' && (
           <>
-            <StormSurge/>
-            <ImageOverlayComponent/>
+            <StormSurge />
+            <ImageOverlayComponent />
           </>
-        
-       )}
+        )}
       </MapContainer>
     </div>
   );

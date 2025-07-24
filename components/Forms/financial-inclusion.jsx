@@ -6,7 +6,10 @@ import { doc, setDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 export default function FinancialInclusion({ householdId, goToNext }) {
+  // State to handle saving state (e.g., disabling button while saving)
   const [isSaving, setIsSaving] = useState(false);
+
+  // Initial state for form data
   const [form, setForm] = useState({
     hasFinancialAccounts: '',
     financialAccountTypes: [],
@@ -21,45 +24,58 @@ export default function FinancialInclusion({ householdId, goToNext }) {
     insuranceProducts: [],
   });
 
+  // Handles form changes for both checkbox and other input types
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
     if (type === 'checkbox') {
+      // Update checkbox group values
       const updated = form[name] || [];
       if (checked) {
         setForm((prev) => ({
           ...prev,
-          [name]: [...updated, value],
+          [name]: [...updated, value], // Add value
         }));
       } else {
         setForm((prev) => ({
           ...prev,
-          [name]: updated.filter((item) => item !== value),
+          [name]: updated.filter((item) => item !== value), // Remove value
         }));
       }
     } else {
+      // Update text, select, or radio values
       setForm((prev) => ({ ...prev, [name]: value }));
     }
   };
 
+  // Handles form submission and writes data to Firestore
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSaving(true);
+    setIsSaving(true); // Start saving
     try {
+      // Reference to the Firestore document
       const docRef = doc(db, 'households', householdId, 'financialInclusion', 'main');
+
+      // Save data to Firestore
       await setDoc(docRef, {
         ...form,
-        timestamp: new Date(),
+        timestamp: new Date(), // Add timestamp
       });
+
       toast.success('Financial Inclusion saved!');
+
+      // Go to next section if provided
       if (goToNext) goToNext();
     } catch (error) {
+      // Log error to console and show toast
       console.error('Error saving financial inclusion:', error);
       toast.error('Failed to save data.');
     } finally {
-      setIsSaving(false); 
+      setIsSaving(false); // End saving
     }
   };
 
+  // Options for financial account types
   const financialAccountTypes = [
     'FORMAL BANK ACCOUNT',
     'COOPERATIVE',
@@ -69,6 +85,7 @@ export default function FinancialInclusion({ householdId, goToNext }) {
     'NON-STOCKS SAVINGS & LOAN ASSOCIATION',
   ];
 
+  // Options for how financial accounts are used
   const financialAccountUsage = [
     'SAVING - FOR EDUCATION',
     'SAVING - FOR LEISURE TRAVEL',
@@ -90,6 +107,7 @@ export default function FinancialInclusion({ householdId, goToNext }) {
     'OTHERS',
   ];
 
+  // Reasons for not having a financial account
   const noAccountReasons = [
     'DO NOT KNOW THE DETAILS',
     'DON’T HAVE DOCUMENTARY REQUIREMENTS',
@@ -104,6 +122,7 @@ export default function FinancialInclusion({ householdId, goToNext }) {
     'OTHERS',
   ];
 
+  // Where savings are stored
   const savingsLocations = [
     'FORMAL FINANCIAL ACCOUNT',
     'AT HOME',
@@ -113,6 +132,7 @@ export default function FinancialInclusion({ householdId, goToNext }) {
     'OTHERS',
   ];
 
+  // Reasons for not saving money
   const noSavingsReasons = [
     'EARN JUST ENOUGH / NO EXTRA',
     'UNEMPLOYMENT / UNSTABLE INCOME',
@@ -121,6 +141,7 @@ export default function FinancialInclusion({ householdId, goToNext }) {
     'OTHERS',
   ];
 
+  // Sources of loan
   const loanSources = [
     'BANK',
     'NSSLA',
@@ -137,6 +158,7 @@ export default function FinancialInclusion({ householdId, goToNext }) {
     'OTHERS',
   ];
 
+  // Purposes for loan
   const loanPurposes = [
     'BUSINESS/ENTREPRENEURIAL',
     'EDUCATION',
@@ -152,6 +174,7 @@ export default function FinancialInclusion({ householdId, goToNext }) {
     'OTHERS',
   ];
 
+  // Insurance product types
   const insuranceOptions = [
     'LIFE INSURANCE',
     'ACCIDENT INSURANCE',
@@ -166,9 +189,10 @@ export default function FinancialInclusion({ householdId, goToNext }) {
     'OTHERS',
   ];
 
+
   return (
     <form onSubmit={handleSubmit} className="h-full overflow-y-auto max-w-5xl mx-auto p-4 space-y-6">
-      {/* Financial Account */}
+      {/*Question 1. Financial Account */}
       <div>
         <label htmlFor="hasFinancialAccounts" className="block mb-2">Do you have financial accounts?</label>
         <select
@@ -185,13 +209,15 @@ export default function FinancialInclusion({ householdId, goToNext }) {
         </select>
       </div>
 
+      {/*Question 2. Financial Account */}
       {form.hasFinancialAccounts === 'YES' && (
         <>
-          <label className="block mb-2">Check all financial accounts that you have:</label>
+          <label className="block mb-2" htmlFor='financialAccountTypes'>Check all financial accounts that you have:</label> 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border p-3 rounded">
             {financialAccountTypes.map((option) => (
               <label key={option} className="inline-flex items-center">
                 <input
+                  id='financialAccountTypes'
                   type="checkbox"
                   name="financialAccountTypes"
                   value={option}
@@ -203,10 +229,12 @@ export default function FinancialInclusion({ householdId, goToNext }) {
               </label>
             ))}
           </div>
-
+          
+          {/*Question 3. Financial Account */}
           <div className="mt-4">
-            <label className="block mb-1">How did you use the financial accounts in the past 12 months?</label>
+            <label className="block mb-1" htmlFor='financialAccountUsage'>How did you use the financial accounts in the past 12 months?</label>
             <select
+              id='financialAccountUsage'
               name="financialAccountUsage"
               value={form.financialAccountUsage}
               onChange={handleChange}
@@ -223,8 +251,9 @@ export default function FinancialInclusion({ householdId, goToNext }) {
 
       {form.hasFinancialAccounts === 'NO' && (
         <div>
-          <label className="block mb-1">Select the reason for not having any financial accounts:</label>
+          <label className="block mb-1" htmlFor='reasonNoAccount'>Select the reason for not having any financial accounts:</label> {/*Question 4. Financial Account */}
           <select
+            id='reasonNoAccount'
             name="reasonNoAccount"
             value={form.reasonNoAccount}
             onChange={handleChange}
@@ -239,10 +268,11 @@ export default function FinancialInclusion({ householdId, goToNext }) {
         </div>
       )}
 
-      {/* Savings */}
+      {/*Question 5. Savings */}
       <div>
-        <label className="block mb-1">Do you or any household members have savings?</label>
+        <label className="block mb-1" htmlFor='hasSavings'>Do you or any household members have savings?</label>
         <select
+          id='hasSavings'
           name="hasSavings"
           value={form.hasSavings}
           onChange={handleChange}
@@ -257,8 +287,9 @@ export default function FinancialInclusion({ householdId, goToNext }) {
 
       {form.hasSavings === 'YES' && (
         <div>
-          <label className="block mb-1">Where do you or any household members keep the savings?</label>
+          <label className="block mb-1" htmlFor='whereSavings'>Where do you or any household members keep the savings?</label> {/*Question 6. Savings */}
           <select
+            id='whereSavings'
             name="whereSavings"
             value={form.whereSavings}
             onChange={handleChange}
@@ -274,8 +305,9 @@ export default function FinancialInclusion({ householdId, goToNext }) {
 
       {form.hasSavings === 'NO' && (
         <div>
-          <label className="block mb-1">If no, state the reason why:</label>
+          <label className="block mb-1" htmlFor='reasonNoSavings'>If no, state the reason why:</label> {/*Question 7. Savings */}
           <select
+            id='reasonNoSavings'
             name="reasonNoSavings"
             value={form.reasonNoSavings}
             onChange={handleChange}
@@ -289,10 +321,11 @@ export default function FinancialInclusion({ householdId, goToNext }) {
         </div>
       )}
 
-      {/* Loans */}
+      {/*Question 8 Loans */}
       <div>
-        <label className="block mb-1">Do you or any household members have any loans?</label>
+        <label className="block mb-1" htmlFor='hasLoans'>Do you or any household members have any loans?</label>
         <select
+          id='hasLoans'
           name="hasLoans"
           value={form.hasLoans}
           onChange={handleChange}
@@ -305,11 +338,13 @@ export default function FinancialInclusion({ householdId, goToNext }) {
         </select>
       </div>
 
+      {/*Question 9 Loans */}
       {form.hasLoans === 'YES' && (
         <>
           <div>
-            <label className="block mb-1">Where did you acquire this/these loans?</label>
+            <label className="block mb-1" htmlFor='whereLoan'>Where did you acquire this/these loans?</label> 
             <select
+              id='whereLoan'
               name="whereLoan"
               value={form.whereLoan}
               onChange={handleChange}
@@ -322,9 +357,11 @@ export default function FinancialInclusion({ householdId, goToNext }) {
             </select>
           </div>
 
+          {/*Question 10 Loans */}
           <div>
-            <label className="block mb-1">Purpose/s of this/these loans:</label>
+            <label className="block mb-1" htmlFor='loanPurpose'>Purpose/s of this/these loans:</label>
             <select
+              id='loanPurpose'
               name="loanPurpose"
               value={form.loanPurpose}
               onChange={handleChange}
@@ -339,13 +376,14 @@ export default function FinancialInclusion({ householdId, goToNext }) {
         </>
       )}
 
-      {/* Insurance */}
+      {/*Question 11 Insurance */}
       <div>
-        <label className="block mb-1">Select the following insurance products you or any HH members have:</label>
+        <label className="block mb-1" htmlFor='insuranceProducts'>Select the following insurance products you or any HH members have:</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border p-3 rounded">
           {insuranceOptions.map((insurance) => (
             <label key={insurance} className="inline-flex items-center">
               <input
+                id='insuranceProducts'
                 type="checkbox"
                 name="insuranceProducts"
                 value={insurance}

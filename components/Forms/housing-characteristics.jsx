@@ -5,105 +5,193 @@ import { db } from '@/firebase/config';
 import { doc, setDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
+// Dropdown options (used for select inputs)
 const buildingTypes = [
-  'Single house',
-  'Duplex house',
-  'Apartment/Flat',
-  'Condominum/CondoTel',
-  'Other Multi-Unit Residential',
-  'Commercial/Industrial/Agricultural',
-  'Institutional Living Quarter',
-  'None(Homeless, Cart)',
-  'Other types of building',
-  'Temporary evacuation center',
+  'Single House',
+  'Duplex',
+  'Multi-unit Residential (e.g., apartment)',
+  'Commercial/Industrial/Agricultural Building',
+  'Institutional Living Quarters (e.g., dormitory, hospital)',
+  'Other Housing Unit (e.g., makeshift, boat, cave)',
+  'None (e.g., street dwelling)',
 ];
 
 const roofMaterials = [
   'Galvanized Iron/Aluminum',
+  'Cogon/Nipa/Anahaw',
+  'Asbestos',
+  'Makeshift/Salvaged/Improvised Materials',
   'Concrete/Clay Tile',
   'Half Galvanized Iron and Half Concrete',
   'Wood/Bamboo',
-  'Cogon/Nipa/Anahaw',
-  'Asbestos',
-  'Makeshift/Salvaged/Improvised materials',
-  'Other',
+  'Others',
 ];
 
+
 const roofFramingMaterials = [
-  'Concrete',
-  'Steel',
   'Wood',
+  'Steel/Metal',
   'Bamboo',
-  'None',
-  'Other',
+  'Coconut Lumber',
+  'Concrete',
+  'Others',
 ];
+
 
 const wallMaterials = [
   'Concrete/Brick/Stone',
-  'Half Concrete/Brick/Stone and Half Wood',
   'Wood',
-  'Galvanized Iron/Aluminum',
-  'Bamboo/Sawali/cogon/nipa',
+  'Half Concrete / Half Wood',
+  'Bamboo / Sawali / Cogon / Nipa',
   'Asbestos',
+  'Makeshift / Salvaged / Improvised Materials',
+  'Half Concrete/Brick/Stone and Half Wood',
+  'Galvanized Iron/Aluminum',
   'Glass',
-  'Makeshift/Salvaged/Improvised materials',
-  'None',
   'Concrete Hollow Blocks',
   'Concrete Hollow Blocks/Wood',
   'Shear Walls',
-  'Other',
+  'Others',
 ];
+
 
 const floorMaterials = [
+  'Wood Planks',
   'Ceramic Tile/Marble/Granite',
   'Cement/Brick/Stone',
-  'Wood Plank',
-  'Wood Tile/Parquet',
-  'Vinyl/Carpet Tile',
+  'Wood Tiles/Parquet',
+  'Vinyl/Carpet Tiles',
   'Linoleum',
   'None',
-  'Other',
+  'Others',
 ];
 
+const mainFloorMaterial = [
+  'Concrete',
+  'Coconut Lumber',
+  'Bamboo',
+  'Earth/Sand/Mud',
+  'Vinyl/Carpet Tiles',
+  'Makeshift/Salvaged/Improvised Materials',
+  'Others, Specify',
+]
+
+
 const tenureStatuses = [
-  'Owned',
-  'Rented',
-  'Occupied rent-free',
-  'Other',
+  'Own or Owner-Like Possession of the House and Lot Own house, Rent Lot',
+  'Own house, Rent-Free Lot with Consent of Owner',
+  'Own house, Rent-Free Lot without Consent of Owner',
+  'Rent House/Room, Including Lot',
+  'Rent-Free House Lot with Consent of Owner',
+  'Rent-Free House Lot without Consent of Owner',
 ];
 
 const electricitySources = [
-  'Electricity Company',
-  'Solar',
+  'Electric Company (e.g., MERALCO)',
+  'Solar Panel',
   'Generator',
-  'Battery',
-  'Other',
+  'Battery / Power Bank',
+  'None',
+  'Other Source',
 ];
 
 const lightingFuels = [
   'Electricity',
   'Kerosene',
-  'Liquified Petroleum Gas',
-  'Oil (Vegetable, Animal, and Others)',
-  'Solar Panel/Solar Lamp',
+  'Battery-powered Light',
+  'Solar Lamp',
+  'Candle',
   'None',
-  'Other',
+  'Other Fuel',
 ];
 
 const cookingFuels = [
-  'Electricity',
+  'Liquefied Petroleum Gas (LPG)',
   'Kerosene',
-  'Liquified Petroleum Gas',
-  'Wood',
   'Charcoal',
+  'Wood',
+  'Electricity',
   'None',
-  'Other',
+  'Other Fuel',
 ];
 
- 
+const framingMaterials = [
+  'Wood',
+  'Wood Column Only',
+  'Concrete',
+  'Steel',
+  'Bamboo',
+  'Light Metal',
+  'Concrete GF + Wood 2F',
+  'Concrete Column Only, No Beam',
+  'Concrete Column Only + Wood 2F/ No Concrete Column 1F + Wood 2F',
+  'Concrete Column Only, Wooden Beam',
+  'Concrete Column Only, Steel Beam',
+  'Steel Column, Wooden Beam',
+  'None',
+  'Others, Specify',
+
+];
+
+const ownedItems = [
+  'HOUSEHOLD CONVENIENCES',
+  'Refrigerator/ Freezer',
+  'Stove with oven/Gas Range',
+  'Electric Fan',
+  'Air Conditioner',
+  'Microwave Oven',
+  'Washing Machine',
+  'Vacuum Cleaner',
+  'Rice Cooker',
+  'Electric Kettle',
+  'Television',
+
+  'ICT DEVICES',
+  'Laptop/Computer',
+  'Tablet',
+  'Smartphone',
+  'Internet Router/Modem',
+  'Television',
+  'Radio/Radio cassette (AM, FM, and transistor)',
+  'CD/DVD/VCD Player',
+  'Audio component/Stereo set/Karaoke/Videoke',
+  'Landline/Wireless telephone',
+
+  'VEHICLES',
+  'Bicycle',
+  'Motorcycle',
+  'Car',
+  'Truck',
+  'Pedicab',
+  'Jeep',
+  'Van',
+  'Motorized boat/Banca',
+  'Non-Motorized boat/Banca',
+  'Tricycle',
+];
+
+const televisionServices = [
+  'Cable TV (CATV)',
+  'Direct-To-Home (DTH) Satellite Services',
+  'IPTV',
+  'Digital Terrestrial TV (DTT)',
+  'Analog Television',
+]
+
+const ownAnimals = [
+  'Carabao',
+  'Cattle',
+  'Horses',
+  'Swine',
+  'Goats',
+  'Sheep',
+  'Chickens/Duck/Poultry',
+  'Others, specify',
+]
 
 export default function HousingAmenitiesForm({ householdId, goToNext }) {
-  const [formData, setFormData] = useState({
+  // Main form state
+   const [formData, setFormData] = useState({
     buildingType: '',
     floorsCount: '',
     roofMaterial: '',
@@ -118,29 +206,33 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
     constructionYear: '',
     imputedRent: '',
     hasElectricity: '',
-    electricitySources: [],
+    electricitySources: [],  // array
     lightingFuel: '',
     cookingFuel: '',
-    ownedItemsCount: '',
+    ownedItems: [],  
+    ownAnimals: [],
+    televisionServices: [],  
   });
-  const [isSaving, setIsSaving] = useState(false);
- 
 
+  const [isSaving, setIsSaving] = useState(false); // Used to disable form while saving
+
+  // General change handler
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Fix toggleMultiSelect: update state inside setFormData callback without calling handleChange
   const toggleMultiSelect = (value) => {
     setFormData(prev => {
       const currentArray = prev.electricitySources || [];
       const updated = currentArray.includes(value)
         ? currentArray.filter(i => i !== value)
         : [...currentArray, value];
-      handleChange('electricitySources', updated);
-      
+      return { ...prev, electricitySources: updated };
     });
   };
 
+  // Submit handler remains unchanged
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -158,18 +250,23 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
       console.error('Failed to save housing amenities info:', error);
       toast.error('Failed to save data.');
     } finally {
-      setIsSaving(false); 
+      setIsSaving(false);
     }
   };
+
+
 
 
   return (
     <form onSubmit={handleSubmit} className="max-w-5xl mx-auto p-6 space-y-6">
       <h2 className="text-xl font-bold mb-4">Housing & Amenities Section</h2>
 
-      <label className="block">
+      {/**Question 1 */}
+      <label htmlFor='buildingType' className="block">
         What is the type of building occupied by your household?
         <select
+          id='buildingType'
+          name='buildingType'
           className="w-full border p-2 rounded mt-1"
           value={formData.buildingType}
           onChange={e => handleChange('buildingType', e.target.value)}
@@ -180,10 +277,13 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
           ))}
         </select>
       </label>
-
-      <label className="block mt-4">
+      
+      {/**Question 2 */}
+      <label htmlFor='floorsCount' className="block mt-4">
         How many floors are there in this building?
-        <input
+        <input 
+          id='floorsCount'
+          name='floorsCount'
           type="number"
           min="1"
           className="w-full border p-2 rounded mt-1"
@@ -193,9 +293,12 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
         />
       </label>
 
-      <label className="block mt-4">
+      {/**Question 3 */}    
+      <label htmlFor='roofMaterial' className="block mt-4">
         What is the main construction material of the roof of this building/housing unit?
         <select
+          id='roofMaterial'
+          name='roofMaterial'
           className="w-full border p-2 rounded mt-1"
           value={formData.roofMaterial}
           onChange={e => handleChange('roofMaterial', e.target.value)}
@@ -206,10 +309,13 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
           ))}
         </select>
       </label>
-
-      <label className="block mt-4">
+      
+      {/**Question 3.1 */}
+      <label htmlFor='roofFramingMaterial' className="block mt-4">
         What is the main construction material for the roof framing of this building/housing unit?
         <select
+          id='roofFramingMaterial'
+          name='roofFramingMaterial'
           className="w-full border p-2 rounded mt-1"
           value={formData.roofFramingMaterial}
           onChange={e => handleChange('roofFramingMaterial', e.target.value)}
@@ -220,10 +326,13 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
           ))}
         </select>
       </label>
-
-      <label className="block mt-4">
+      
+      {/**Question 4 */}
+      <label htmlFor='outerWallMaterial' className="block mt-4">
         What is the construction material of the outer walls of this building/housing unit?
         <select
+          id='outerWallMaterial'
+          name='outerWallMaterial'
           className="w-full border p-2 rounded mt-1"
           value={formData.outerWallMaterial}
           onChange={e => handleChange('outerWallMaterial', e.target.value)}
@@ -234,10 +343,13 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
           ))}
         </select>
       </label>
-
-      <label className="block mt-4">
+      
+      {/**Question 5 */}
+      <label htmlFor='floorFinishMaterial' className="block mt-4">
         What is the finishing material of the floor of the housing unit?
         <select
+          id='floorFinishMaterial'
+          name='floorFinishMaterial'
           className="w-full border p-2 rounded mt-1"
           value={formData.floorFinishMaterial}
           onChange={e => handleChange('floorFinishMaterial', e.target.value)}
@@ -248,24 +360,30 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
           ))}
         </select>
       </label>
-
-      <label className="block mt-4">
+      
+      {/**Question 6 */}
+      <label htmlFor='mainFloorMaterial' className="block mt-4">
         What is the main construction material of the floor of this housing unit?
         <select
+          id='mainFloorMaterial'
+          name='mainFloorMaterial'
           className="w-full border p-2 rounded mt-1"
           value={formData.mainFloorMaterial}
           onChange={e => handleChange('mainFloorMaterial', e.target.value)}
         >
           <option value="">Select type of floor material</option>
-          {floorMaterials.map(material => (
+          {mainFloorMaterial.map(material => (
             <option key={material} value={material}>{material}</option>
           ))}
         </select>
       </label>
-
-      <label className="block mt-4">
+        
+      {/**Question 7 */}
+      <label htmlFor='estimatedFloorArea' className="block mt-4">
         What is the estimated floor area of this housing unit? (in square meters)
         <input
+          id='estimatedFloorArea'
+          name='estimatedFloorArea'
           type="number"
           min="0"
           className="w-full border p-2 rounded mt-1"
@@ -274,24 +392,30 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
           placeholder="Enter floor area"
         />
       </label>
-
-      <label className="block mt-4">
+      
+      {/**Question 8 */}
+      <label htmlFor='frameMaterial' className="block mt-4">
         What is the frame material of this housing unit?
         <select
+          id='frameMaterial'
+          name='frameMaterial'
           className="w-full border p-2 rounded mt-1"
           value={formData.frameMaterial}
           onChange={e => handleChange('frameMaterial', e.target.value)}
         >
           <option value="">Select type of frame material</option>
-          {floorMaterials.map(material => (
+          {framingMaterials.map(material => (
             <option key={material} value={material}>{material}</option>
           ))}
         </select>
       </label>
-
-      <label className="block mt-4">
+      
+      {/**Question 9 */}
+      <label htmlFor='bedroomsCount' className="block mt-4">
         How many bedrooms does the housing unit have?
         <input
+          id='bedroomsCount'
+          name='bedroomsCount'
           type="number"
           min="0"
           className="w-full border p-2 rounded mt-1"
@@ -301,9 +425,12 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
         />
       </label>
 
-      <label className="block mt-4">
+      {/**Question 10 */} 
+      <label htmlFor='tenureStatus' className="block mt-4">
         What is the tenure status of the housing unit and lot occupied by your household?
         <select
+          id='tenureStatus'
+          name='tenureStatus'
           className="w-full border p-2 rounded mt-1"
           value={formData.tenureStatus}
           onChange={e => handleChange('tenureStatus', e.target.value)}
@@ -314,10 +441,13 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
           ))}
         </select>
       </label>
-
-      <label className="block mt-4">
+      
+      {/**Question 10.1 */}
+      <label htmlFor='constructionYear' className="block mt-4">
         When was the housing unit/building constructed? (Year)
         <input
+          id='constructionYear'
+          name='constructionYear'
           type="number"
           min="1800"
           max={new Date().getFullYear()}
@@ -327,10 +457,13 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
           placeholder="Enter year of construction"
         />
       </label>
-
-      <label className="block mt-4">
+      
+      {/**Question 11 */}
+      <label htmlFor='imputedRent' className="block mt-4">
         By your own estimate, how much is the imputed rent per month for the house and/or lot? (Currency)
         <input
+          id='imputedRent'
+          name='imputedRent'
           type="number"
           min="0"
           step="0.01"
@@ -341,9 +474,12 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
         />
       </label>
 
-      <label className="block mt-4">
+      {/**Question 12 */}
+      <label htmlFor='hasElectricity' className="block mt-4">
         Is there any electricity in the dwelling place?
         <select
+          id='hasElectricity'
+          name='hasElectricity'
           className="w-full border p-2 rounded mt-1"
           value={formData.hasElectricity}
           onChange={e => handleChange('hasElectricity', e.target.value)}
@@ -353,13 +489,16 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
           <option value="NO">NO</option>
         </select>
       </label>
-
+      
+      {/**Question 13 */}
       {formData.hasElectricity === 'YES' && (
         <fieldset className="mt-4 border rounded p-3">
           <legend className="font-semibold">What is/are the source/s of electricity in the dwelling place? (Select all that apply)</legend>
           {electricitySources.map(source => (
-            <label key={source} className="block">
+            <label htmlFor='electricitySources' key={source} className="block">
               <input
+                id='electricitySources'
+                name='electricitySources'
                 type="checkbox"
                 checked={formData.electricitySources.includes(source)}
                 onChange={() => toggleMultiSelect(source)}
@@ -371,9 +510,12 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
         </fieldset>
       )}
 
-      <label className="block mt-4">
+      {/**Question 14 */}
+      <label htmlFor='lightingFuel' className="block mt-4">
         What type of fuel does this household use for lighting?
         <select
+          id='lightingFuel'
+          name='lightingFuel'
           className="w-full border p-2 rounded mt-1"
           value={formData.lightingFuel}
           onChange={e => handleChange('lightingFuel', e.target.value)}
@@ -384,10 +526,13 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
           ))}
         </select>
       </label>
-
-      <label className="block mt-4">
+      
+      {/**Question 15 */}
+      <label htmlFor='cookingFuel' className="block mt-4">
         What type of fuel does this household use most of the time for cooking?
         <select
+          id='cookingFuel'
+          name='cookingFuel'
           className="w-full border p-2 rounded mt-1"
           value={formData.cookingFuel}
           onChange={e => handleChange('cookingFuel', e.target.value)}
@@ -398,16 +543,146 @@ export default function HousingAmenitiesForm({ householdId, goToNext }) {
           ))}
         </select>
       </label>
-
+      
+      {/* Question 16 - Fix ownedItemsCount → ownedItems */}
       <label className="block mt-4">
-        How many of each of the following items does the household own? (You can type numbers separated by commas or list items)
-        <input
-          type="text"
-          className="w-full border p-2 rounded mt-1"
-          value={formData.ownedItemsCount}
-          onChange={e => handleChange('ownedItemsCount', e.target.value)}
-          placeholder="Enter counts or list of items"
-        />
+        Please select all the items that the household owns:
+        <div className="mt-2 border border-gray-300 rounded-md p-4 max-w-md max-h-60 overflow-y-auto">
+          {ownedItems.map((item, index) => {
+            const isCategory =
+              item === 'HOUSEHOLD CONVENIENCES' ||
+              item === 'ICT DEVICES' ||
+              item === 'VEHICLES';
+
+            if (isCategory) {
+              return (
+                <div
+                  key={index}
+                  className="font-bold text-gray-500 mt-3 mb-1 select-none"
+                >
+                  {item}
+                </div>
+              );
+            }
+
+            return (
+              <div key={index} className="flex items-center mb-2">
+                <input
+                  type="checkbox"
+                  id={`ownedItem-${index}`}
+                  name="ownedItems"
+                  value={item}
+                  checked={formData.ownedItems.includes(item)}  // corrected here
+                  onChange={e => {
+                    const { checked, value } = e.target;
+                    let updatedItems = [...formData.ownedItems];
+
+                    if (checked) {
+                      if (!updatedItems.includes(value)) {
+                        updatedItems.push(value);
+                      }
+                    } else {
+                      updatedItems = updatedItems.filter(i => i !== value);
+                    }
+
+                    handleChange('ownedItems', updatedItems);  // corrected here
+                  }}
+                  className="mr-2"
+                />
+                <label htmlFor={`ownedItem-${index}`}>{item}</label>
+              </div>
+            );
+          })}
+        </div>
+      </label>
+
+      {/* Question 17 */}
+      <label className="block mt-4">
+        Does this household have any of the following television services?
+        <div className="mt-2 border border-gray-300 rounded-md p-4 max-w-md max-h-60 overflow-y-auto">
+          {televisionServices.map((item, index) => {
+            // If you have any categories, define them here:
+            const isCategory =
+              item === 'CABLE SERVICES' ||
+              item === 'SATELLITE SERVICES' ||
+              item === 'INTERNET TV'; // Example categories (adjust as needed)
+
+            if (isCategory) {
+              return (
+                <div
+                  key={index}
+                  className="font-bold text-gray-500 mt-3 mb-1 select-none"
+                >
+                  {item}
+                </div>
+              );
+            }
+
+            return (
+              <div key={index} className="flex items-center mb-2">
+                <input
+                  type="checkbox"
+                  id={`televisionService-${index}`}
+                  name="televisionServices"
+                  value={item}
+                  checked={formData.televisionServices.includes(item)}
+                  onChange={e => {
+                    const { checked, value } = e.target;
+                    let updatedServices = [...formData.televisionServices];
+
+                    if (checked) {
+                      if (!updatedServices.includes(value)) {
+                        updatedServices.push(value);
+                      }
+                    } else {
+                      updatedServices = updatedServices.filter(s => s !== value);
+                    }
+
+                    handleChange('televisionServices', updatedServices);
+                  }}
+                  className="mr-2"
+                />
+                <label htmlFor={`televisionService-${index}`}>{item}</label>
+              </div>
+            );
+          })}
+        </div>
+</label>
+
+
+
+      {/** Question 18 */}
+      <label className="block mt-4">
+        Please select all the animals this household owns:
+        <div className="mt-2 border border-gray-300 rounded-md p-4 max-w-md">
+          {ownAnimals.map((animal, index) => (
+            <div key={index} className="flex items-center mb-2">
+              <input
+                type="checkbox"
+                id={`ownAnimal-${index}`}
+                name="ownAnimals"
+                value={animal}
+                checked={formData.ownAnimals.includes(animal)}
+                onChange={e => {
+                  const { checked, value } = e.target;
+                  let updatedAnimals = [...formData.ownAnimals];
+
+                  if (checked) {
+                    if (!updatedAnimals.includes(value)) {
+                      updatedAnimals.push(value);
+                    }
+                  } else {
+                    updatedAnimals = updatedAnimals.filter(a => a !== value);
+                  }
+
+                  handleChange('ownAnimals', updatedAnimals);
+                }}
+                className="mr-2"
+              />
+              <label htmlFor={`ownAnimal-${index}`}>{animal}</label>
+            </div>
+          ))}
+        </div>
       </label>
 
       {/* ✅ Submit button */}

@@ -25,6 +25,7 @@ export default function EditProfilePage() {
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [uid, setUid] = useState(null);
+  const [loading, setLoading] = useState(false); // <-- loading state
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -80,6 +81,7 @@ export default function EditProfilePage() {
     e.preventDefault();
     if (!uid) return;
 
+    setLoading(true);
     try {
       let profilePhotoUrl = photoPreview;
 
@@ -99,6 +101,8 @@ export default function EditProfilePage() {
     } catch (error) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -113,7 +117,6 @@ export default function EditProfilePage() {
 
       <h2 className="text-2xl font-semibold mb-4 text-center">Edit Profile</h2>
 
-      {/* Photo Upload Section */}
       <div className="flex flex-col items-center mb-6">
         {photoPreview ? (
           <img
@@ -160,12 +163,33 @@ export default function EditProfilePage() {
           <InputField type="email" name="email" label="Email Address" value={form.email} onChange={handleChange} required />
         </div>
 
-        <div className="col-span-2 text-right mt-4">
+        {/* Updated Submit Button with Spinner */}
+        <div className="col-span-2 mt-4 flex justify-end">
           <button
             type="submit"
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+            className="w-[200px] bg-green-600 hover:bg-green-700 text-white font-medium py-2 rounded-lg transition flex justify-center items-center"
+            disabled={loading}
           >
-            Save Changes
+            {loading ? (
+              <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                />
+              </svg>
+            ) : (
+              'Save Changes'
+            )}
           </button>
         </div>
       </form>
@@ -173,7 +197,6 @@ export default function EditProfilePage() {
   );
 }
 
-// 🔁 Reusable InputField Component
 function InputField({ name, label, value, onChange, required, type = 'text' }) {
   return (
     <div>

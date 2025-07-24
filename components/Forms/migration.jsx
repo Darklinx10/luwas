@@ -34,7 +34,7 @@ export default function Migration({ householdId, members, goToNext }) {
     }))
   );
 
-  // ✅ Handle form input changes
+  // Handle form input changes
   const handleChange = (index, e) => {
     const { name, value } = e.target;
     const updatedForms = [...forms];
@@ -42,7 +42,7 @@ export default function Migration({ householdId, members, goToNext }) {
     setForms(updatedForms);
   };
 
-  // ✅ Handle form submission and write to Firestore
+  // Handle form submission and write to Firestore
   const handleSubmit = async (e) => {
   e.preventDefault();
   setIsSaving(true);
@@ -51,14 +51,14 @@ export default function Migration({ householdId, members, goToNext }) {
       const saveTasks = forms.map(async (form) => {
         const memberRef = doc(db, 'households', householdId, 'members', form.memberId);
 
-        // ✅ Save only migration details
+        //Save only migration details
         const migrationRef = doc(memberRef, 'migration', 'main');
         await setDoc(migrationRef, form);
       });
 
       await Promise.all(saveTasks);
 
-      // ✅ Save migration summary to root household doc
+      // Save migration summary to root household doc
       await updateDoc(doc(db, 'households', householdId), {
         migrationData: forms,
       });
@@ -93,27 +93,50 @@ export default function Migration({ householdId, members, goToNext }) {
           <div>
             <h3 className="font-semibold">Mother’s Address at Birth</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <input
-                name="motherProvince"
-                value={form.motherProvince}
-                onChange={(e) => handleChange(index, e)}
-                placeholder="Province"
-                className="border p-2 rounded"
-              />
-              <input
-                name="motherCity"
-                value={form.motherCity}
-                onChange={(e) => handleChange(index, e)}
-                placeholder="City/Municipality"
-                className="border p-2 rounded"
-              />
-              <input
-                name="motherCountry"
-                value={form.motherCountry}
-                onChange={(e) => handleChange(index, e)}
-                placeholder="Country"
-                className="border p-2 rounded"
-              />
+              <div className="flex flex-col">
+                <label htmlFor={`motherProvince-${index}`} className="mb-1 text-sm font-medium text-gray-700">
+                  Province
+                </label>
+                <input
+                  id={`motherProvince-${index}`}
+                  name="motherProvince"
+                  value={form.motherProvince}
+                  onChange={(e) => handleChange(index, e)}
+                  placeholder="Province"
+                  autoComplete="address-level1"
+                  className="border p-2 rounded"
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label htmlFor={`motherCity-${index}`} className="mb-1 text-sm font-medium text-gray-700">
+                  City/Municipality
+                </label>
+                <input
+                  id={`motherCity-${index}`}
+                  name="motherCity"
+                  value={form.motherCity}
+                  onChange={(e) => handleChange(index, e)}
+                  placeholder="City/Municipality"
+                  autoComplete="address-level2"
+                  className="border p-2 rounded"
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label htmlFor={`motherCountry-${index}`} className="mb-1 text-sm font-medium text-gray-700">
+                  Country
+                </label>
+                <input
+                  id={`motherCountry-${index}`}
+                  name="motherCountry"
+                  value={form.motherCountry}
+                  onChange={(e) => handleChange(index, e)}
+                  placeholder="Country"
+                  autoComplete="country"
+                  className="border p-2 rounded"
+                />
+              </div>
             </div>
           </div>
 
@@ -121,27 +144,25 @@ export default function Migration({ householdId, members, goToNext }) {
           <div>
             <h3 className="font-semibold">Residence 5 Years Ago</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <input
-                name="prevProvince"
-                value={form.prevProvince}
-                onChange={(e) => handleChange(index, e)}
-                placeholder="Province"
-                className="border p-2 rounded"
-              />
-              <input
-                name="prevCity"
-                value={form.prevCity}
-                onChange={(e) => handleChange(index, e)}
-                placeholder="City/Municipality"
-                className="border p-2 rounded"
-              />
-              <input
-                name="prevCountry"
-                value={form.prevCountry}
-                onChange={(e) => handleChange(index, e)}
-                placeholder="Country"
-                className="border p-2 rounded"
-              />
+              {['prevProvince', 'prevCity', 'prevCountry'].map((field) => (
+                <div key={field} className="flex flex-col">
+                  <label htmlFor={`${field}-${index}`} className="mb-1 text-sm font-medium text-gray-700">
+                    {field.includes('Province') ? 'Province' : field.includes('City') ? 'City/Municipality' : 'Country'}
+                  </label>
+                  <input
+                    id={`${field}-${index}`}
+                    name={field}
+                    value={form[field]}
+                    onChange={(e) => handleChange(index, e)}
+                    placeholder={
+                      field.includes('Province') ? 'Province' :
+                      field.includes('City') ? 'City/Municipality' : 'Country'
+                    }
+                    autoComplete="off"
+                    className="border p-2 rounded"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
@@ -149,38 +170,40 @@ export default function Migration({ householdId, members, goToNext }) {
           <div>
             <h3 className="font-semibold">Residence 6 Months Ago</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <input
-                name="sixMoProvince"
-                value={form.sixMoProvince}
-                onChange={(e) => handleChange(index, e)}
-                placeholder="Province"
-                className="border p-2 rounded"
-              />
-              <input
-                name="sixMoCity"
-                value={form.sixMoCity}
-                onChange={(e) => handleChange(index, e)}
-                placeholder="City/Municipality"
-                className="border p-2 rounded"
-              />
-              <input
-                name="sixMoCountry"
-                value={form.sixMoCountry}
-                onChange={(e) => handleChange(index, e)}
-                placeholder="Country"
-                className="border p-2 rounded"
-              />
+              {['sixMoProvince', 'sixMoCity', 'sixMoCountry'].map((field) => (
+                <div key={field} className="flex flex-col">
+                  <label htmlFor={`${field}-${index}`} className="mb-1 text-sm font-medium text-gray-700">
+                    {field.includes('Province') ? 'Province' : field.includes('City') ? 'City/Municipality' : 'Country'}
+                  </label>
+                  <input
+                    id={`${field}-${index}`}
+                    name={field}
+                    value={form[field]}
+                    onChange={(e) => handleChange(index, e)}
+                    placeholder={
+                      field.includes('Province') ? 'Province' :
+                      field.includes('City') ? 'City/Municipality' : 'Country'
+                    }
+                    autoComplete="off"
+                    className="border p-2 rounded"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Reason for Moving */}
           <div className="flex flex-col">
-            <label>Reason for Moving or Staying</label>
+            <label htmlFor={`reasonForMoving-${index}`} className="mb-1 text-sm font-medium text-gray-700">
+              Reason for Moving or Staying
+            </label>
             <select
+              id={`reasonForMoving-${index}`}
               name="reasonForMoving"
               value={form.reasonForMoving}
               onChange={(e) => handleChange(index, e)}
               className="border p-2 rounded"
+              autoComplete="off"
             >
               <option value="">Select reason</option>
               <option>01 - School</option>
@@ -207,12 +230,16 @@ export default function Migration({ householdId, members, goToNext }) {
 
           {/* Overseas Filipino Worker Section */}
           <div className="flex flex-col">
-            <label>Are you an Overseas Filipino?</label>
+            <label htmlFor={`isOFW-${index}`} className="mb-1 text-sm font-medium text-gray-700">
+              Are you an Overseas Filipino?
+            </label>
             <select
+              id={`isOFW-${index}`}
               name="isOFW"
               value={form.isOFW}
               onChange={(e) => handleChange(index, e)}
               className="border p-2 rounded"
+              autoComplete="off"
             >
               <option value="">Select</option>
               <option value="Yes">Yes</option>
@@ -222,38 +249,59 @@ export default function Migration({ householdId, members, goToNext }) {
 
           {form.isOFW === 'Yes' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <select
-                name="ofwType"
-                value={form.ofwType}
-                onChange={(e) => handleChange(index, e)}
-                className="border p-2 rounded"
-              >
-                <option value="">Select OFW Type</option>
-                <option value="Contract">OFW with Contract</option>
-                <option value="NoContract">Other OFW (No Contract)</option>
-                <option value="Embassy">PH Embassy Employee</option>
-                <option value="Student">Student Abroad</option>
-                <option value="Tourist">Tourist</option>
-                <option value="NEC">Not Elsewhere Classified</option>
-                <option value="Resident">Resident (PH)</option>
-              </select>
+              <div className="flex flex-col">
+                <label htmlFor={`ofwType-${index}`} className="mb-1 text-sm font-medium text-gray-700">
+                  OFW Type
+                </label>
+                <select
+                  id={`ofwType-${index}`}
+                  name="ofwType"
+                  value={form.ofwType}
+                  onChange={(e) => handleChange(index, e)}
+                  className="border p-2 rounded"
+                  autoComplete="off"
+                >
+                  <option value="">Select OFW Type</option>
+                  <option value="Contract">OFW with Contract</option>
+                  <option value="NoContract">Other OFW (No Contract)</option>
+                  <option value="Embassy">PH Embassy Employee</option>
+                  <option value="Student">Student Abroad</option>
+                  <option value="Tourist">Tourist</option>
+                  <option value="NEC">Not Elsewhere Classified</option>
+                  <option value="Resident">Resident (PH)</option>
+                </select>
+              </div>
 
-              <input
-                type="month"
-                name="departureDate"
-                value={form.departureDate}
-                onChange={(e) => handleChange(index, e)}
-                className="border p-2 rounded"
-              />
+              <div className="flex flex-col">
+                <label htmlFor={`departureDate-${index}`} className="mb-1 text-sm font-medium text-gray-700">
+                  Departure Date
+                </label>
+                <input
+                  id={`departureDate-${index}`}
+                  type="month"
+                  name="departureDate"
+                  value={form.departureDate}
+                  onChange={(e) => handleChange(index, e)}
+                  className="border p-2 rounded"
+                  autoComplete="off"
+                />
+              </div>
 
-              <input
-                type="number"
-                name="monthsAbroad"
-                value={form.monthsAbroad}
-                onChange={(e) => handleChange(index, e)}
-                placeholder="Months Abroad"
-                className="border p-2 rounded"
-              />
+              <div className="flex flex-col">
+                <label htmlFor={`monthsAbroad-${index}`} className="mb-1 text-sm font-medium text-gray-700">
+                  Months Abroad
+                </label>
+                <input
+                  id={`monthsAbroad-${index}`}
+                  type="number"
+                  name="monthsAbroad"
+                  value={form.monthsAbroad}
+                  onChange={(e) => handleChange(index, e)}
+                  placeholder="Months Abroad"
+                  className="border p-2 rounded"
+                  autoComplete="off"
+                />
+              </div>
             </div>
           )}
         </fieldset>

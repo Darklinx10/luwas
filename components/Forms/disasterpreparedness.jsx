@@ -6,6 +6,7 @@ import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 export default function DisasterRiskForm({ householdId, goToNext }) {
+  // Local state for form fields
   const [hasKit, setHasKit] = useState('');
   const [canShowKit, setCanShowKit] = useState('');
   const [kitContents, setKitContents] = useState({});
@@ -39,24 +40,30 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
   const [calamities, setCalamities] = useState([]);
   const [impacts, setImpacts] = useState([]);
 
+  // Checklists / multi-select options
   const kitItems = ['Food', 'Maintenance Medicine', 'Clothes', 'Infant needs', 'Medical Kit', 'Money (Cash)', 'Important Documents', 'Water', 'Matches/ Lighter', 'Candle', 'Battery', 'Face Masks', 'Flashlight', 'Radio', 'Whistle', 'Blanket', 'Cellphone', 'Others'];
   const assistanceOptions = ['Relief Goods', 'Livelihood', 'Financial Aid', 'Trainings', 'Others'];
   const assistanceSources = ['NGA (incl. RLA), GOCC', 'International Organization', 'LGU', 'Relative', 'Religious Group', 'Private Individual', 'Business Sector', 'Civil Society Organization', 'Others'];
   const calamityTypes = ['Typhoon', 'Landslide/Mudslide', 'Flood', 'Fire', 'Drought', 'Pandemic/Epidemic', 'Earthquake', 'Armed Conflict', 'Volcanic Eruption', 'Others'];
   const impactOptions = ['Death', 'Injuries & Illnesses', 'Damage to Property', 'Damage to Crops/Livestock/Poultry', 'Emotional/Psychological', 'Lack/Inadequate Access to Basic Service', 'Disruption in Daily Economic Activity/Work', 'Decrease in Water Supply', 'Others'];
-  const [isSaving, setIsSaving] = useState(false);
 
+  const [isSaving, setIsSaving] = useState(false); // 🔄 Saving state
+
+  // Checkbox toggle utility for multi-select fields
   const toggleCheckbox = (value, list, setter) => {
     setter(list.includes(value) ? list.filter(item => item !== value) : [...list, value]);
   };
 
+  // Toggle logic for kit items
   const toggleKitItem = (item) => {
     setKitContents(prev => ({ ...prev, [item]: !prev[item] }));
   };
 
+  // Submit handler
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    e.preventDefault();
+    e.preventDefault(); // 🔐 Prevent default form submission
+
+    // Prepare payload
     const data = {
       hasKit,
       canShowKit,
@@ -89,20 +96,25 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
       assistanceEntities,
       calamities,
       impacts,
-      timestamp: new Date(),
+      timestamp: new Date(), // Timestamp for tracking
     };
 
     try {
+      setIsSaving(true); // Start saving state
+
+      // Write to Firestore under household
       await setDoc(doc(db, 'households', householdId, 'climateDisasterRisk', 'main'), data);
-      toast.success('Disaster Risk & Climate Change data saved!');
-      if (goToNext) goToNext();
+
+      toast.success('Disaster Risk & Climate Change data saved!'); 
+      if (goToNext) goToNext(); 
     } catch (error) {
-      console.error('Error saving data:', error);
-      toast.error('Failed to save data.');
-    }finally {
+      console.error('❌ Error saving data:', error); 
+      toast.error('Failed to save data.'); 
+    } finally {
       setIsSaving(false); 
     }
-  };  
+  };
+
 
 
   
@@ -110,19 +122,20 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
     <form onSubmit={handleSubmit} className="space-y-10 max-w-5xl mx-auto p-6">
       
       {/* ==== Section 1: Climate Change and Disaster Risk Management ==== */}
-      
-      {/* Water Supply */}
-      <label className="block">Did your household experience decrease in water supply in the barangay?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setDecreaseWater(e.target.value)}>
+
+      {/* Question 1 */}
+      <label className="block" htmlFor='setDecreaseWater'>Did your household experience decrease in water supply in the barangay?
+        <select id='setDecreaseWater' name='setDecreaseWater' className="border p-2 rounded w-full mt-1" onChange={e => setDecreaseWater(e.target.value)}>
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
         </select>
       </label>
 
+      {/* Question 1a - Conditional */}
       {decreaseWater === 'YES' && (
-        <label className="block mt-2">Reason in decrease of water:
-          <select className="border p-2 rounded w-full mt-1" onChange={e => setWaterReason(e.target.value)}>
+        <label className="block mt-2" htmlFor='setWaterReason'>Reason in decrease of water:
+          <select id='setWaterReason' name='setWaterReason' className="border p-2 rounded w-full mt-1" onChange={e => setWaterReason(e.target.value)}>
             <option>-- Select reason --</option>
             <option>Climate Change</option>
             <option>Drought</option>
@@ -133,65 +146,111 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
         </label>
       )}
 
-      <label className="block">More frequent flooding?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setFlooding(e.target.value)}>
+      {/* Question 2 */}
+      <label className="block" htmlFor='setFlooding'>More frequent flooding?
+        <select id='setFlooding' name='setFlooding' className="border p-2 rounded w-full mt-1" onChange={e => setFlooding(e.target.value)}>
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
         </select>
       </label>
 
+      {/* Question 2a and 2b - Conditional */}
       {flooding === 'YES' && (
         <>
-          <label className="block mt-2">No of hrs the flood subsided in the past 3 years:
-            <input type="number" className="border p-2 rounded w-full mt-1" value={floodHours3Years} onChange={e => setFloodHours3Years(e.target.value)} placeholder="hrs" />
+          <label className="block mt-2" htmlFor='setFloodHours3Years'>No of hrs the flood subsided in the past 3 years:
+            <input id='setFloodHours3Years' name='setFloodHours3Years' type="number" className="border p-2 rounded w-full mt-1" value={floodHours3Years} onChange={e => setFloodHours3Years(e.target.value)} placeholder="hrs" />
           </label>
-          <label className="block mt-2">No of hrs the flood subsided in the past 12 months:
-            <input type="number" className="border p-2 rounded w-full mt-1" value={floodHours12Mos} onChange={e => setFloodHours12Mos(e.target.value)} placeholder="hrs" />
+          <label 
+            className="block mt-2" 
+            htmlFor='setFloodHours12Mos'>No of hrs the flood subsided in the past 12 months:
+            <input 
+              id='setFloodHours12Mos' 
+              name='setFloodHours12Mos' 
+              type="number" 
+              className="border p-2 rounded w-full mt-1" 
+              value={floodHours12Mos} 
+              onChange={e => setFloodHours12Mos(e.target.value)} 
+              placeholder="hrs" />
           </label>
         </>
       )}
 
-      <label className="block">More frequent drought?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setDrought(e.target.value)}>
+      {/* Question 3 */}
+      <label className="block" htmlFor='setDrought'>More frequent drought?
+        <select 
+          id='setDrought' 
+          name='setDrought' 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setDrought(e.target.value)}
+          >
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
         </select>
       </label>
 
+      {/* Question 3a - Conditional */}
       {drought === 'YES' && (
-        <label className="block mt-2">No of months the last drought occurred in the past 3 years:
-          <input type="number" className="border p-2 rounded w-full mt-1" value={droughtMonths} onChange={e => setDroughtMonths(e.target.value)} placeholder="months" />
+        <label className="block mt-2" htmlFor='setDroughtMonths'>No of months the last drought occurred in the past 3 years:
+          <input 
+            id='setDroughtMonths' 
+            name='setDroughtMonths' 
+            type="number" 
+            className="border p-2 rounded w-full mt-1" 
+            value={droughtMonths} 
+            onChange={e => setDroughtMonths(e.target.value)} 
+            placeholder="months" 
+          />
         </label>
       )}
 
-      <label className="block">Do you know the location of evacuation area?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setKnowsEvacLocation(e.target.value)}>
+      {/* Question 4 */}
+      <label className="block" htmlFor='setKnowsEvacLocation'>Do you know the location of evacuation area?
+        <select 
+          id='setKnowsEvacLocation'
+          name='setKnowsEvacLocation'
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setKnowsEvacLocation(e.target.value)}
+          >
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
         </select>
       </label>
 
-      <label className="block">In the past 3 years, did your household temporarily evacuate at least once due to calamities?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setEvacuatedPast3Years(e.target.value)}>
+      {/* Question 5 */}
+      <label className="block" htmlFor='setEvacuatedPast3Years'>In the past 3 years, did your household temporarily evacuate at least once due to calamities?
+        <select 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setEvacuatedPast3Years(e.target.value)}
+        >
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
         </select>
       </label>
 
-      <label className="block">Hotter Temperature?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setHotterTemp(e.target.value)}>
+      {/* Question 6 */}
+      <label className="block" htmlFor='setHotterTemp'>Hotter Temperature?
+        <select 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setHotterTemp(e.target.value)}
+        >
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
         </select>
       </label>
 
-      <label className="block">More frequent brownouts?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setBrownouts(e.target.value)}>
+      {/* Question 7 */}
+      <label className="block" htmlFor='setBrownouts'>More frequent brownouts?
+        <select 
+          id='setBrownouts' 
+          name='setBrownouts' 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setBrownouts(e.target.value)}
+        >
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
@@ -199,8 +258,14 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
         </select>
       </label>
 
-      <label className="block">Reasons for moving out/evacuating temporarily:
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setEvacReason(e.target.value)}>
+      {/* Question 8 */}
+      <label className="block" htmlFor='setEvacReason'>Reasons for moving out/evacuating temporarily:
+        <select 
+          id='setEvacReason' 
+          name='setEvacReason' 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setEvacReason(e.target.value)}
+        >
           <option>-- Select reason --</option>
           <option>Typhoon</option>
           <option>Flood</option>
@@ -213,16 +278,28 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
         </select>
       </label>
 
-      <label className="block">Did your household’s last evacuation occur in the past 12 months?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setEvacuatedPast12Mos(e.target.value)}>
+      {/* Question 9 */}
+      <label className="block" htmlFor='setEvacuatedPast12Mos'>Did your household’s last evacuation occur in the past 12 months?
+        <select 
+          id='setEvacuatedPast12Mos' 
+          name='setEvacuatedPast12Mos' 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setEvacuatedPast12Mos(e.target.value)}
+        >
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
         </select>
       </label>
 
-      <label className="block">Where did you stay during last evacuation?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setEvacPlace(e.target.value)}>
+      {/* Question 10 */}
+      <label className="block" htmlFor='setEvacPlace'>Where did you stay during last evacuation?
+        <select 
+          id='setEvacPlace' 
+          name='setEvacPlace' 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setEvacPlace(e.target.value)}
+        >
           <option>-- Select place --</option>
           <option>Church</option>
           <option>Covered Court/Gym</option>
@@ -233,10 +310,18 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
         </select>
       </label>
 
-      <label className="block">No. of days household stayed in the evacuation area:
-        <input type="number" className="border p-2 rounded w-full mt-1" value={evacDays} onChange={e => setEvacDays(e.target.value)} placeholder="hrs" />
+      {/* Question 11 */}
+      <label className="block" htmlFor='setEvacDays'>No. of days household stayed in the evacuation area:
+        <input 
+          id='setEvacDays' 
+          name='setEvacDays' 
+          type="number" 
+          className="border p-2 rounded w-full mt-1" 
+          value={evacDays} onChange={e => setEvacDays(e.target.value)} 
+          placeholder="hrs" 
+        />
       </label>
-
+ 
 
       {/* ==== Section 2: Climate Change and Disaster Risk Management ==== */}
       
@@ -244,6 +329,7 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
       <div className="pt-6 border-t">
         <h3 className="text-lg font-semibold  text-green-600">ANSWER THIS ONLY IF PROPERTY AND/OR CROPS ARE DAMAGED BY DISASTER</h3>
         <br/>
+        {/* Question 12 */}
         <div className="mb-4">
           <label htmlFor="damageCost" className="block mb-2">Estimated total damage cost</label>
           <input
@@ -256,6 +342,7 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
           />
         </div>
 
+        {/* Question 13 */}
         <div className="mb-4">
           <label htmlFor="repairCost" className="block mb-2">Estimated total amount on construction/repair damages</label>
           <input
@@ -268,6 +355,7 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
           />
         </div>
 
+        {/* Question 14 */}
         <div className="mt-4">
           <label className="block font-medium">Did you receive any assistance?</label>
           <div className="flex gap-4 mt-1">
@@ -277,6 +365,7 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
 
           {receivedAssistance === 'YES' && (
             <>
+            {/* Question 15 */}
               <div className="mt-3">
                 <p className="font-medium">If yes, choose the following that applies:</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -285,7 +374,8 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
                   ))}
                 </div>
               </div>
-
+              
+              {/* Question 16 */}
               <div className="mt-4">
                 <p className="font-medium">Entity/ies who provided the assistance(choose all that apply)</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -300,6 +390,7 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
       </div>
 
       {/* Calamities and Impacts */}
+      {/* Question 17 */}
       <div className="pt-6 border-t">
         <h3>Check the following calamities that negatively affect your household in  past 12 mos.</h3>
         <div className="grid grid-cols-2 gap-2 mt-2">
@@ -313,12 +404,14 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
         <h3 className="text-lg font-semibold text-green-600">
           CLIMATE CHANGE AND DISASTER RISK MANAGEMENT (cont)
         </h3>
-
-        <label className="block mt-4 mb-2">Impacts of calamity to your members:</label>
+        
+        {/* Question 18 */}
+        <label className="block mt-4 mb-2" htmlFor='impactOptions'>Impacts of calamity to your members:</label>
         <div className="grid grid-cols-2 gap-2">
           {impactOptions.map((impact, i) => (
             <label key={i} className="flex items-center gap-2">
               <input
+                name='impactOptions'
                 type="checkbox"
                 id={`impact-${i}`}
                 onChange={() => toggleCheckbox(impact, impacts, setImpacts)}
@@ -334,9 +427,14 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
       {/* Q19 */}
       <h2 className="text-xl font-bold text-green-600">Disaster Preparedness</h2>
 
-      <label className="block">
+      <label className="block" htmlFor='setHasKit'>
         Do you have a disaster preparedness kit?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setHasKit(e.target.value === 'YES')}>
+        <select
+          id='setHasKit'
+          name='setHasKit' 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setHasKit(e.target.value === 'YES')}
+        >
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
@@ -346,20 +444,28 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
       {hasKit && (
         <>
         {/* Q20 */}
-          <label className="block mt-2">
+          <label className="block mt-2" htmlFor='setCanShowKit'>
             Can you please show your disaster preparedness kit to me?
-            <select className="border p-2 rounded w-full mt-1" onChange={e => setCanShowKit(e.target.value === 'YES')}>
+            <select
+              id='setCanShowKit'
+              name='setCanShowKit' 
+              className="border p-2 rounded w-full mt-1" 
+              onChange={e => setCanShowKit(e.target.value === 'YES')}
+            >
               <option>-- Select --</option>
               <option>NO</option>
               <option>YES</option>
             </select>
           </label>
+
           {/* Q21 */}
           <p className="mt-4 font-medium">What does your preparedness kit contain?</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {kitItems.map(item => (
-              <label key={item} className="flex items-center space-x-2">
+              <label key={item} className="flex items-center space-x-2" htmlFor='kitContents'>
                 <input
+                  id='kitContents'
+                  name='kitContents'
                   type="checkbox"
                   checked={kitContents[item] || false}
                   onChange={() => toggleKitItem(item)}
@@ -368,9 +474,12 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
               </label>
             ))}
           </div>
+
           {/* Q22 */}
-          <label className="block mt-4 mb-1">How much is the actual value of the contents of the disaster preparedness kit?</label>
+          <label className="block mt-4 mb-1" htmlFor='setValueOfKit'>How much is the actual value of the contents of the disaster preparedness kit?</label>
           <input
+            id='setValueOfKit'
+            name='setValueOfKit'
             type="text"
             placeholder="Estimated value of kit (₱)"
             className="border p-2 rounded w-full"
@@ -380,9 +489,14 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
         </>
       )}
       {/* Q23 */}
-      <label className="block">
+      <label className="block" htmlFor='setParticipatedDRRM'>
         In the past 12 months, did any member participate in crafting DRRM plan in the barangay?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setParticipatedDRRM(e.target.value === 'YES')}>
+        <select
+          id='setParticipatedDRRM'
+          name='setParticipatedDRRM' 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setParticipatedDRRM(e.target.value === 'YES')}
+        >
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
@@ -405,45 +519,64 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
       )}
 
       {/* Q25 */}
-      <label className="block mt-4">
+      <label className="block mt-4" htmlFor='setReceivedInfo'>
         In the past 12 months, did you or any of your household member receive information from the barangay about natural disasters preparedness either through meeting or written notice/ information?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setReceivedInfo(e.target.value === 'YES')}>
+        <select 
+          id='setReceivedInfo' 
+          name='setReceivedInfo' 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setReceivedInfo(e.target.value === 'YES')}
+        >
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
         </select>
       </label>
+
       {/* Q26 */}
-      <label className="block">
+      <label className="block" htmlFor='setDiscussedPrep'>
        In the past 12 months, did you discuss with your household how to prepare for disaster?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setDiscussedPrep(e.target.value === 'YES')}>
+        <select 
+          id='setDiscussedPrep' 
+          name='setDiscussedPrep' 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setDiscussedPrep(e.target.value === 'YES')}
+        >
           <option>NO</option>
           <option>YES</option>
         </select>
       </label>
+
       {/* Q27 */}
-      <label className="block">
+      <label className="block" htmlFor='setKnowsHotline'>
         Do you know any contact number of hotlines which you can in case of emergency?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setKnowsHotline(e.target.value === 'YES')}>
+        <select
+          id='setKnowsHotline'
+          name='setKnowsHotline' 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setKnowsHotline(e.target.value === 'YES')}
+        >
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
         </select>
       </label>
+
       {/* Q28 */}
-      <label className="block">
+      <label className="block" htmlFor='setHasEvacPlan'>
         Does your household have a written or printed evacuation plan in case of earthquake, flood, landslide, tsunami, strom surge, or fire?
-        <select className="border p-2 rounded w-full mt-1" onChange={e => setHasEvacPlan(e.target.value === 'YES')}>
+        <select
+          id='setHasEvacPlan'
+          name='setHasEvacPlan' 
+          className="border p-2 rounded w-full mt-1" 
+          onChange={e => setHasEvacPlan(e.target.value === 'YES')}
+        >
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
         </select>
       </label>
-
-
-
       
-
       {/* ✅ Submit button */}
       <div className="pt-6 flex justify-end">
         <button

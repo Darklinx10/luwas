@@ -7,21 +7,21 @@ import { toast } from 'react-toastify';
 
 export default function FamilyIncome({ householdId, goToNext }) {
   const [isSaving, setIsSaving] = useState(false);
-  // 🧾 Initial state for the form
+  // Initial state for the form
   const [form, setForm] = useState({
     sources: {
-      // 📌 A–C: Regular and Seasonal Employment
+      // A–C: Regular and Seasonal Employment
       salaries: '',
       commissions: '',
       honoraria: '',
       totalAC: '',
 
-      // 📌 D–E: Entrepreneurial Activities
+      // D–E: Entrepreneurial Activities
       familyEnterprise: '',
       professionPractice: '',
       totalDE: '',
 
-      // 📌 F–Z: Other Sources of Family Income
+      // F–Z: Other Sources of Family Income
       produceSales: '',
       overseasSupport: '',
       fourPs: '',
@@ -32,44 +32,44 @@ export default function FamilyIncome({ householdId, goToNext }) {
       rentals: '',
       interests: '',
       giftsInKind: '',
-      sustenanceActivity: '', // 📌 Y
-      otherSourceZ: '',       // 📌 Z
+      sustenanceActivity: '', // Y
+      otherSourceZ: '',       // Z
       totalFZ: '',
 
-      // 🔢 Totals
+      // Totals
     },
-    // 🧑‍👩‍👧 Regular/seasonal member selection
+    // Regular/seasonal member selection
     regularSeasonalMembers: '',
 
-    // 💰 Totals
+    // Totals
     totalCurrentIncome: '',
     totalFormerIncome: '',
     totalCombinedIncome: '',
 
-    // ➕ Others
+    // Others
     otherMembers: '',
     respondentConsent: '',
   });
 
-  // 👨‍👩‍👧‍👦 Household member list for dropdown
+  // Household member list for dropdown
   const [memberOptions, setMemberOptions] = useState([]);
 
-  // 📥 Fetch household members on load
+  // Fetch household members on load
   useEffect(() => {
     const fetchMembers = async () => {
       if (!householdId) return;
 
       const people = [];
 
-      // 👤 Get head of household
-      const geoSnap = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
-      if (geoSnap.exists()) {
-        const geo = geoSnap.data();
-        const name = `${geo.headFirstName || ''} ${geo.headMiddleName || ''} ${geo.headLastName || ''}`.trim();
-        people.push({ id: 'head', fullName: name });
-      }
+      //  Get head of household
+     // const geoSnap = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
+     // if (geoSnap.exists()) {
+     //   const geo = geoSnap.data();
+     //   const name = `${geo.headFirstName || ''} ${geo.headMiddleName || ''} ${geo.headLastName || ''}`.trim();
+     //   people.push({ id: 'head', fullName: name });
+     // }
 
-      // 👥 Get all members and their names
+      // Get all members and their names
       const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
       for (const memberDoc of membersSnap.docs) {
         const demoSnap = await getDocs(
@@ -82,18 +82,18 @@ export default function FamilyIncome({ householdId, goToNext }) {
         });
       }
 
-      // 📝 Update dropdown list
+      // Update dropdown list
       setMemberOptions(people);
     };
 
     fetchMembers();
   }, [householdId]);
 
-  // 🖊️ Handle form input change
+  // Handle form input change
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // 🔄 Update sources subfields
+    // Update sources subfields
     if (name in form.sources) {
       setForm((prev) => ({
         ...prev,
@@ -103,12 +103,12 @@ export default function FamilyIncome({ householdId, goToNext }) {
         },
       }));
     } else {
-      // 🔄 Update main-level fields
+      // Update main-level fields
       setForm((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  // 💾 Save data to Firestore
+  // Save data to Firestore
     const handleSubmit = async (e) => {
       e.preventDefault();
       setIsSaving(true);
@@ -118,7 +118,7 @@ export default function FamilyIncome({ householdId, goToNext }) {
           timestamp: new Date(),
         });
         toast.success('Saved successfully!');
-        if (goToNext) goToNext(); // ➡️ Go to next step if available
+        if (goToNext) goToNext(); 
       } catch (err) {
         console.error(err);
         toast.error('Failed to save.');
@@ -129,27 +129,43 @@ export default function FamilyIncome({ householdId, goToNext }) {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-4 space-y-6">
+
+      {/* Question 1 */}
       <div>
-        <label className="block mb-1">Who among the family members are/were regularly and seasonally employed?</label>
-        <select name="regularSeasonalMembers" value={form.regularSeasonalMembers} onChange={handleChange} className="border p-2 rounded w-full">
+        <label className="block mb-1" htmlFor='regularSeasonalMembers'>Who among the family members are/were regularly and seasonally employed?</label>
+        <select
+          id='regularSeasonalMembers' 
+          name="regularSeasonalMembers" 
+          value={form.regularSeasonalMembers} 
+          onChange={handleChange} 
+          className="border p-2 rounded w-full"
+        >
           <option value="">-- Select Member --</option>
           {memberOptions.map((m) => <option key={m.id} value={m.fullName}>{m.fullName}</option>)}
         </select>
       </div>
 
+      {/* Question 2 */}
       <div className="border-t pt-4">
         <p className='mb-4 text-lg text-green-700'>(A–C) Income from Regular and Seasonal Employment</p>
-        <label className="block mb-1">(02) How much was received by (NAME) as (A-C SOURCE OF INCOME) in the past 12 months (July 01, 2021 - June 30, 2022)?</label>
+        <label className="block mb-1">How much was received by (NAME) as (A-C SOURCE OF INCOME) in the past 12 months (July 01, 2021 - June 30, 2022)?</label>
         {['salaries', 'commissions', 'honoraria'].map((key, i) => (
           <div key={key}>
             <label>{String.fromCharCode(65 + i)}. {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</label>
             <input type="text" name={key} value={form.sources[key]} onChange={handleChange} className="border p-2 rounded w-full" />
           </div>
         ))}
-        <label>Total A–C</label>
-        <input type="text" name="totalAC" value={form.sources.totalAC} onChange={handleChange} className="border p-2 rounded w-full" />
+        <label htmlFor='totalAC'>Total A–C</label>
+        <input
+          id='totalAC' 
+          type="text" 
+          name="totalAC" 
+          value={form.sources.totalAC} 
+          onChange={handleChange} 
+          className="border p-2 rounded w-full" />
       </div>
-
+      
+      {/* Question 3 */}
       <div className="border-t pt-4">
         <p className='mb-4 text-lg text-green-700'>(D–E) Income from Entrepreneurial Activities</p>
         <label className="block mb-1">How much was received by the family as (D-P SOURCE OF INCOME, Z) in the past 12 months (July 01, 2021 - June 30, 2022)?</label>
@@ -159,40 +175,85 @@ export default function FamilyIncome({ householdId, goToNext }) {
             <input type="text" name={key} value={form.sources[key]} onChange={handleChange} className="border p-2 rounded w-full" />
           </div>
         ))}
-        <label>Total D–E</label>
-        <input type="text" name="totalDE" value={form.sources.totalDE} onChange={handleChange} className="border p-2 rounded w-full" />
+        <label htmlFor='totalDE'>Total D–E</label>
+        <input 
+          id='totalDE'
+          type="text" 
+          name="totalDE" 
+          value={form.sources.totalDE} 
+          onChange={handleChange} 
+          className="border p-2 rounded w-full" 
+        />
       </div>
-
+      
       <div className="border-t pt-4">
         <p className='mb-4 text-lg text-green-700'>(F–Z) Other Sources of Income</p>
         {["produceSales", "overseasSupport", "fourPs", "seniorPension", "sap", "domesticSupport", "investments", "rentals", "interests", "giftsInKind", "sustenanceActivity", "otherSourceZ"].map((key, i) => (
           <div key={key}>
-            <label>{String.fromCharCode(70 + i)}. {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</label>
-            <input type="text" name={key} value={form.sources[key]} onChange={handleChange} className="border p-2 rounded w-full" />
+            <label htmlFor='sources'>{String.fromCharCode(70 + i)}. {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</label>
+            <input 
+              id='sources' 
+              type="text" 
+              name={key} 
+              value={form.sources[key]} 
+              onChange={handleChange} 
+              className="border p-2 rounded w-full" 
+            />
           </div>
         ))}
-        <label>Total F–Z</label>
-        <input type="text" name="totalFZ" value={form.sources.totalFZ} onChange={handleChange} className="border p-2 rounded w-full" />
+        <label htmlFor='totalFZ'>Total F–Z</label>
+        <input 
+          id='totalFZ' 
+          type="text" 
+          name="totalFZ" 
+          value={form.sources.totalFZ} 
+          onChange={handleChange} 
+          className="border p-2 rounded w-full" 
+        />
+      </div>
+      
+      {/* Question 5 */}
+      <div>
+        <label htmlFor='totalCurrentIncome'>Total Annual Income (Current Members)</label>
+        <input
+          id='totalCurrentIncome' 
+          type="text" 
+          name="totalCurrentIncome" 
+          value={form.totalCurrentIncome} 
+          onChange={handleChange} 
+          className="border p-2 rounded w-full" 
+        />
+      </div>
+      
+      {/* Question 6 */}
+      <div>
+        <label htmlFor='totalFormerIncome'>Total Income from Former Members</label>
+        <input 
+          type="text" 
+          name="totalFormerIncome" 
+          value={form.totalFormerIncome} 
+          onChange={handleChange} 
+          className="border p-2 rounded w-full" 
+        />
       </div>
 
+       {/* Question 7 */} 
       <div>
-        <label>Total Annual Income (Current Members)</label>
-        <input type="text" name="totalCurrentIncome" value={form.totalCurrentIncome} onChange={handleChange} className="border p-2 rounded w-full" />
+        <label htmlFor='totalCombinedIncome'>Total Annual Income (Current + Former)</label>
+        <input
+          id='totalCombinedIncome' 
+          type="text" 
+          name="totalCombinedIncome" 
+          value={form.totalCombinedIncome} 
+          onChange={handleChange} 
+          className="border p-2 rounded w-full" />
       </div>
-
+      
+      {/* Question 8 */}
       <div>
-        <label>Total Income from Former Members</label>
-        <input type="text" name="totalFormerIncome" value={form.totalFormerIncome} onChange={handleChange} className="border p-2 rounded w-full" />
-      </div>
-
-      <div>
-        <label>Total Annual Income (Current + Former)</label>
-        <input type="text" name="totalCombinedIncome" value={form.totalCombinedIncome} onChange={handleChange} className="border p-2 rounded w-full" />
-      </div>
-
-      <div>
-        <label className="block mb-1 font-medium">Other Family Members Not Yet Listed</label>
+        <label className="block mb-1 font-medium" htmlFor='otherMembers'>Other Family Members Not Yet Listed</label>
         <select
+          id='otherMembers'
           name="otherMembers"
           value={form.otherMembers}
           onChange={handleChange}
@@ -205,7 +266,7 @@ export default function FamilyIncome({ householdId, goToNext }) {
       </div>
 
       
-      {/* ✅ Submit button */}
+      {/* Submit button */}
       <div className="pt-6 flex justify-end">
         <button
           type="submit"

@@ -3,22 +3,23 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { subscribeToAuthChanges } from '@/lib/firebaseAuth';
-
 export default function HomePage() {
   const router = useRouter();
-  const [checkingAuth, setCheckingAuth] = useState(true);
+
 
   useEffect(() => {
+    //Listen for auth changes (login/logout)
     const unsubscribe = subscribeToAuthChanges((user) => {
       if (user) {
-        // ✅ Authenticated → redirect to dashboard
+        //If authenticated, redirect to dashboard
         router.replace('/dashboard');
       } else {
-        // ❌ Not authenticated → redirect to login
+        // ❌ If not authenticated, redirect to login
         router.replace('/login');
       }
     });
 
+    //Clean up the listener on unmount
     return () => unsubscribe();
   }, [router]);
 

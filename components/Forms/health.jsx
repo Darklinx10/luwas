@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 
 export default function HealthAndMaternalInfo({ householdId, goToNext }) {
 
+  // Boolean flags for conditional inputs
   const [isPregnantPast3Years, setIsPregnantPast3Years] = useState(false);
   const [isCurrentlyPregnant, setIsCurrentlyPregnant] = useState(false);
   const [isLactating, setIsLactating] = useState(false);
@@ -17,6 +18,7 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
   const [illnessReported, setIllnessReported] = useState(false);
   const [treatmentAvailed, setTreatmentAvailed] = useState(false);
 
+  // Input fields for conditional data
   const [pregnantLineNumber, setPregnantLineNumber] = useState('');
   const [numberOfPregnancies, setNumberOfPregnancies] = useState('');
   const [numberOfLiveBirths, setNumberOfLiveBirths] = useState('');
@@ -44,25 +46,27 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
   const [diagnosedRareDisease, setDiagnosedRareDisease] = useState('');
   const [rareDiseaseUndiagnosedReason, setRareDiseaseUndiagnosedReason] = useState('');
 
+  // Dropdown data
   const [memberOptions, setMemberOptions] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Fetch household member names for dropdowns
   useEffect(() => {
     const fetchMembers = async () => {
       if (!householdId) return;
       try {
         const members = [];
 
-        // Head
-        const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-        const geoSnap = await getDoc(geoRef);
-        if (geoSnap.exists()) {
-          const geo = geoSnap.data();
-          const name = `${geo.headFirstName || ''} ${geo.headMiddleName || ''} ${geo.headLastName || ''}`.trim();
-          members.push({ id: 'head', name });
-        }
+        // Fetch household head from geographicIdentification/main
+        //const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
+     //   const geoSnap = await getDoc(geoRef);
+     //   if (geoSnap.exists()) {
+      //    const geo = geoSnap.data();
+      //    const name = `${geo.headFirstName || ''} ${geo.headMiddleName || ''} ${geo.headLastName || ''}`.trim();
+      //    members.push({ id: 'head', name });
+      //  }
 
-        // Members
+        // Fetch all household members and their demographic names
         const memSnap = await getDocs(collection(db, 'households', householdId, 'members'));
         for (const mem of memSnap.docs) {
           const memId = mem.id;
@@ -76,13 +80,14 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
 
         setMemberOptions(members);
       } catch (err) {
-        console.error('Failed to fetch members:', err);
+        console.error('❌ Failed to fetch members:', err);
       }
     };
 
     fetchMembers();
   }, [householdId]);
 
+  // Render select dropdown for a household member
   const renderMemberDropdown = (value, setValue, label) => (
     <div>
       <label className="block mb-1">{label}</label>
@@ -99,10 +104,13 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
     </div>
   );
 
+  // Handle submit logic and Firestore saving
   const handleSubmit = async (e) => {
-    e.preventDefault(); // ✅ Prevent full page reload 
-    setIsSaving(true);
+    e.preventDefault(); // Prevent full page reload
+    setIsSaving(true); // Set loading state true
+
     const data = {
+      // Save boolean values
       isPregnantPast3Years,
       isCurrentlyPregnant,
       isLactating,
@@ -112,6 +120,8 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
       isPWD,
       illnessReported,
       treatmentAvailed,
+
+      // Conditionally save only if section is enabled
       pregnantLineNumber: isPregnantPast3Years ? pregnantLineNumber : null,
       numberOfPregnancies: isPregnantPast3Years ? numberOfPregnancies : null,
       numberOfLiveBirths: isPregnantPast3Years ? numberOfLiveBirths : null,
@@ -119,6 +129,7 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
       firstPregnancyYear: isPregnantPast3Years ? firstPregnancyYear : null,
       currentlyPregnantLineNumber: isCurrentlyPregnant ? currentlyPregnantLineNumber : null,
       lactatingLineNumber: isLactating ? lactatingLineNumber : null,
+
       childName: hasChildMortality ? childName : null,
       childAgeAtDeath: hasChildMortality ? childAgeAtDeath : null,
       childCauseOfDeath: hasChildMortality ? childCauseOfDeath : null,
@@ -126,39 +137,45 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
       childDeathAge: hasChildMortality ? childDeathAge : null,
       childDeathCause: hasChildMortality ? childDeathCause : null,
       childDeathSex: hasChildMortality ? childDeathSex : null,
+
       rareDiseaseDiagnosed: hasRareDisease ? rareDiseaseDiagnosed : null,
       rareDiseaseName: hasRareDisease ? rareDiseaseName : null,
       rareDiseaseDescription: hasRareDisease ? rareDiseaseDescription : null,
       rareDiseaseReasonForNotDiagnosed: hasRareDisease ? rareDiseaseReasonForNotDiagnosed : null,
       diagnosedRareDisease: hasRareDisease ? diagnosedRareDisease : null,
       rareDiseaseUndiagnosedReason: hasRareDisease ? rareDiseaseUndiagnosedReason : null,
+
       hasPWDID: isPWD ? hasPWDID : null,
       pwdLineNumber: isPWD ? pwdLineNumber : null,
       isPWDIDShown: isPWD ? isPWDIDShown : null,
       pwdDisabilityType: isPWD ? pwdDisabilityType : null,
+
       illnessLineNumber: illnessReported ? illnessLineNumber : null,
       illnessName: illnessReported ? illnessName : null,
       illnessAbsence: illnessReported ? illnessAbsence : null,
       illnessAbsentDays: illnessReported ? illnessAbsentDays : null,
+
       treatmentFacilityType: treatmentAvailed ? treatmentFacilityType : null,
       treatmentPaymentSource: treatmentAvailed ? treatmentPaymentSource : null,
       treatmentReason: treatmentAvailed ? treatmentReason : null,
-      timestamp: new Date(),
+
+      timestamp: new Date(), // Add a timestamp
     };
 
     try {
       const docRef = doc(db, 'households', householdId, 'health', 'main');
-      await setDoc(docRef, data);
+      await setDoc(docRef, data); // Save data to Firestore
       toast.success('Health Information data saved!');
-      if (goToNext) goToNext();
+      if (goToNext) goToNext(); // Move to next step if provided
     } catch (error) {
-      console.error('Error saving health info:', error);
+      console.error('❌ Error saving health info:', error);
       toast.error('Failed to save data.');
     } finally {
-      setIsSaving(false); 
+      setIsSaving(false); // Reset loading state
     }
   };
 
+  // Generic yes/no selector component
   const YesNoSelect = ({ label, value, setValue }) => (
     <div>
       <label className="block mb-1">{label}</label>
@@ -175,26 +192,58 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
   );
 
   return (
-    
       <form onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-6 p-4">
         <h2 className="text-lg font-semibold text-green-600">For all female household members 10 yrs old and over</h2>
+        
+        
         <YesNoSelect label="Are/is female HH member/s pregnant or who had been pregnant in the past 3 yrs?" value={isPregnantPast3Years} setValue={setIsPregnantPast3Years} />
         {isPregnantPast3Years && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {renderMemberDropdown(pregnantLineNumber, setPregnantLineNumber, 'Select HH member (pregnant in past 3 yrs)')}
             <div>
-              <label className="block mb-1">Number of pregnancies in the last 3 yrs</label>
-              <input type="number" className="border p-2 rounded w-full" placeholder="Number of pregnancies" value={numberOfPregnancies} onChange={e => setNumberOfPregnancies(e.target.value)} />
+              <label htmlFor='numberOfPregnancies' className="block mb-1">Number of pregnancies in the last 3 yrs</label>
+              <input
+                id='numberOfPregnancies'
+                name='numberOfPregnancies' 
+                type="number" 
+                className="border p-2 rounded w-full" 
+                placeholder="Number of pregnancies" 
+                value={numberOfPregnancies} 
+                onChange={e => setNumberOfPregnancies(e.target.value)} 
+              />
             </div>
             <div>
-              <label className="block mb-1">Number of live births</label>
-              <input type="number" className="border p-2 rounded w-full" placeholder="Number of live births" value={numberOfLiveBirths} onChange={e => setNumberOfLiveBirths(e.target.value)} />
+              <label htmlFor='numberOfLiveBirths' className="block mb-1">Number of live births</label>
+              <input
+                id='numberOfLiveBirths'
+                name='numberOfLiveBirths' 
+                type="number" 
+                className="border p-2 rounded w-full" 
+                placeholder="Number of live births" 
+                value={numberOfLiveBirths} 
+                onChange={e => setNumberOfLiveBirths(e.target.value)} 
+              />
             </div>
             <div>
-              <label className="block mb-1">Month & Year of first pregnancy</label>
+              <label htmlFor='firstPregnancy' className="block mb-1">Month & Year of first pregnancy</label>
               <div className="flex gap-2">
-                <input type="text" className="border p-2 rounded w-1/3" placeholder="MM" value={firstPregnancyMonth} onChange={e => setFirstPregnancyMonth(e.target.value)} />
-                <input type="text" className="border p-2 rounded w-2/3" placeholder="YYYY" value={firstPregnancyYear} onChange={e => setFirstPregnancyYear(e.target.value)} />
+                <input
+                  id='firstPregnancyMonth'
+                  name='firstPregnancyMonth' 
+                  type="text" 
+                  className="border p-2 rounded w-1/3" 
+                  placeholder="MM" value={firstPregnancyMonth} 
+                  onChange={e => setFirstPregnancyMonth(e.target.value)} 
+                />
+                <input
+                  id='firstPregnancyYear'
+                  name='firstPregnancyYear' 
+                  type="text"  
+                  className="border p-2 rounded w-2/3" 
+                  placeholder="YYYY" 
+                  value={firstPregnancyYear} 
+                  onChange={e => setFirstPregnancyYear(e.target.value)} 
+                />
               </div>
             </div>
           </div>
@@ -213,16 +262,38 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
             <p className="text-sm text-gray-600 mt-2">If yes, fill the information needed:</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
               <div>
-                <label className="block mb-1">Name of child</label>
-                <input type="text" placeholder="Full name of child" className="border p-2 rounded w-full" value={childName} onChange={e => setChildName(e.target.value)} />
+                <label htmlFor='childName' className="block mb-1">Name of child</label>
+                <input
+                  id='childName'
+                  name='childName' 
+                  type="text" 
+                  placeholder="Full name of child" 
+                  className="border p-2 rounded w-full" 
+                  value={childName} 
+                  onChange={e => setChildName(e.target.value)} 
+                />
               </div>
               <div>
-                <label className="block mb-1">Age at death (in months)</label>
-                <input type="number" placeholder="Age at death (in months)" className="border p-2 rounded w-full" value={childAgeAtDeath} onChange={e => setChildAgeAtDeath(e.target.value)} />
+                <label htmlFor='childAgeAtDeath' className="block mb-1">Age at death (in months)</label>
+                <input
+                  id='childAgeAtDeath'
+                  name='childAgeAtDeath' 
+                  type="number" 
+                  placeholder="Age at death (in months)" 
+                  className="border p-2 rounded w-full" 
+                  value={childAgeAtDeath} 
+                  onChange={e => setChildAgeAtDeath(e.target.value)} 
+                />
               </div>
               <div>
-                <label className="block mb-1">Main cause of death</label>
-                <select className="border p-2 rounded w-full" value={childCauseOfDeath} onChange={e => setChildCauseOfDeath(e.target.value)}>
+                <label htmlFor='childCauseOfDeath' className="block mb-1">Main cause of death</label>
+                <select
+                  id='childCauseOfDeath'
+                  name='childCauseOfDeath' 
+                  className="border p-2 rounded w-full" 
+                  value={childCauseOfDeath} 
+                  onChange={e => setChildCauseOfDeath(e.target.value)}
+                >
                   <option value="">-- Cause of death --</option>
                   <option value="BACTERIAL SEPSIS OF NEWBORN">BACTERIAL SEPSIS OF NEWBORN</option>
                   <option value="PNEUMONIA">PNEUMONIA</option>
@@ -233,8 +304,14 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
                 </select>
               </div>
               <div>
-                <label className="block mb-1">Sex</label>
-                <select className="border p-2 rounded w-full" value={childSex} onChange={e => setChildSex(e.target.value)}>
+                <label htmlFor='childSex' className="block mb-1">Sex</label>
+                <select
+                  id='childSex'
+                  name='childSex' 
+                  className="border p-2 rounded w-full" 
+                  value={childSex} 
+                  onChange={e => setChildSex(e.target.value)}
+                >
                   <option value="">-- Sex --</option>
                   <option value="MALE">MALE</option>
                   <option value="FEMALE">FEMALE</option>
@@ -250,21 +327,48 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
           <YesNoSelect label="Do you have a rare disease?" value={hasRareDisease} setValue={setHasRareDisease} />
           {hasRareDisease && (
             <>
-              <label className="block mb-1 mt-2">If yes, is it diagnosed by a doctor?</label>
-              <select className="border p-2 rounded w-full" value={diagnosedRareDisease} onChange={e => setDiagnosedRareDisease(e.target.value)}>
+              <label htmlFor='diagnosedRareDisease' className="block mb-1 mt-2">If yes, is it diagnosed by a doctor?</label>
+              <select
+                id='diagnosedRareDisease'
+                name='diagnosedRareDisease' 
+                className="border p-2 rounded w-full" 
+                value={diagnosedRareDisease} 
+                onChange={e => setDiagnosedRareDisease(e.target.value)}
+              >
                 <option value="">-- Select --</option>
                 <option value="YES">YES</option>
                 <option value="NO">NO</option>
               </select>
 
-              <label className="block mb-1 mt-2">Name of the rare disease</label>
-              <input type="text" placeholder="Enter disease name" className="border p-2 rounded w-full" value={rareDiseaseName} onChange={e => setRareDiseaseName(e.target.value)} />
+              <label htmlFor='rareDiseaseName' className="block mb-1 mt-2">Name of the rare disease</label>
+              <input
+                id='rareDiseaseName'
+                name='rareDiseaseName' 
+                type="text" 
+                placeholder="Enter disease name" 
+                className="border p-2 rounded w-full" 
+                value={rareDiseaseName} 
+                onChange={e => setRareDiseaseName(e.target.value)} 
+              />
 
-              <label className="block mb-1 mt-2">Describe the condition</label>
-              <textarea placeholder="Describe the condition" className="border p-2 rounded w-full" value={rareDiseaseDescription} onChange={e => setRareDiseaseDescription(e.target.value)} />
+              <label htmlFor='rareDiseaseDescription' className="block mb-1 mt-2">Describe the condition</label>
+              <textarea
+                id='rareDiseaseDescription'
+                name='rareDiseaseDescription' 
+                placeholder="Describe the condition" 
+                className="border p-2 rounded w-full" 
+                value={rareDiseaseDescription} 
+                onChange={e => setRareDiseaseDescription(e.target.value)} 
+              />
 
-              <label className="block mb-1 mt-2">If not diagnosed, state the main reason</label>
-              <select className="border p-2 rounded w-full" value={rareDiseaseUndiagnosedReason} onChange={e => setRareDiseaseUndiagnosedReason(e.target.value)}>
+              <label htmlFor='rareDiseaseUndiagnosedReason' className="block mb-1 mt-2">If not diagnosed, state the main reason</label>
+              <select
+                id='rareDiseaseUndiagnosedReason'
+                name='rareDiseaseUndiagnosedReason' 
+                className="border p-2 rounded w-full" 
+                value={rareDiseaseUndiagnosedReason} 
+                onChange={e => setRareDiseaseUndiagnosedReason(e.target.value)}
+              >
                 <option value="">-- Select reason --</option>
                 <option value="FACILITY/DOCTOR IS FAR">FACILITY/DOCTOR IS FAR</option>
                 <option value="NO MONEY FOR CONSULTATION">NO MONEY FOR CONSULTATION</option>
@@ -275,8 +379,13 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
             </>
           )}
 
-        <label className="block mt-4 mb-1">Are you a PWD?</label>
-          <select className="border p-2 rounded w-full" onChange={e => setIsPWD(e.target.value === 'YES')}>
+        <label htmlFor='IsPWD' className="block mt-4 mb-1">Are you a PWD?</label>
+          <select
+            id='IsPWD'
+            name='IsPWD' 
+            className="border p-2 rounded w-full" 
+            onChange={e => setIsPWD(e.target.value === 'YES')}
+          >
             <option value="">-- Select --</option>
             <option>NO</option>
             <option>YES</option>
@@ -284,8 +393,10 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
 
           {isPWD && (
             <>
-              <label className="block mb-1 mt-2">Is there HH members with PWD ID?</label>
+              <label htmlFor='HasPWDID' className="block mb-1 mt-2">Is there HH members with PWD ID?</label>
               <select
+                id='HasPWDID'
+                name='HasPWDID'
                 className="border p-2 rounded w-full"
                 value={hasPWDID}
                 onChange={e => setHasPWDID(e.target.value)}
@@ -297,8 +408,10 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
 
               {renderMemberDropdown(pwdLineNumber, setPwdLineNumber, "If yes, select the HH member with PWD ID")}
 
-              <label className="block mb-1 mt-2">ID Shown?</label>
+              <label htmlFor='IsPWDIDShown' className="block mb-1 mt-2">ID Shown?</label>
               <select
+                id='IsPWDIDShown'
+                name='IsPWDIDShown'
                 className="border p-2 rounded w-full"
                 value={isPWDIDShown}
                 onChange={e => setIsPWDIDShown(e.target.value)}
@@ -308,8 +421,10 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
                 <option value="NO">NO</option>
               </select>
 
-              <label className="block mb-1 mt-2">If ID shown, record the type of disability</label>
+              <label htmlFor='pwdDisabilityType' className="block mb-1 mt-2">If ID shown, record the type of disability</label>
               <select
+                id='pwdDisabilityType'
+                name='pwdDisabilityType'
                 className="border p-2 rounded w-full"
                 value={pwdDisabilityType}
                 onChange={e => setPwdDisabilityType(e.target.value)}
@@ -332,8 +447,14 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
               {renderMemberDropdown(illnessLineNumber, setIllnessLineNumber, 'Select HH member who got ill/sick/injured')}
               <div>
-                <label className="block mb-1">Name of the illness/sickness/injury</label>
-                <select className="border p-2 rounded w-full" value={illnessName} onChange={e => setIllnessName(e.target.value)}>
+                <label htmlFor='illnessName' className="block mb-1">Name of the illness/sickness/injury</label>
+                <select
+                  id='illnessName'
+                  name='illnessName' 
+                  className="border p-2 rounded w-full" 
+                  value={illnessName} 
+                  onChange={e => setIllnessName(e.target.value)}
+                >
                   <option value="">-- Select illness/sickness/injury --</option>
                   <option>DIABETES</option>
                   <option>CANCER</option>
@@ -353,16 +474,30 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
                 </select>
               </div>
               <div>
-                <label className="block mb-1">If student, did this cause absence from school or work?</label>
-                <select className="border p-2 rounded w-full" value={illnessAbsence} onChange={e => setIllnessAbsence(e.target.value)}>
+                <label htmlFor='illnessAbsence' className="block mb-1">If student, did this cause absence from school or work?</label>
+                <select
+                  id='illnessAbsence'
+                  name='illnessAbsence' 
+                  className="border p-2 rounded w-full" 
+                  value={illnessAbsence} 
+                  onChange={e => setIllnessAbsence(e.target.value)}
+                >
                   <option value="">-- Select --</option>
                   <option>YES</option>
                   <option>NO</option>
                 </select>
               </div>
               <div>
-                <label className="block mb-1">No. of days absent</label>
-                <input type="number" className="border p-2 rounded w-full" placeholder="Number of days" value={illnessAbsentDays} onChange={e => setIllnessAbsentDays(e.target.value)} />
+                <label htmlFor='illnessAbsentDays' className="block mb-1">No. of days absent</label>
+                <input 
+                  id='illnessAbsentDays'
+                  name='illnessAbsentDays' 
+                  type="number" 
+                  className="border p-2 rounded w-full" 
+                  placeholder="Number of days" 
+                  value={illnessAbsentDays} 
+                  onChange={e => setIllnessAbsentDays(e.target.value)} 
+                />
               </div>
             </div>
           )}
@@ -373,8 +508,14 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
           {treatmentAvailed && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
               <div>
-                <label className="block mb-1">If yes, select the type of medical facility</label>
-                <select className="border p-2 rounded w-full" value={treatmentFacilityType} onChange={e => setTreatmentFacilityType(e.target.value)}>
+                <label htmlFor='treatmentFacilityType' className="block mb-1">If yes, select the type of medical facility</label>
+                <select
+                  id='treatmentFacilityType'
+                  name='treatmentFacilityType' 
+                  className="border p-2 rounded w-full" 
+                  value={treatmentFacilityType} 
+                  onChange={e => setTreatmentFacilityType(e.target.value)}
+                >
                   <option value="">-- Select Facility --</option>
                   <option value="NOT MEDICAL SECTOR">NOT MEDICAL SECTOR</option>
                   <option value="ALTERNATIVE MEDICAL SECTOR">ALTERNATIVE MEDICAL SECTOR</option>
@@ -384,8 +525,14 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
               </div>
 
               <div>
-                <label className="block mb-1">Source of payment for the treatment</label>
-                <select className="border p-2 rounded w-full" value={treatmentPaymentSource} onChange={e => setTreatmentPaymentSource(e.target.value)}>
+                <label htmlFor='treatmentPaymentSource' className="block mb-1">Source of payment for the treatment</label>
+                <select
+                  id='treatmentPaymentSource'
+                  name='treatmentPaymentSource' 
+                  className="border p-2 rounded w-full" 
+                  value={treatmentPaymentSource} 
+                  onChange={e => setTreatmentPaymentSource(e.target.value)}
+                >
                   <option value="">-- Select Payment Source --</option>
                   <option value="SALARY OR INCOME">SALARY OR INCOME</option>
                   <option value="LOAN FROM BANKS & CREDITS">LOAN FROM BANKS & CREDITS</option>
@@ -398,8 +545,14 @@ export default function HealthAndMaternalInfo({ householdId, goToNext }) {
               </div>
 
               <div>
-                <label className="block mb-1">Main reason for availing the treatment</label>
-                <select className="border p-2 rounded w-full" value={treatmentReason} onChange={e => setTreatmentReason(e.target.value)}>
+                <label htmlFor='treatmentReason' className="block mb-1">Main reason for availing the treatment</label>
+                <select
+                  id='treatmentReason'
+                  name='treatmentReason' 
+                  className="border p-2 rounded w-full" 
+                  value={treatmentReason} 
+                  onChange={e => setTreatmentReason(e.target.value)}
+                >
                   <option value="">-- Select Reason --</option>
                   <option value="FACILITY IS FAR">FACILITY IS FAR</option>
                   <option value="NO MONEY">NO MONEY</option>

@@ -59,14 +59,14 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
       const saveTasks = forms.map(async (form) => {
         const memberRef = doc(db, 'households', householdId, 'members', form.memberId);
 
-        // ✅ Save individual economic data
+        // Save individual economic data
         const econRef = doc(memberRef, 'economic', 'main');
         await setDoc(econRef, form);
       });
 
       await Promise.all(saveTasks);
 
-      // ✅ Save summary to household document
+      // Save summary to household document
       await updateDoc(doc(db, 'households', householdId), {
         economicData: forms,
       });
@@ -90,12 +90,16 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
           <legend className="text-sm font-semibold text-gray-600 px-2">
             Member {index + 1}: {form.firstName} {form.lastName}
           </legend>
+
           <h3>For persons who ever work ever worked or had a job/business during the past week</h3>
+
+          {/* Q1 */}
           <div>
-            <label className="block font-medium">
+            <label className="block font-medium" htmlFor='workedPastWeek'>
               Any work for at least 1 hour (including from home)?
             </label>
             <select
+              id='workedPastWeek'
               name="workedPastWeek"
               value={form.workedPastWeek}
               onChange={(e) => handleChange(index, e)}
@@ -109,9 +113,11 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
 
           {form.workedPastWeek === 'Yes' && (
             <>
+              {/* Q2 */}
               <div>
-                <label className="block font-medium">Work arrangement</label>
+                <label className="block font-medium" htmlFor='workArrangement'>Work arrangement</label>
                 <select
+                  id='workArrangement'
                   name="workArrangement"
                   value={form.workArrangement}
                   onChange={(e) => handleChange(index, e)}
@@ -129,9 +135,11 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 </select>
               </div>
 
+              {/* Q3 */}
               <div>
-                <label className="block font-medium">Engaged in online/mobile platform?</label>
+                <label className="block font-medium" htmlFor='onlinePlatform'>Engaged in online/mobile platform?</label>
                 <select
+                  id='onlinePlatform'
                   name="onlinePlatform"
                   value={form.onlinePlatform}
                   onChange={(e) => handleChange(index, e)}
@@ -143,9 +151,11 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 </select>
               </div>
 
-              <label className="block mb-2">
+              {/* Q4 */}
+              <label className="block mb-2" htmlFor='location'>
                 <span className="font-medium">Work Location (e.g., City, Province)</span>
                 <input
+                  id='location'
                   name="location"
                   value={form.location}
                   onChange={(e) => handleChange(index, e)}
@@ -154,9 +164,11 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 />
               </label>
 
-              <label className="block mb-2">
+              {/* Q5 */}
+              <label className="block mb-2" htmlFor='occupation'>
                 <span className="font-medium">Primary Occupation</span>
                 <input
+                  id='occupation'
                   name="occupation"
                   value={form.occupation}
                   onChange={(e) => handleChange(index, e)}
@@ -165,10 +177,11 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 />
               </label>
 
-              
-              <label className="block mb-2">
+              {/* Q6 */}
+              <label className="block mb-2" htmlFor='industry'>
                 <span className="font-medium">Industry</span>
                 <input
+                  id='industry'
                   name="industry"
                   value={form.industry}
                   onChange={(e) => handleChange(index, e)}
@@ -177,9 +190,10 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 />
               </label>
 
-              
+              {/* Q7 & Q8 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <select
+                  id='employmentNature'
                   name="employmentNature"
                   value={form.employmentNature}
                   onChange={(e) => handleChange(index, e)}
@@ -193,6 +207,7 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 </select>
 
                 <select
+                  id='classOfWorker'
                   name="classOfWorker"
                   value={form.classOfWorker}
                   onChange={(e) => handleChange(index, e)}
@@ -208,8 +223,10 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 </select>
               </div>
 
+              {/* Q9, Q10, Q11 */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <input
+                  id='hoursPerDay'
                   name="hoursPerDay"
                   value={form.hoursPerDay}
                   onChange={(e) => handleChange(index, e)}
@@ -217,6 +234,7 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                   className="border p-2 rounded w-full"
                 />
                 <input
+                  id='workingDays'
                   name="workingDays"
                   value={form.workingDays}
                   onChange={(e) => handleChange(index, e)}
@@ -224,6 +242,7 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                   className="border p-2 rounded w-full"
                 />
                 <input
+                  id='basicPay'
                   name="basicPay"
                   value={form.basicPay}
                   onChange={(e) => handleChange(index, e)}
@@ -236,7 +255,9 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
 
           {form.workedPastWeek === 'No' && (
             <>
+              {/* Q12 */}
               <select
+                id='reasonForLessWork'
                 name="reasonForLessWork"
                 value={form.reasonForLessWork}
                 onChange={(e) => handleChange(index, e)}
@@ -250,7 +271,9 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 <option>Others</option>
               </select>
 
+              {/* Q13 */}
               <select
+                id='lookedForWork'
                 name="lookedForWork"
                 value={form.lookedForWork}
                 onChange={(e) => handleChange(index, e)}
@@ -261,7 +284,9 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 <option>No</option>
               </select>
 
+              {/* Q14 */}
               <select
+                id='firstTimeLookingSince15'
                 name="firstTimeLookingSince15"
                 value={form.firstTimeLookingSince15}
                 onChange={(e) => handleChange(index, e)}
@@ -272,7 +297,9 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 <option>No</option>
               </select>
 
+              {/* Q15 – Q17 */}
               <input
+                id='jobSearchMethod'
                 name="jobSearchMethod"
                 value={form.jobSearchMethod}
                 onChange={(e) => handleChange(index, e)}
@@ -280,6 +307,7 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 className="border p-2 rounded w-full"
               />
               <input
+                id='weeksSearching'
                 name="weeksSearching"
                 value={form.weeksSearching}
                 onChange={(e) => handleChange(index, e)}
@@ -287,6 +315,7 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 className="border p-2 rounded w-full"
               />
               <input
+                id='lastOccupation'
                 name="lastOccupation"
                 value={form.lastOccupation}
                 onChange={(e) => handleChange(index, e)}
@@ -303,7 +332,7 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
             </>
           )}
 
-          {/* Agricultural Land Questions */}
+          {/* Q18 – Q23: Agricultural Questions */}
           {[
             { name: 'ownsAgriLand', label: 'Own agri land?' },
             { name: 'operatedLand', label: 'Operated land in past 12 months?' },
@@ -311,9 +340,9 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
             { name: 'nameOnDoc', label: 'Is name on document?' },
             { name: 'rightToSell', label: 'Right to sell?' },
             { name: 'rightToBequeath', label: 'Right to bequeath?' },
-          ].map((field) => (
+          ].map((field, i) => (
             <div key={field.name}>
-              <label className="block font-medium">{field.label}</label>
+              <label className="block font-medium">{`Q${18 + i}: ${field.label}`}</label>
               <select
                 name={field.name}
                 value={form[field.name]}

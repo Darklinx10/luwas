@@ -1,40 +1,42 @@
 'use client';
 
 import React, { useState } from 'react';
-import { db } from '@/firebase/config'; // ✅ adjust if needed
-import { doc, setDoc } from 'firebase/firestore';
-import { toast } from 'react-toastify';
+import { db } from '@/firebase/config'; 
+import { doc, setDoc } from 'firebase/firestore'; 
+import { toast } from 'react-toastify'; 
 
+export default function OnlineEcommerceActivities({ householdId, goToNext }) {
+  const [isSaving, setIsSaving] = useState(false); 
 
-export default function OnlineEcommerceActivities({householdId, goToNext}) {
-  const [isSaving, setIsSaving] = useState(false);
+  // Form state to capture user inputs
   const [form, setForm] = useState({
-    hasInternetAccess: '',
-    internetAccessLocations: '',
-    hasOwnInternetAtHome: '',
-    internetConnectionTypes: [],
-    payForInternet: '',
-    internetUsageActivities: '',
-    engagedInOnlinePurchasing: '',
-    ecommercePlatformsUsed: [],
-    engagedInOnlineWork: '',
+    hasInternetAccess: '',                        // Question 1
+    internetAccessLocations: '',                  // Question 2
+    hasOwnInternetAtHome: '',                     // Question 3
+    internetConnectionTypes: [],                  // Question 4
+    payForInternet: '',                           // Question 5
+    internetUsageActivities: '',                  // Question 6
+    engagedInOnlinePurchasing: '',                // Question 7
+    ecommercePlatformsUsed: [],                   // Question 8
+    engagedInOnlineWork: '',                      // Question 9
   });
 
-
-
-
+  // Handles form input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    // If input is checkbox (multiple selection)
     if (type === 'checkbox') {
-      const list = [...form[name]];
-      if (checked) list.push(value);
-      else list.splice(list.indexOf(value), 1);
-      setForm((prev) => ({ ...prev, [name]: list }));
+      const list = [...form[name]]; // Clone the current list
+      if (checked) list.push(value); // Add value if checked
+      else list.splice(list.indexOf(value), 1); // Remove if unchecked
+      setForm((prev) => ({ ...prev, [name]: list })); // Update state
     } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
+      setForm((prev) => ({ ...prev, [name]: value })); // For single-value inputs
     }
   };
 
+  // Options for Question 2: Where internet is accessed
   const internetAccessLocationsOptions = [
     'HOME',
     'WHILE COMMUTING, IN TRANSPORT, OR WALKING',
@@ -46,6 +48,7 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
     'OTHERS',
   ];
 
+  // Options for Question 4: Internet connection types
   const internetConnectionTypesOptions = [
     'FIXED (WIRED) NARROWBAND/BROADBAND NETWORK',
     'FIXED (WIRELESS) BROADBAND NETWORK',
@@ -53,6 +56,7 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
     'MOBILE BROADBAND NETWORK',
   ];
 
+  // Options for Question 6: Types of internet activities
   const internetUsageActivitiesOptions = [
     'BROWSING/INFORMATION SEARCH',
     'SOCIAL MEDIA',
@@ -63,6 +67,7 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
     'OTHERS',
   ];
 
+  // Options for Question 8: Ecommerce platforms used
   const ecommercePlatformsOptions = [
     'E-COMMERCE PLATFORM (Lazada, Shopee, Amazon, E-bay, Grab, Metromart, Angkas, Booking.com, Klook, etc.)',
     'SOCIAL MEDIA SITE / MARKETPLACE (Facebook Marketplace, Instagram, TikTok Shop, etc.)',
@@ -70,29 +75,33 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
     'OTHERS',
   ];
 
+  // General Yes/No options (used for Q1, Q3, Q5, Q7, Q9)
   const yesNoOptions = [
     { label: 'YES', value: 'YES' },
     { label: 'NO', value: 'NO' },
   ];
 
+  // Handles form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSaving(true);
+    setIsSaving(true); // ✅ Begin saving state
     try {
+      // Reference to Firestore document
       const docRef = doc(db, 'households', householdId, 'ecommerceDigitalEconomy', 'main');
       await setDoc(docRef, {
         ...form,
         timestamp: new Date(),
       });
-      toast.success('Ecommerce Digital Economy Information saved!');
-      if (goToNext) goToNext();
+      toast.success('Ecommerce Digital Economy Information saved!'); 
+      if (goToNext) goToNext(); 
     } catch (error) {
-      console.error('Error saving form:', error);
-      toast.error('Failed to save data.');
+      console.error('Error saving form:', error); 
+      toast.error('Failed to save data.'); 
     } finally {
       setIsSaving(false); 
     }
   };
+
 
 
   return (
@@ -101,15 +110,16 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
         Household Online E-Commerce Activities (Past 12 months)
       </h2>
 
-      {/* Access to internet */}
+      {/* Q1: Access to internet */}
       <div>
-        <label className="block mb-2">
+        <label className="block mb-2" htmlFor='hasInternetAccess'>
           In the past 12 months, do you or any member of household have access to internet?
         </label>
         <select
+          id='hasInternetAccess'
           name="hasInternetAccess"
           value={form.hasInternetAccess}
-          onChange={handleChange}
+          onChange={handleChange} // Q1 handler
           className="border p-2 rounded w-full"
           required
         >
@@ -120,16 +130,17 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
         </select>
       </div>
 
-      {/* Where access internet */}
+      {/* Q2: Where access internet — conditional on Q1 = YES */}
       {form.hasInternetAccess === 'YES' && (
         <div>
-          <label className="block mb-2">
+          <label className="block mb-2" htmlFor='internetAccessLocations'>
             Where do you or any member of your household access the internet?
           </label>
           <select
+            id='internetAccessLocations'
             name="internetAccessLocations"
             value={form.internetAccessLocations}
-            onChange={handleChange}
+            onChange={handleChange} // Q2 handler
             className="border p-2 rounded w-full"
           >
             <option value="">-- Select where access internet --</option>
@@ -140,16 +151,17 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
         </div>
       )}
 
-      {/* Own internet at home */}
+      {/* Q3: Own internet at home — conditional on Q1 = YES */}
       {form.hasInternetAccess === 'YES' && (
         <div>
-          <label className="block mb-2">
+          <label className="block mb-2" htmlFor='hasOwnInternetAtHome'>
             Does this household have its own internet at home which can be used by any household member when needed?
           </label>
           <select
+            id='hasOwnInternetAtHome'
             name="hasOwnInternetAtHome"
             value={form.hasOwnInternetAtHome}
-            onChange={handleChange}
+            onChange={handleChange} // Q3 handler
             className="border p-2 rounded w-full"
           >
             <option value="">-- Select --</option>
@@ -160,21 +172,22 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
         </div>
       )}
 
-      {/* Types of internet connection */}
+      {/* Q4: Types of internet connection — conditional on Q3 = YES */}
       {form.hasOwnInternetAtHome === 'YES' && (
         <div>
-          <label className="block mb-2">
+          <label className="block mb-2" htmlFor='internetConnectionTypes'>
             What types of internet connection are available at home?
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border p-3 rounded">
             {internetConnectionTypesOptions.map((option) => (
               <label key={option} className="inline-flex items-center">
                 <input
+                  id='internetConnectionTypes'
                   type="checkbox"
                   name="internetConnectionTypes"
                   value={option}
                   checked={form.internetConnectionTypes.includes(option)}
-                  onChange={handleChange}
+                  onChange={handleChange} // Q4 handler
                   className="mr-2"
                 />
                 {option}
@@ -184,16 +197,17 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
         </div>
       )}
 
-      {/* Pay for internet */}
+      {/* Q5: Pay for internet — conditional on Q1 = YES */}
       {form.hasInternetAccess === 'YES' && (
         <div>
-          <label className="block mb-2">
+          <label className="block mb-2" htmlFor='payForInternet'>
             Do you or any member of your household pay (whether prepaid or postpaid) when accessing the internet?
           </label>
           <select
+            id='payForInternet'
             name="payForInternet"
             value={form.payForInternet}
-            onChange={handleChange}
+            onChange={handleChange} // Q5 handler
             className="border p-2 rounded w-full"
           >
             <option value="">-- Select --</option>
@@ -204,16 +218,17 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
         </div>
       )}
 
-      {/* Internet usage activities */}
+      {/* Q6: Internet usage activities — conditional on Q1 = YES */}
       {form.hasInternetAccess === 'YES' && (
         <div>
-          <label className="block mb-2">
+          <label className="block mb-2" htmlFor='internetUsageActivities'>
             In the past 12 months, for which of the following activities did you or any of your household member use the internet?
           </label>
           <select
+            id='internetUsageActivities'
             name="internetUsageActivities"
             value={form.internetUsageActivities}
-            onChange={handleChange}
+            onChange={handleChange} // Q6 handler
             className="border p-2 rounded w-full"
           >
             <option value="">-- Select internet usage --</option>
@@ -224,16 +239,17 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
         </div>
       )}
 
-      {/* Engaged in online purchasing */}
+      {/* Q7: Online purchasing — conditional on Q1 = YES */}
       {form.hasInternetAccess === 'YES' && (
         <div>
-          <label className="block mb-2">
+          <label className="block mb-2" htmlFor='engagedInOnlinePurchasing'>
             In the past 12 months, did you or any of your household members engage in purchasing goods and/or services online?
           </label>
           <select
+            id='engagedInOnlinePurchasing'
             name="engagedInOnlinePurchasing"
             value={form.engagedInOnlinePurchasing}
-            onChange={handleChange}
+            onChange={handleChange} // Q7 handler
             className="border p-2 rounded w-full"
           >
             <option value="">-- Select --</option>
@@ -244,21 +260,22 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
         </div>
       )}
 
-      {/* E-commerce platforms used */}
+      {/* Q8: Ecommerce platforms used — conditional on Q7 = YES */}
       {form.engagedInOnlinePurchasing === 'YES' && (
         <div>
-          <label className="block mb-2">
+          <label className="block mb-2" htmlFor='ecommercePlatformsUsed'>
             What were the e-commerce platforms/applications/websites that the household members have used in the past 12 months?
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border p-3 rounded">
             {ecommercePlatformsOptions.map((option) => (
               <label key={option} className="inline-flex items-center">
                 <input
+                  id='ecommercePlatformsUsed'
                   type="checkbox"
                   name="ecommercePlatformsUsed"
                   value={option}
                   checked={form.ecommercePlatformsUsed.includes(option)}
-                  onChange={handleChange}
+                  onChange={handleChange} // Q8 handler
                   className="mr-2"
                 />
                 {option}
@@ -268,16 +285,17 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
         </div>
       )}
 
-      {/* Engaged in online work */}
+      {/* Q9: Online work — conditional on Q1 = YES */}
       {form.hasInternetAccess === 'YES' && (
         <div>
-          <label className="block mb-2">
+          <label className="block mb-2" htmlFor='engagedInOnlineWork'>
             In the past 12 months, did you or any of your household members engage in online work (online seller, tutor, freelance writer, Grab, Angkas) through an online platform such as Upwork, OnlineJobs.ph?
           </label>
           <select
+            id='engagedInOnlineWork'
             name="engagedInOnlineWork"
             value={form.engagedInOnlineWork}
-            onChange={handleChange}
+            onChange={handleChange} // Q9 handler
             className="border p-2 rounded w-full"
           >
             <option value="">-- Select --</option>
@@ -288,7 +306,7 @@ export default function OnlineEcommerceActivities({householdId, goToNext}) {
         </div>
       )}
 
-      {/* ✅ Submit button */}
+      {/* Submit button */}
       <div className="pt-6 flex justify-end">
         <button
           type="submit"

@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { db } from '@/firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore'; 
 import { toast } from 'react-toastify';
 
+// Array of food security-related questions
 const questions = [
   "Was there a time when you were worried about not having enough food to eat because of a lack of money or other resources?",
   "Was there a time when you were unable to eat healthy and nutritious food because of a lack of money or other resources?",
@@ -16,6 +17,7 @@ const questions = [
   "Was there a time when you went without eating for a whole day because of a lack of money or other resources?",
 ];
 
+// Options for each question (dropdown choices)
 const options = [
   { value: '', label: '-- Select --' },
   { value: 'yes', label: 'YES' },
@@ -25,66 +27,83 @@ const options = [
 ];
 
 export default function FoodSecurityExperience({ householdId, goToNext }) {
-  const [isSaving, setIsSaving] = useState(false);
-  const [responses, setResponses] = useState(Array(questions.length).fill(''));
+  const [isSaving, setIsSaving] = useState(false); 
+  const [responses, setResponses] = useState(Array(questions.length).fill('')); // Store responses to questions
 
+  // Handle response change for a specific question
   const handleChange = (index, value) => {
-    const updated = [...responses];
-    updated[index] = value;
-    setResponses(updated);
+    const updated = [...responses]; // Copy previous state
+    updated[index] = value;         // Update selected index
+    setResponses(updated);          // Set new responses
   };
 
+  // Handle form submission to Firestore
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSaving(true);
+    e.preventDefault();   // Prevent page reload
+    setIsSaving(true);    // Start loading state
 
+    // Prepare object to store in Firestore
     const payload = {};
     responses.forEach((value, i) => {
-      payload[`question_${i + 1}`] = value;
+      payload[`question_${i + 1}`] = value; // Store each answer as question_1, question_2, ...
     });
 
     try {
+      // Reference to Firestore document
       const docRef = doc(db, 'households', householdId, 'foodSecurity', 'main');
+
+      // Write data with timestamp
       await setDoc(docRef, {
         ...payload,
-        timestamp: new Date(),
+        timestamp: new Date(), // Add timestamp
       });
+
+      // Show success message
       toast.success('Food Security saved!');
+
+      // Go to next section if provided
       if (goToNext) goToNext();
     } catch (error) {
+      // Log error to console and show toast
       console.error('Error saving food security:', error);
       toast.error('Failed to save data.');
     } finally {
-      setIsSaving(false); 
+      setIsSaving(false); // Reset saving state
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-6 space-y-6">
-      <h2 className="text-xl font-bold text-green-700 mb-4">
-        Food Security Experience (July 01, 2021 - June 30, 2022)
-      </h2>
+  <form onSubmit={handleSubmit} className="p-6 space-y-6">
+    {/* Form title */}
+    <h2 className="text-xl font-bold text-green-700 mb-4">
+      Food Security Experience (July 01, 2021 - June 30, 2022)
+    </h2>
 
-      {questions.map((question, index) => (
-        <div key={index}>
-          <label className="block mb-2">
-            During the past 12 months, {question}
-          </label>
-          <select
-            value={responses[index]}
-            onChange={(e) => handleChange(index, e.target.value)}
-            className="border p-2 rounded w-full"
-            required
-          >
-            {options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      ))}
+    {/* Loop through all food security questions */}
+    {questions.map((question, index) => (
+      <div key={index}>
+        {/* Display question label */}
+        <label className="block mb-2">
+          During the past 12 months, {question}
+        </label>
 
+        {/* Dropdown for user response */}
+        <select
+          value={responses[index]} // Current selected response
+          onChange={(e) => handleChange(index, e.target.value)} // Update corresponding index in state
+          className="border p-2 rounded w-full" // Styling
+          required // Make sure user selects a value
+        >
+          {/* Map through predefined options */}
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    ))}
+    
       {/* ✅ Submit button */}
       <div className="pt-6 flex justify-end">
         <button

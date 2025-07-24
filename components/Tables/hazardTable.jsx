@@ -14,7 +14,7 @@ export default function HazardTable({ data = [], title = 'Hazard Reports (2025)'
       </div>
 
       {/* ✅ Table Wrapper */}
-      <div className="overflow-x-auto border border-t-0 rounded-b-md bg-white p-4">
+      <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
         {data.length === 0 ? (
           <p className="text-center text-gray-500 py-6 animate-pulse">Loading hazard records...</p>
         ) : (

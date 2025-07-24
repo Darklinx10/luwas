@@ -1,11 +1,13 @@
-'use client';
+'use client'; 
 
-import { useState } from 'react';
+import { useState } from 'react'; 
+// Import table components for different reports
 import PWDTable from '@/components/Tables/pwdTable';
 import SeniorTable from '@/components/Tables/seniorTable';
 import HazardTable from '@/components/Tables/hazardTable';
 import AccidentTable from '@/components/Tables/accidentTable';
 
+// Static sample data for hazard and accident reports
 const reportData = {
   hazards: [
     { type: 'Flood', location: 'Zone 1', date: '2025-06-01' },
@@ -18,8 +20,10 @@ const reportData = {
 };
 
 export default function ReportsPage() {
+  // State to track which report is currently selected
   const [selectedReport, setSelectedReport] = useState('pwd');
 
+  // Mapping report keys to readable table titles
   const titleMap = {
     pwd: 'List of Person with Disability (2025)',
     senior: 'List of Senior Citizens (2025)',
@@ -27,6 +31,7 @@ export default function ReportsPage() {
     accident: 'List of Reported Accidents (2025)',
   };
 
+  // Function to render the appropriate table based on the selected report
   const renderTable = () => {
     const title = titleMap[selectedReport];
 
@@ -38,24 +43,25 @@ export default function ReportsPage() {
 
   return (
     <div className="p-4">
-      {/* Report Tabs */}
+      {/* Report selection buttons */}
       <div className="flex gap-2 mb-4">
         {['pwd', 'senior', 'hazards', 'accident'].map((key) => (
           <button
             key={key}
-            onClick={() => setSelectedReport(key)}
+            onClick={() => setSelectedReport(key)} 
             className={`px-4 py-2 rounded cursor-pointer ${
               selectedReport === key
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-200 text-gray-800 hover:bg-green-100'
+                ? 'bg-green-600 text-white' 
+                : 'bg-gray-200 text-gray-800 hover:bg-green-100' 
             }`}
           >
+            {/* Remove "List of" and trim for shorter tab labels */}
             {titleMap[key].split('(')[0].replace('List of ', '').trim()}
           </button>
         ))}
       </div>
 
-      {/* Table */}
+      {/* Table container with shadow and print border */}
       <div className="bg-white rounded shadow p-4 overflow-x-auto print:border print:border-gray-300">
         {renderTable()}
       </div>

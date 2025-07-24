@@ -3,36 +3,57 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FaUserCircle } from 'react-icons/fa';
-import { auth, db } from '@/firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/firebase/config'; 
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { toast } from 'react-toastify';
+import { toast } from 'react-toastify'; 
 
 export default function UserProfile() {
   const router = useRouter();
+
+  // Holds user profile data from Firestore
   const [userProfile, setUserProfile] = useState(null);
+  // Tracks if data is still loading
   const [loading, setLoading] = useState(true);
 
+  // Fetch user profile when auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        const uid = firebaseUser.uid;
+        const profileRef = doc(db, 'users', uid);
+
         try {
-          const profileRef = doc(db, 'users', firebaseUser.uid);
           const profileSnap = await getDoc(profileRef);
 
           if (profileSnap.exists()) {
+            // ✅ Existing profile found
             setUserProfile(profileSnap.data());
           } else {
-            toast.error('User profile not found.');
+            // ❌ Profile not found — create one based on Firebase Auth
+            const defaultProfile = {
+              firstName: firebaseUser.displayName?.split(' ')[0] || '',
+              lastName: firebaseUser.displayName?.split(' ')[1] || '',
+              middleName: '',
+              dateOfBirth: '',
+              gender: '',
+              contactNumber: '',
+              email: firebaseUser.email || '',
+              profilePhoto: firebaseUser.photoURL || '',
+              createdAt: new Date().toISOString(),
+            };
+
+            await setDoc(profileRef, defaultProfile);
+            setUserProfile(defaultProfile);
+            toast.success('Profile created from authentication.');
           }
         } catch (error) {
-          toast.error('Failed to load profile.');
-          console.error(error);
+          toast.error('Failed to load or create profile.');
+          console.error('Error fetching/creating profile:', error);
         } finally {
           setLoading(false);
         }
       } else {
-        // Not logged in
         toast.error('You must be logged in to view this page.');
         router.push('/');
       }
@@ -41,12 +62,17 @@ export default function UserProfile() {
     return () => unsubscribe();
   }, [router]);
 
+
+  // Show loading message while fetching profile
   if (loading) return <p className="text-center mt-10">Loading profile...</p>;
 
-  if (!userProfile) return null; // already handled by toast + redirect
+  // Don't render anything if userProfile is still null (already handled by toast and redirect)
+  if (!userProfile) return null;
 
   return (
     <div className="max-w-xl mx-auto p-6 bg-white shadow-md rounded-lg mt-10">
+
+      {/* Back button */}
       <button
         onClick={() => router.back()}
         className="text-green-600 hover:underline mb-4 inline-block"
@@ -54,9 +80,10 @@ export default function UserProfile() {
         &lt; Back
       </button>
 
+      {/* Title */}
       <h2 className="text-2xl font-semibold mb-4 text-center">Profile Information</h2>
 
-      {/* Profile Photo Section */}
+      {/* Profile image or fallback icon */}
       <div className="flex justify-center mb-6">
         {userProfile.profilePhoto ? (
           <img
@@ -69,6 +96,7 @@ export default function UserProfile() {
         )}
       </div>
 
+      {/* User information displayed in two columns */}
       <div className="grid grid-cols-2 gap-x-6 gap-y-4">
         <ProfileField label="First Name" value={userProfile.firstName} />
         <ProfileField label="Middle Name" value={userProfile.middleName} />
@@ -79,6 +107,7 @@ export default function UserProfile() {
         <ProfileField label="Email Address" value={userProfile.email} />
       </div>
 
+      {/* Edit profile button */}
       <div className="mt-6 text-right">
         <button
           onClick={() => router.push('/dashboard/profile/edit-profile')}
@@ -91,7 +120,7 @@ export default function UserProfile() {
   );
 }
 
-// Reusable component for cleaner code
+// Reusable field component to display label and value
 function ProfileField({ label, value }) {
   return (
     <div>

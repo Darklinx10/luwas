@@ -13,7 +13,7 @@ import { toast } from 'react-toastify';
  */
 export default function EducationAndLiteracy({ householdId, members, goToNext }) {
   const [isSaving, setIsSaving] = useState(false);
-  // ✅ Local form state for each member
+  // Local form state for each member
   const [forms, setForms] = useState(() =>
     (members || []).map((member) => ({
       memberId: member.id,
@@ -32,7 +32,7 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
     }))
   );
 
-  // ✅ Update local form state per member
+  // Update local form state per member
   const handleChange = (index, e) => {
     const { name, value } = e.target;
     const updated = [...forms];
@@ -40,7 +40,7 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
     setForms(updated);
   };
 
-  // ✅ Save all members’ education data to Firestore
+  // Save all members’ education data to Firestore
   const handleSubmit = async (e) => {
   e.preventDefault();
   setIsSaving(true);
@@ -49,14 +49,14 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
       const saveTasks = forms.map(async (form) => {
         const memberRef = doc(db, 'households', householdId, 'members', form.memberId);
 
-        // ✅ Save only education details
+        // Save only education details
         const eduRef = doc(memberRef, 'education', 'main');
         await setDoc(eduRef, form);
       });
 
       await Promise.all(saveTasks);
 
-      // ✅ Save education summary to root household doc
+      // Save education summary to root household doc
       await updateDoc(doc(db, 'households', householdId), {
         educationData: forms,
       });
@@ -84,9 +84,11 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
               {`Member ${index + 1}: ${member.firstName || ''} ${member.lastName || ''}`}
             </legend>
 
+            {/* Question 1 */}
             <div>
-              <label className="block font-medium">Can read and write a simple message?</label>
+              <label className="block font-medium" htmlFor='literacy'>Can read and write a simple message?</label>
               <select
+                id='literacy'
                 name="literacy"
                 value={form.literacy}
                 onChange={(e) => handleChange(index, e)}
@@ -98,9 +100,11 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
               </select>
             </div>
 
+            {/* Question 2 */}
             <div>
-              <label className="block font-medium">Highest grade completed</label>
+              <label className="block font-medium" htmlFor='highestGrade'>Highest grade completed</label>
               <select
+                id='highestGrade'
                 name="highestGrade"
                 value={form.highestGrade}
                 onChange={(e) => handleChange(index, e)}
@@ -118,9 +122,11 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
               </select>
             </div>
 
+            {/* Question 3 */}
             <div>
-              <label className="block font-medium">Currently attending school?</label>
+              <label className="block font-medium" htmlFor='isAttendingSchool'>Currently attending school?</label>
               <select
+                id='isAttendingSchool'
                 name="isAttendingSchool"
                 value={form.isAttendingSchool}
                 onChange={(e) => handleChange(index, e)}
@@ -134,9 +140,11 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
 
             {form.isAttendingSchool === 'Yes' && (
               <>
+              {/* Question 4 */}
                 <div>
-                  <label className="block font-medium">School type</label>
+                  <label className="block font-medium" htmlFor='schoolName'>School type</label>
                   <select
+                    id='schoolName'
                     name="schoolName"
                     value={form.schoolName}
                     onChange={(e) => handleChange(index, e)}
@@ -149,9 +157,11 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
                   </select>
                 </div>
 
+                {/* Question 5 */}
                 <div>
-                  <label className="block font-medium">Current grade or year</label>
+                  <label className="block font-medium" htmlFor='gradeLevel'>Current grade or year</label>
                   <select
+                    id='gradeLevel'
                     name="gradeLevel"
                     value={form.gradeLevel}
                     onChange={(e) => handleChange(index, e)}
@@ -173,8 +183,9 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
 
             {form.isAttendingSchool === 'No' && (
               <div>
-                <label className="block font-medium">Reason for not attending school</label>
+                <label className="block font-medium" htmlFor='reasonNotAttending'>Reason for not attending school</label> {/* Question 6 */} 
                 <select
+                  id='reasonNotAttending'
                   name="reasonNotAttending"
                   value={form.reasonNotAttending}
                   onChange={(e) => handleChange(index, e)}
@@ -207,9 +218,11 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
               </div>
             )}
 
+            {/* Question 7 */}
             <div>
-              <label className="block font-medium">Graduate of TVET?</label>
+              <label className="block font-medium" htmlFor='isTVETGraduate'>Graduate of TVET?</label>
               <select
+                id='isTVETGraduate'
                 name="isTVETGraduate"
                 value={form.isTVETGraduate}
                 onChange={(e) => handleChange(index, e)}
@@ -220,10 +233,12 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
                 <option>No</option>
               </select>
             </div>
-
+            
+            {/* Question 8 */}
             <div>
-              <label className="block font-medium">Currently in TVET?</label>
+              <label className="block font-medium" htmlFor='isCurrentlyInTVET'>Currently in TVET?</label>
               <select
+                id='isCurrentlyInTVET'
                 name="isCurrentlyInTVET"
                 value={form.isCurrentlyInTVET}
                 onChange={(e) => handleChange(index, e)}
@@ -234,10 +249,12 @@ export default function EducationAndLiteracy({ householdId, members, goToNext })
                 <option>No</option>
               </select>
             </div>
-
+            
+            {/* Question 9 */}
             <div>
-              <label className="block font-medium">Skills development training attended</label>
+              <label className="block font-medium" htmlFor='tvetTrainingType'>Skills development training attended</label>
               <select
+                id='tvetTrainingType'
                 name="tvetTrainingType"
                 value={form.tvetTrainingType}
                 onChange={(e) => handleChange(index, e)}

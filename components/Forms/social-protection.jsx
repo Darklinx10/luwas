@@ -6,9 +6,10 @@ import { doc, setDoc, collection, getDoc, getDocs } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 export default function SocialProtectionProgramsForm({ householdId, goToNext }) {
-  const [isSaving, setIsSaving] = useState(false);
-  const [members, setMembers] = useState([]);
+  const [isSaving, setIsSaving] = useState(false); // Tracks save state
+  const [members, setMembers] = useState([]); // Household members list
 
+  // Initial form state
   const [form, setForm] = useState({
     programMembership: {
       SSS: '',
@@ -62,8 +63,9 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
     },
   });
 
-  const yesNoOptions = ['YES', 'NO'];
+  const yesNoOptions = ['YES', 'NO']; // Dropdown options
 
+  // Handles updates to form values
   const handleChange = (section, field, value) => {
     setForm((prev) => ({
       ...prev,
@@ -71,6 +73,7 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
     }));
   };
 
+  // Handles updates for benefitReceivers field
   const handleBenefitChange = (key, value) => {
     setForm((prev) => ({
       ...prev,
@@ -81,6 +84,7 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
     }));
   };
 
+  // Handles checkbox toggle inside nested program sections
   const handleCheckboxChange = (section, field, option) => {
     const current = form[section][field] || {};
     setForm((prev) => ({
@@ -89,35 +93,38 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
         ...prev[section],
         [field]: {
           ...current,
-          [option]: !current[option],
+          [option]: !current[option], // Toggle true/false
         },
       },
     }));
   };
 
+  // Handles form submission
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSaving(true);
+    e.preventDefault(); // Prevent default form behavior
+    setIsSaving(true);  // Set saving state to true
 
     try {
       const docRef = doc(db, 'households', householdId, 'SocialProtection', 'main');
 
-      // CLEAN the form data before sending to Firestore
+      // Clean form before saving
       const cleanData = removeUndefined(form);
-      cleanData.timestamp = new Date();
+      cleanData.timestamp = new Date(); // Add timestamp
 
+      // Save to Firestore
       await setDoc(docRef, cleanData);
+
       toast.success('Social Protection Programs saved!');
-      if (goToNext) goToNext();
+      if (goToNext) goToNext(); // Go to next section if handler is passed
     } catch (error) {
-      console.error('Error saving form:', error);
+      console.error('Error saving form:', error); // Debug log
       toast.error('Failed to save data.');
     } finally {
-      setIsSaving(false);
+      setIsSaving(false); // Reset saving state
     }
   };
 
-  // Recursively remove undefined values from nested objects
+  // Removes undefined values from deeply nested objects
   const removeUndefined = (obj) => {
     if (Array.isArray(obj)) {
       return obj.map(removeUndefined);
@@ -132,8 +139,7 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
     return obj;
   };
 
-
-
+  // Reusable Yes/No dropdown renderer
   const renderYesNoSelect = (section, field, label) => (
     <div className="mt-4">
       <label className="block mb-1 font-medium">{label}</label>
@@ -152,6 +158,7 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
     </div>
   );
 
+  // Reusable checkbox group for program options
   const renderCheckboxGroup = (section, field, options, label) => (
     <div className="mt-4">
       <label className="block font-medium mb-2">{label}</label>
@@ -171,6 +178,7 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
     </div>
   );
 
+  // Dropdown for selecting a household member
   const renderMemberSelect = (label, value, onChange, members) => (
     <div className="mt-4">
       <label className="block mb-1 font-medium">{label}</label>
@@ -189,39 +197,39 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
     </div>
   );
 
-    useEffect(() => {
-      const fetchMembers = async () => {
-        if (!householdId) return;
+  // Fetch household members on component mount or when householdId changes
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!householdId) return;
 
-        const people = [];
+      const people = [];
 
-        const geoSnap = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
-        if (geoSnap.exists()) {
-          const geo = geoSnap.data();
-          const name = `${geo.headFirstName || ''} ${geo.headMiddleName || ''} ${geo.headLastName || ''}`.trim();
-          people.push({ id: 'head', fullName: name });
-        }
+      // Fetch household head info from geographicIdentification document
+      //const geoSnap = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
+     // if (geoSnap.exists()) {
+     //   const geo = geoSnap.data();
+     //   const name = `${geo.headFirstName || ''} ${geo.headMiddleName || ''} ${geo.headLastName || ''}`.trim();
+     //   people.push({ id: 'head', fullName: name }); // Add head to people array
+     // }
 
-        const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-        for (const memberDoc of membersSnap.docs) {
-          const demoSnap = await getDocs(
-            collection(db, 'households', householdId, 'members', memberDoc.id, 'demographicCharacteristics')
-          );
-          demoSnap.forEach((doc) => {
-            const d = doc.data();
-            const fullName = `${d.firstName || ''} ${d.middleName || ''} ${d.lastName || ''}`.trim();
-            people.push({ id: memberDoc.id, fullName });
-          });
-        }
+      // Fetch each member and extract demographic data
+      const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
+      for (const memberDoc of membersSnap.docs) {
+        const demoSnap = await getDocs(
+          collection(db, 'households', householdId, 'members', memberDoc.id, 'demographicCharacteristics')
+        );
+        demoSnap.forEach((doc) => {
+          const d = doc.data();
+          const fullName = `${d.firstName || ''} ${d.middleName || ''} ${d.lastName || ''}`.trim();
+          people.push({ id: memberDoc.id, fullName }); // Add member to people array
+        });
+      }
 
-        setMembers(people);
-      };
+      setMembers(people); // Set state with collected members
+    };
 
-      fetchMembers();
-    }, [householdId]);
-
-
-      
+    fetchMembers();
+  }, [householdId]); // Re-run if householdId changes
 
     return (
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-6 space-y-6">
@@ -242,8 +250,10 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
           'PhilHealth',
         ].map(program => (
           <div key={program} className="mb-2">
-            <label className="block mb-1">{program}</label>
+            <label htmlFor='programMembership' className="block mb-1">{program}</label>
             <select
+              id='programMembership'
+              name='programMembership'
               className="border p-2 rounded w-full"
               value={form.programMembership?.[program] || ''}
               onChange={e =>
@@ -273,8 +283,9 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
 
         {/* PhilHealth Membership Type */}
         <div className="mt-4">
-          <label className="block mb-1">What is (NAME)’s type of PhilHealth membership?</label>
+          <label htmlFor='philHealthMembershipType' className="block mb-1">What is (NAME)’s type of PhilHealth membership?</label>
           <select
+            id='philHealthMembershipType'
             name="philHealthMembershipType"
             value={form.philHealthMembershipType}
             onChange={handleChange}
@@ -301,8 +312,10 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
           { label: 'G. PhilHealth', key: 'philHealth' },
         ].map(({ label, key }) => (
           <div key={key} className="mb-2">
-            <label className="block mb-1">{label}?</label>
+            <label htmlFor='benefitReceivers' className="block mb-1">{label}?</label>
             <select
+              id='benefitReceivers'
+              name='benefitReceivers'
               value={form.benefitReceivers[key]}
               onChange={(e) => handleBenefitChange(key, e.target.value)}
               className="border p-2 rounded w-full"
@@ -325,10 +338,12 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
 
         {/* Additional members */}
         <div className="mt-4">
-          <label className="block mb-1">
+          <label htmlFor='insuranceProgram' className="block mb-1">
             Are there other household members who are members of social/health insurance programs?
           </label>
           <select
+            id='insuranceProgram'
+            name='insuranceProgram'
             className="border p-2 rounded w-full"
             value={form.socialInsurance.otherMembers}
             onChange={(e) => handleChange('socialInsurance', 'otherMembers', e.target.value)}
@@ -363,10 +378,12 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
           'Others',
         ].map((program, idx) => (
           <div key={idx} className="mb-2">
-            <label className="block mb-1">
+            <label htmlFor='socialAssistancePrograms' className="block mb-1">
               {String.fromCharCode(65 + idx)}. {program}
             </label>
             <select
+              id='socialAssistancePrograms'
+              name='socialAssistancePrograms'
               className="border p-2 rounded w-full"
               value={form.socialAssistancePrograms[program] || ''}
               onChange={(e) =>
@@ -398,10 +415,12 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
 
         {/* Number of times received */}
         <div className="mt-4">
-          <label className="block mb-1">
+          <label htmlFor='timesReceived' className="block mb-1">
             How many times did your household receive these benefits/grants/assistance?
           </label>
           <input
+            id='timesReceived'
+            name='timesReceived'
             type="text"
             className="border p-2 rounded w-full"
             placeholder="Enter number of times"
@@ -417,10 +436,12 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
 
         {/* Other household members */}
         <div className="mt-4">
-          <label className="block mb-1">
+          <label htmlFor='othersReceived' className="block mb-1">
             Are there other household members who also received benefits from these programs?
           </label>
           <select
+            id='othersReceived'
+            name='othersReceived'
             className="border p-2 rounded w-full"
             value={form.benefits.othersReceived}
             onChange={(e) =>
@@ -449,8 +470,10 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
 
 
         <div className="mt-4">
-          <label className="block mb-1 font-medium">In the past 12 months (July 01, 2021 - June 30, 2022). how many times did your household benefit from the feeding program?</label>
+          <label htmlFor='feeding' className="block mb-1 font-medium">In the past 12 months (July 01, 2021 - June 30, 2022). how many times did your household benefit from the feeding program?</label>
           <input
+            id='feeding'
+            name='feeding'
             type="text"
             placeholder="Enter number of times received"
             className="border p-2 rounded w-full"
@@ -486,8 +509,10 @@ export default function SocialProtectionProgramsForm({ householdId, goToNext }) 
 
 
         <div className="mt-4">
-          <label className="block mb-1 font-medium">In the past 12 months (July 01, 2021 - June 30, 2022). how many times did your household receive benefits/grants/assistance/payment from the (NAME OF LABOR MARKET INTERVENTION PROGRAM)?</label>
+          <label htmlFor='labor' className="block mb-1 font-medium">In the past 12 months (July 01, 2021 - June 30, 2022). how many times did your household receive benefits/grants/assistance/payment from the (NAME OF LABOR MARKET INTERVENTION PROGRAM)?</label>
           <input
+            id='labor'
+            name='labor'
             type="text"
             placeholder="Enter number of times received"
             className="border p-2 rounded w-full"

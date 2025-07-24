@@ -12,8 +12,9 @@ import { toast } from 'react-toastify';
  * @param {function} goToNext - Callback to proceed to the next form
  */
 export default function CommunityAndPolitical({ householdId, members, goToNext }) {
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Tracks if data is being saved
   const [forms, setForms] = useState(() =>
+    // Initialize form state per member
     (members || []).map((member) => ({
       memberId: member.id,
       registeredVoter: '',
@@ -30,43 +31,42 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
     }))
   );
 
-  // Handle select change for each member form
+  // Handle form field change per member
   const handleChange = (index, e) => {
     const { name, value } = e.target;
-    const updated = [...forms];
-    updated[index][name] = value;
-    setForms(updated);
+    const updated = [...forms]; // Clone current forms state
+    updated[index][name] = value; // Update the changed field
+    setForms(updated); // Update state
   };
 
-  // Submit handler saves all member forms to Firestore
+  // Handle form submission
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setIsSaving(true);
-  try {
-    const saveTasks = forms.map(async (form) => {
-      const memberRef = doc(db, 'households', householdId, 'members', form.memberId);
+    e.preventDefault();
+    setIsSaving(true); // Disable button, show loading
+    try {
+      // Save form data for each member
+      const saveTasks = forms.map(async (form) => {
+        const memberRef = doc(db, 'households', householdId, 'members', form.memberId);
+        const formRef = doc(memberRef, 'communityAndPolitical', 'main'); // One document per member
+        await setDoc(formRef, form); // Save data
+      });
 
-      // ✅ Save individual community & political data
-      const formRef = doc(memberRef, 'communityAndPolitical', 'main');
-      await setDoc(formRef, form);
-    });
+      await Promise.all(saveTasks); // Wait for all saves to finish
 
-    await Promise.all(saveTasks);
+      // Also update household document with summary
+      await updateDoc(doc(db, 'households', householdId), {
+        communityAndPoliticalData: forms,
+      });
 
-    // ✅ Save summary to household document
-    await updateDoc(doc(db, 'households', householdId), {
-      communityAndPoliticalData: forms,
-    });
-
-    toast.success('Community & Political data saved!');
-    if (goToNext) goToNext();
-  } catch (error) {
-    console.error('❌ Error saving data:', error);
-    toast.error('Failed to save data.');
-  } finally {
-      setIsSaving(false); 
+      toast.success('Community & Political data saved!');
+      if (goToNext) goToNext(); // Proceed to next step
+    } catch (error) {
+      console.error('❌ Error saving data:', error);
+      toast.error('Failed to save data.');
+    } finally {
+      setIsSaving(false); // Re-enable button
     }
-};
+  };
 
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-6 pr-2">
@@ -81,9 +81,10 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
             </legend>
 
             {/* Question 1 */}
-            <label className="block">
+            <label className="block" htmlFor='registeredVoter'>
               <span className="font-medium">Are you a registered voter?</span>
               <select
+                id='registeredVoter'
                 name="registeredVoter"
                 value={form.registeredVoter}
                 onChange={(e) => handleChange(index, e)}
@@ -97,9 +98,10 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
             </label>
 
             {/* Question 2 */}
-            <label className="block">
+            <label className="block" htmlFor='votedLastElection'>
               <span className="font-medium">Did you vote in the last election?</span>
               <select
+                id='votedLastElection'
                 name="votedLastElection"
                 value={form.votedLastElection}
                 onChange={(e) => handleChange(index, e)}
@@ -113,11 +115,12 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
             </label>
 
             {/* Question 3 */}
-            <label className="block">
+            <label className="block" htmlFor='voluntaryWorkPastMonths'>
               <span className="font-medium">
                 In the past few months, did you do voluntary work or spend any time helping?
               </span>
               <select
+                id='voluntaryWorkPastMonths'
                 name="voluntaryWorkPastMonths"
                 value={form.voluntaryWorkPastMonths}
                 onChange={(e) => handleChange(index, e)}
@@ -131,9 +134,10 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
             </label>
 
             {/* Question 4 */}
-            <label className="block">
+            <label className="block" htmlFor='voluntaryWorkToWhom'>
               <span className="font-medium">To whom did you do voluntary work or spend any time helping?</span>
               <select
+                id='voluntaryWorkToWhom'
                 name="voluntaryWorkToWhom"
                 value={form.voluntaryWorkToWhom}
                 onChange={(e) => handleChange(index, e)}
@@ -150,11 +154,12 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
             </label>
 
             {/* Question 5 */}
-            <label className="block">
+            <label className="block" htmlFor='donatedGoodsPastMonths'>
               <span className="font-medium">
                 In the past few months, did you spend any time buying, collecting, or distributing donated products or goods?
               </span>
               <select
+                id='donatedGoodsPastMonths'
                 name="donatedGoodsPastMonths"
                 value={form.donatedGoodsPastMonths}
                 onChange={(e) => handleChange(index, e)}
@@ -168,11 +173,12 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
             </label>
 
             {/* Question 6 */}
-            <label className="block">
+            <label className="block" htmlFor='preparedGoodsForDonation'>
               <span className="font-medium">
                 Did you spend any time preparing products or goods to be donated?
               </span>
               <select
+                id='preparedGoodsForDonation'
                 name="preparedGoodsForDonation"
                 value={form.preparedGoodsForDonation}
                 onChange={(e) => handleChange(index, e)}
@@ -186,10 +192,11 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
             </label>
 
             {/* Question 7 */}
-            <label className="block">
+            <label className="block" htmlFor='helpProvided1'>
               <span className="font-medium">What kind of help did you provide?</span>
               <span className="text-xs italic block mb-1">Name all activities you remember</span>
               <select
+                id='helpProvided1'
                 name="helpProvided1"
                 value={form.helpProvided1}
                 onChange={(e) => handleChange(index, e)}
@@ -208,9 +215,10 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
             </label>
 
             {/* Question 8 */}
-            <label className="block">
+            <label className="block" htmlFor='spentMoreThanOneHour'>
               <span className="font-medium">Did you spend more than 1 hour on this in the past month?</span>
               <select
+                id='spentMoreThanOneHour'
                 name="spentMoreThanOneHour"
                 value={form.spentMoreThanOneHour}
                 onChange={(e) => handleChange(index, e)}
@@ -224,9 +232,10 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
             </label>
 
             {/* Question 9 */}
-            <label className="block">
+            <label className="block" htmlFor='volunteeredLast12Months'>
               <span className="font-medium">In the past 12 months, did you volunteer or provide unpaid help?</span>
               <select
+                id='volunteeredLast12Months'
                 name="volunteeredLast12Months"
                 value={form.volunteeredLast12Months}
                 onChange={(e) => handleChange(index, e)}
@@ -240,10 +249,11 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
             </label>
 
             {/* Question 10 */}
-            <label className="block">
+            <label className="block" htmlFor='helpProvided2'>
               <span className="font-medium">What help did you provide in that 12-month period?</span>
               <span className="text-xs italic block mb-1">Name all activities you remember</span>
               <select
+                id='helpProvided2'
                 name="helpProvided2"
                 value={form.helpProvided2}
                 onChange={(e) => handleChange(index, e)}
@@ -263,9 +273,10 @@ export default function CommunityAndPolitical({ householdId, members, goToNext }
             </label>
 
             {/* Question 11 */}
-            <label className="block">
+            <label className="block" htmlFor='lguInvolvement'>
               <span className="font-medium">Are you a barangay or LGU volunteer?</span>
               <select
+                id='lguInvolvement'
                 name="lguInvolvement"
                 value={form.lguInvolvement}
                 onChange={(e) => handleChange(index, e)}
