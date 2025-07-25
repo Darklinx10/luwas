@@ -24,7 +24,7 @@ const ActiveFaultLine = () => {
   const groundShakingStyle = {
     color: 'red',
     fillColor: 'red',     // Fill color
-    fillOpacity: 0.3,     // Fill transparency (0 = transparent, 1 = solid)
+    fillOpacity: 0.2,     // Fill transparency (0 = transparent, 1 = solid)
     
   };
 

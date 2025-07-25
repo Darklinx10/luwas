@@ -13,82 +13,6 @@ export default function SeniorPage() {
   const [selectedSenior, setSelectedSenior] = useState(null); //  Stores currently selected senior for editing
   const [showModal, setShowModal] = useState(false); //  Controls modal visibility
 
- {/* useEffect(() => {
-    //  Fetch all senior citizen records when component mounts
-    const fetchSeniors = async () => {
-      setLoading(true);
-      try {
-        const householdsSnap = await getDocs(collection(db, 'households')); // DEBUG: Get all household documents
-        const allData = [];
-
-        for (const householdDoc of householdsSnap.docs) {
-          const householdId = householdDoc.id;
-
-          //  Get head of household demographic info
-          const geoSnap = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
-          const geoData = geoSnap.exists() ? geoSnap.data() : {};
-          const barangay = geoData?.barangay || '—';
-
-          const headAge = parseInt(geoData.headAge);
-          if (!isNaN(headAge) && headAge >= 60) {
-            const fullName = `${geoData.headFirstName || ''} ${geoData.headMiddleName || ''} ${geoData.headLastName || ''} ${
-              geoData.headSuffix && geoData.headSuffix.trim().toLowerCase() !== 'n/a' ? geoData.headSuffix : ''
-            }`.trim();
-
-            allData.push({
-              id: householdId + '-head', //  Unique ID for head of household
-              name: fullName,
-              age: headAge,
-              sex: geoData.headSex || '—',
-              barangay,
-              contact: geoData.contactNumber || '—',
-              isHead: true,
-              householdId,
-            });
-          }
-
-          //  Loop through household members
-          const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-          for (const memberDoc of membersSnap.docs) {
-            const memberId = memberDoc.id;
-
-            const demoSnap = await getDoc(doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main'));
-            const demo = demoSnap.exists() ? demoSnap.data() : null;
-
-            if (demo) {
-              const age = parseInt(demo.age);
-              if (!isNaN(age) && age >= 60) {
-                const fullName = `${demo.firstName || ''} ${demo.middleName || ''} ${demo.lastName || ''} ${
-                  demo.suffix && demo.suffix.trim().toLowerCase() !== 'n/a' ? demo.suffix : ''
-                }`.trim();
-
-                allData.push({
-                  id: memberId, //  Unique ID for household member
-                  name: fullName,
-                  age,
-                  sex: demo.sex || '—',
-                  barangay,
-                  contact: demo.contactNumber || '—',
-                  isHead: (demo.relationshipToHead || '').toLowerCase().trim() === 'head',
-                  householdId,
-                });
-              }
-            }
-          }
-        }
-
-        setSeniors(allData); //  Set final list of senior citizens
-      } catch (error) {
-        console.error('Error fetching senior citizen data:', error);
-      } finally {
-        setLoading(false); //  Hide loading spinner
-      }
-    };
-
-    fetchSeniors();
-  }, []);
- */}
-
   useEffect(() => {
     const fetchSeniors = async () => {
       setLoading(true);
@@ -246,33 +170,43 @@ export default function SeniorPage() {
     }
   };
 
-
-
-
-  //  Delete senior record from Firestore
+  // Delete senior info in Firestore
   const handleDelete = async (item) => {
-    const confirm = window.confirm(`Are you sure you want to delete ${item.name}?`);
-    if (!confirm) return;
+    const confirmed = window.confirm(`Are you sure you want to remove senior citizen status for ${item.name}?`);
+    if (!confirmed) return;
+
+    setLoading(true);
 
     try {
-      if (item.isHead) {
-        //  Delete head record
-        const householdId = item.id.replace('-head', '');
-        await deleteDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
-      } else {
-        //  Delete member record
-        const householdId = seniors.find(h => h.id === item.id)?.householdId;
-        await deleteDoc(doc(db, 'households', householdId, 'members', item.id, 'demographicCharacteristics', 'main'));
-      }
+      const { id, householdId: rawHouseholdId } = item;
+      const householdId = rawHouseholdId || id.split('-')[0];
+      const lineNumber = id.replace(`${householdId}-`, '');
+      const isHead = lineNumber === 'head';
 
-      //  Remove from local state
-      setSeniors((prev) => prev.filter((s) => s.id !== item.id));
-      alert('Deleted successfully.');
+      // Reference to the demographic document (head or member)
+      const demographicRef = isHead
+        ? doc(db, 'households', householdId, 'demographicCharacteristics', 'main')
+        : doc(db, 'households', householdId, 'members', lineNumber, 'demographicCharacteristics', 'main');
+
+      // Clear or update senior status fields (adjust field names as per your DB schema)
+      await updateDoc(demographicRef, {
+        isSenior: false,       // Example flag - clear senior status
+        seniorCitizenId: '',   // Or clear any senior-specific ID
+        // Optionally clear other senior-related fields
+      });
+
+      // Update local state
+      setSeniors((prev) => prev.filter((s) => s.id !== id));
+
+      toast.success(`Senior citizen status removed for ${item.name}.`);
     } catch (error) {
-      console.error('Delete failed:', error);
-      alert('Failed to delete record.');
+      console.error('Failed to remove senior status:', error);
+      toast.error('Failed to remove senior citizen status.');
+    } finally {
+      setLoading(false);
     }
   };
+
 
   return (
     <div className="p-4">
@@ -306,13 +240,15 @@ export default function SeniorPage() {
           </div>
         </div>
 
-        {/*  Table display */}
+        {/*  Senior Data Table  */}
         <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
-          {loading ? (
-            <p className="text-center text-gray-500 py-6 animate-pulse">Loading senior citizen records...</p>
-          ) : filteredData.length === 0 ? (
-            <p className="text-center text-gray-500 py-6">No results matched your search.</p>
-          ) : (
+         {loading ? (
+          <p className="text-center text-gray-500 py-6 animate-pulse">Loading senior citizen records...</p>
+         ) : seniors.length === 0 ? (
+          <p className="text-center text-gray-500 py-6">No senior citizen records found.</p>
+         ) : filteredData.length === 0 ? (
+          <p className="text-center text-gray-500 py-6">No senior citizen record results.</p>
+         ) : (
             <>
               <table className="w-full text-sm text-center print:text-xs print:w-full print:border print:border-gray-400">
                 <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
@@ -337,6 +273,8 @@ export default function SeniorPage() {
                       <td className="px-4 py-2 border">{item.contact}</td>
                       <td className="px-4 py-2 border print:hidden">
                         <div className="flex justify-center gap-3">
+
+                          {/* Edit button */}
                           <button
                             onClick={() => {
                               setSelectedSenior(item);
@@ -347,6 +285,8 @@ export default function SeniorPage() {
                           >
                             <FiEdit />
                           </button>
+
+                           {/* Delete button */}
                           <button
                             onClick={() => handleDelete(item)}
                             className="text-red-600 hover:text-red-800 cursor-pointer"

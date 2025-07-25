@@ -145,34 +145,48 @@ export default function FamilyIncome({ householdId, goToNext }) {
         </select>
       </div>
 
-      {/* Question 2 */}
-      <div className="border-t pt-4">
-        <p className='mb-4 text-lg text-green-700'>(A–C) Income from Regular and Seasonal Employment</p>
-        <label className="block mb-1">How much was received by (NAME) as (A-C SOURCE OF INCOME) in the past 12 months (July 01, 2021 - June 30, 2022)?</label>
-        {['salaries', 'commissions', 'honoraria'].map((key, i) => (
-          <div key={key}>
-            <label>{String.fromCharCode(65 + i)}. {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</label>
-            <input type="text" name={key} value={form.sources[key]} onChange={handleChange} className="border p-2 rounded w-full" />
-          </div>
-        ))}
-        <label htmlFor='totalAC'>Total A–C</label>
-        <input
-          id='totalAC' 
-          type="text" 
-          name="totalAC" 
-          value={form.sources.totalAC} 
-          onChange={handleChange} 
-          className="border p-2 rounded w-full" />
-      </div>
+        {/* Question 2 */}
+        <div className="border-t pt-4">
+          <p className='mb-4 text-lg text-green-700'>(A–C) Income from Regular and Seasonal Employment</p>
+          <p className="block mb-1">How much was received by (NAME) as (A-C SOURCE OF INCOME) in the past 12 months (July 01, 2021 - June 30, 2022)?</p>
+          {['salaries', 'commissions', 'honoraria'].map((key, i) => (
+            <div key={key}>
+              <label>{String.fromCharCode(65 + i)}. {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</label>
+              <input 
+                type="text" 
+                id={`${key}-input`}        // unique id per input
+                name={key} 
+                value={form.sources[key]} 
+                onChange={handleChange} 
+                className="border p-2 rounded w-full" 
+              />
+            </div>
+          ))}
+          <label htmlFor='totalAC'>Total A–C</label>
+          <input
+            id='totalAC' 
+            type="text" 
+            name="totalAC" 
+            value={form.sources.totalAC} 
+            onChange={handleChange} 
+            className="border p-2 rounded w-full" />
+        </div>
       
       {/* Question 3 */}
       <div className="border-t pt-4">
         <p className='mb-4 text-lg text-green-700'>(D–E) Income from Entrepreneurial Activities</p>
-        <label className="block mb-1">How much was received by the family as (D-P SOURCE OF INCOME, Z) in the past 12 months (July 01, 2021 - June 30, 2022)?</label>
+        <p className="block mb-1">How much was received by the family as (D-P SOURCE OF INCOME, Z) in the past 12 months (July 01, 2021 - June 30, 2022)?</p>
         {['familyEnterprise', 'professionPractice'].map((key, i) => (
           <div key={key}>
             <label>{String.fromCharCode(68 + i)}. {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}</label>
-            <input type="text" name={key} value={form.sources[key]} onChange={handleChange} className="border p-2 rounded w-full" />
+            <input 
+              type="text" 
+              id={`${key}-input`} 
+              name={key} 
+              value={form.sources[key]} 
+              onChange={handleChange} 
+              className="border p-2 rounded w-full" 
+            />
           </div>
         ))}
         <label htmlFor='totalDE'>Total D–E</label>

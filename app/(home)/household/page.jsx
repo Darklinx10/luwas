@@ -8,6 +8,7 @@ import { collection, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '@/firebase/config';
 import dynamic from 'next/dynamic';
 import EditHouseholdModal from '@/components/modals/editHouseholModal';
+import { toast } from 'react-toastify';
 
 // Dynamically import map component to avoid SSR issues
 const MapPopup = dynamic(() => import('@/components/mapPopUp'), { ssr: false });
@@ -27,6 +28,7 @@ export default function HouseholdPage() {
   const [loading, setLoading] = useState(true);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedHouseholdId, setSelectedHouseholdId] = useState(null);
+  const [loadingMembers, setLoadingMembers] = useState({});
 
   // Redirect to add household form
   const handleAddClick = () => {
@@ -43,14 +45,19 @@ export default function HouseholdPage() {
     }
   };
 
-  // Expand/collapse household and fetch members if not cached
   const toggleExpanded = async (householdId) => {
     setExpandedHouseholds((prev) => ({
       ...prev,
       [householdId]: !prev[householdId],
     }));
 
+    // Only fetch if not already fetched
     if (!membersData[householdId]) {
+      setLoadingMembers((prev) => ({
+        ...prev,
+        [householdId]: true,
+      }));
+
       try {
         const memberSnapshot = await getDocs(
           collection(db, 'households', householdId, 'members')
@@ -88,9 +95,15 @@ export default function HouseholdPage() {
         }));
       } catch (error) {
         console.error('Error fetching members:', error);
+      } finally {
+        setLoadingMembers((prev) => ({
+          ...prev,
+          [householdId]: false,
+        }));
       }
     }
   };
+
 
   // Fetch all household data
   const fetchHouseholds = async () => {
@@ -228,7 +241,7 @@ export default function HouseholdPage() {
       {/* Table Section */}
       <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
         {loading ? (
-          <p className="text-center text-gray-500 py-6 animate-pulse">Fetching household records...</p>
+          <p className="text-center text-gray-500 py-6 animate-pulse">Loading household records...</p>
         ) : households.length === 0 ? (
           <p className="text-center text-gray-500 py-6">No household records found.</p>
         ) : filteredHouseholds.length === 0 ? (
@@ -289,6 +302,8 @@ export default function HouseholdPage() {
                           <td className="p-2 border">{data.contactNumber || '-'}</td>
                           <td className="p-2 border">{data.headAge || '-'}</td>
                           <td className="p-2 border">
+                            
+                            {/* Map button */}
                             <button
                               onClick={() => openMapWithLocation(data.latitude, data.longitude)}
                               className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 cursor-pointer"
@@ -297,7 +312,8 @@ export default function HouseholdPage() {
                             </button>
                           </td>
                           <td className="p-2 border space-x-2">
-                            {/* Edit household */}
+
+                            {/* Edit household Button*/}
                             <button
                               onClick={() => {
                                 setSelectedHouseholdId(data.householdId);
@@ -309,26 +325,30 @@ export default function HouseholdPage() {
                               <FiEdit />
                             </button>
 
-                            {/* Delete household */}
+                            {/* Delete household button */}
                             <button
                             onClick={async () => {
                               const confirmed = confirm('Are you sure you want to delete this household?');
                               if (!confirmed) return;
 
+                              setLoading(true);
                               try {
                                 const docRef = doc(db, 'households', data.householdId);
-                                await deleteDoc(docRef); // Direct call to delete the document
-                                await fetchHouseholds(); // Refresh the list
-                                alert('Household deleted successfully.');
+                                await deleteDoc(docRef);
+                                await fetchHouseholds();
+                                toast.success('Household deleted successfully.');
                               } catch (error) {
                                 console.error('Error deleting household:', error);
-                                alert('Failed to delete household.');
+                                toast.error('Failed to delete household.');
+                              } finally {
+                                setLoading(false);
                               }
                             }}
-                            className="text-red-600 hover:text-red-800 cursor-pointer"
+                            disabled={loading}
+                            className={`text-red-600 hover:text-red-800 cursor-pointer ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                             title="Delete"
                           >
-                            <FiTrash2 />
+                            {loading ? 'Deleting...' : <FiTrash2 />}
                           </button>
                           </td>
                         </tr>
@@ -338,18 +358,26 @@ export default function HouseholdPage() {
                           <tr>
                             <td colSpan="8" className="p-4 border bg-gray-50 text-left text-sm">
                               <strong>Household Members:</strong>
-                              {members.length > 0 ? (
+
+                              {loadingMembers[data.householdId] ? (
+                                <p className="text-gray-500 mt-1 animate-pulse">Loading household members...</p>
+                              ) : members.length === 0 ? (
+                                <p className="text-gray-500 mt-1">No household members found...</p>
+                              ) : members.filter(
+                                  (m) =>
+                                    (m.relationshipToHead || m.nuclearRelation || '').toLowerCase() !== 'head'
+                                ).length === 0 ? (
+                                <p className="text-gray-500 mt-1">No members found...</p>
+                              ) : (
                                 <div className="mt-2">
                                   {Object.entries(
-                                    // Filter out the household head BEFORE grouping
                                     members
                                       .filter(
                                         (m) =>
                                           (m.relationshipToHead || m.nuclearRelation || '').toLowerCase() !== 'head'
                                       )
                                       .reduce((acc, m) => {
-                                        const rawRelation =
-                                          m.nuclearRelation || m.relationshipToHead || 'Unspecified';
+                                        const rawRelation = m.nuclearRelation || m.relationshipToHead || 'Unspecified';
                                         const relationLabel = rawRelation.includes(' - ')
                                           ? rawRelation.split(' - ')[1].trim()
                                           : rawRelation.trim();
@@ -364,8 +392,7 @@ export default function HouseholdPage() {
                                       <ul className="list-disc list-inside ml-4">
                                         {group.map((m) => {
                                           const name = [m.firstName, m.lastName].filter(Boolean).join(' ');
-                                          const originalRelation =
-                                            m.nuclearRelation || m.relationshipToHead || 'N/A';
+                                          const originalRelation = m.nuclearRelation || m.relationshipToHead || 'N/A';
                                           const ageStr = m.age ? `${m.age} years old` : 'Age: N/A';
 
                                           return (
@@ -378,13 +405,10 @@ export default function HouseholdPage() {
                                     </div>
                                   ))}
                                 </div>
-                              ) : (
-                                <p className="text-gray-500 mt-1">Loading...</p>
                               )}
                             </td>
                           </tr>
                         )}
-
                       </React.Fragment>
                     );
                   })}

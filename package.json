@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@mapbox/leaflet-omnivore": "^0.3.4",
     "@react-google-maps/api": "^2.20.7",
+    "@turf/turf": "^7.2.0",
     "autoprefixer": "10.4.21",
     "eslint": "9.29.0",
     "eslint-config-next": "15.3.4",
@@ -19,6 +21,7 @@
     "framer-motion": "^12.23.6",
     "html2pdf.js": "^0.10.3",
     "leaflet": "^1.9.4",
+    "leaflet-omnivore": "^0.3.4",
     "lodash.debounce": "^4.0.8",
     "next": "15.3.4",
     "postcss": "8.5.6",
@@ -29,6 +32,7 @@
     "react-toastify": "^11.0.5",
     "recharts": "^3.0.0",
     "tailwindcss": "4.1.10",
+    "togeojson": "^0.16.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

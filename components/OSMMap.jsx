@@ -189,14 +189,14 @@ export default function MapPage() {
                 onChange={(e) => setActiveHazard(e.target.value)}
               >
                 <option value="">None</option>
-                <option value="Active Faults">Active Faults</option>
-                <option value="Liquefaction">Liquefaction</option>
-                <option value="Rain Induced Landslide">Rain Induced Landslide</option>
-                <option value="Earthquake Induced Landslide">Earthquake Induced Landslide</option>
-                <option value="Ground Shaking">Ground Shaking</option>
-                <option value="Storm Surge">Storm Surge</option>
-                <option value="Landslide">Landslide</option>
-                <option value="Tsunami">Tsunami</option>
+                <option value="Active Faults">Active Faults Susceptibility Map </option>
+                <option value="Liquefaction">Liquefaction Susceptibility Map</option>
+                <option value="Rain Induced Landslide">Rain Induced Landslide Susceptibility Map</option>
+                <option value="Earthquake Induced Landslide">Earthquake Induced Landslide Susceptibility Map</option>
+                <option value="Ground Shaking">Ground Shaking Susceptibility Map</option>
+                <option value="Storm Surge">Storm Surge Susceptibility Map</option>
+                <option value="Tsunami">Tsunami Susceptibility Map</option>
+                <option value="Tsunami">Landslide Susceptibility Map</option>
               </select>
             </div>
           </div>

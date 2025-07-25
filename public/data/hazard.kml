@@ -1,0 +1,188 @@
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L1_0_0.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>123.96069312818314,10.007605268680122
+124.17397557458888,10.007605268680122
+124.17397557458888,9.856368624865002
+123.96069312818314,9.856368624865002
+123.96069312818314,10.007605268680122</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L2_0_0.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>123.96069312818314,10.007605268680122
+124.07099677723338,10.007605268680122
+124.07099677723338,9.89730161962978
+123.96069312818314,9.89730161962978
+123.96069312818314,10.007605268680122</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_0_0.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>123.96069312818314,10.007605268680122
+124.01584495270826,10.007605268680122
+124.01584495270826,9.95245344415495
+123.96069312818314,9.95245344415495
+123.96069312818314,10.007605268680122</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_0_1.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>124.01584495270826,10.007605268680122
+124.07099677723338,10.007605268680122
+124.07099677723338,9.95245344415495
+124.01584495270826,9.95245344415495
+124.01584495270826,10.007605268680122</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_1_0.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>123.96069312818314,9.95245344415495
+124.01584495270826,9.95245344415495
+124.01584495270826,9.89730161962978
+123.96069312818314,9.89730161962978
+123.96069312818314,9.95245344415495</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_1_1.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>124.01584495270826,9.95245344415495
+124.07099677723338,9.95245344415495
+124.07099677723338,9.89730161962978
+124.01584495270826,9.89730161962978
+124.01584495270826,9.95245344415495</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L2_0_1.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>124.07099677723338,10.007605268680122
+124.17397557458888,10.007605268680122
+124.17397557458888,9.89730161962978
+124.07099677723338,9.89730161962978
+124.07099677723338,10.007605268680122</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_0_2.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>124.07099677723338,10.007605268680122
+124.1261486017585,10.007605268680122
+124.1261486017585,9.95245344415495
+124.07099677723338,9.95245344415495
+124.07099677723338,10.007605268680122</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_0_3.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>124.1261486017585,10.007605268680122
+124.17397557458888,10.007605268680122
+124.17397557458888,9.95245344415495
+124.1261486017585,9.95245344415495
+124.1261486017585,10.007605268680122</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_1_2.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>124.07099677723338,9.95245344415495
+124.1261486017585,9.95245344415495
+124.1261486017585,9.89730161962978
+124.07099677723338,9.89730161962978
+124.07099677723338,9.95245344415495</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_1_3.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>124.1261486017585,9.95245344415495
+124.17397557458888,9.95245344415495
+124.17397557458888,9.89730161962978
+124.1261486017585,9.89730161962978
+124.1261486017585,9.95245344415495</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L2_1_0.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>123.96069312818314,9.89730161962978
+124.07099677723338,9.89730161962978
+124.07099677723338,9.856368624865002
+123.96069312818314,9.856368624865002
+123.96069312818314,9.89730161962978</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_2_0.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>123.96069312818314,9.89730161962978
+124.01584495270826,9.89730161962978
+124.01584495270826,9.856368624865002
+123.96069312818314,9.856368624865002
+123.96069312818314,9.89730161962978</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_2_1.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>124.01584495270826,9.89730161962978
+124.07099677723338,9.89730161962978
+124.07099677723338,9.856368624865002
+124.01584495270826,9.856368624865002
+124.01584495270826,9.89730161962978</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L2_1_1.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>124.07099677723338,9.89730161962978
+124.17397557458888,9.89730161962978
+124.17397557458888,9.856368624865002
+124.07099677723338,9.856368624865002
+124.07099677723338,9.89730161962978</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_2_2.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>124.07099677723338,9.89730161962978
+124.1261486017585,9.89730161962978
+124.1261486017585,9.856368624865002
+124.07099677723338,9.856368624865002
+124.07099677723338,9.89730161962978</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<ExtendedData>
+  <Data name="@geometry-type"><value>groundoverlay</value></Data>
+  <Data name="icon"><value>kml_image_clarin_eil_2018_071214_01_L3_2_3.png</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>124.1261486017585,9.89730161962978
+124.17397557458888,9.89730161962978
+124.17397557458888,9.856368624865002
+124.1261486017585,9.856368624865002
+124.1261486017585,9.89730161962978</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>

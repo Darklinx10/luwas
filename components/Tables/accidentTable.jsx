@@ -176,12 +176,14 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
           </div>
         </div>
 
-        {/* Data Table */}
+        {/* Accident Data Table */}
         <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
           {loading ? (
             <p className="text-center text-gray-500 py-6 animate-pulse">Loading accident records...</p>
+          ) : accidents.length === 0 ? (
+            <p className="text-center text-gray-500 py-6">No accident records found.</p>
           ) : filteredAccidents.length === 0 ? (
-            <p className="text-center text-gray-500 py-6">No results matched your search.</p>
+            <p className="text-center text-gray-500 py-6">No accident record results.</p>
           ) : (
             <>
               <table className="w-full text-sm text-center print:text-xs print:w-full print:border print:border-gray-400">
@@ -210,6 +212,8 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
                             : '—'}
                         </td>
                         <td className="px-4 py-2 border print:hidden">
+
+                          {/* Map button */}
                           <button
                             onClick={() =>
                               openMapWithLocation(accident.position?.lat, accident.position?.lng)
@@ -220,6 +224,8 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
                           </button>
                         </td>
                         <td className="px-4 py-2 border space-x-2 print:hidden">
+
+                          {/* Edit button */}
                           <button
                             onClick={() => handleEdit(accident.id)}
                             className="text-blue-600 hover:text-blue-800 cursor-pointer"
@@ -227,6 +233,8 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
                           >
                             <FiEdit size={16} />
                           </button>
+
+                          {/* Delete button */}
                           <button
                             onClick={() => handleDelete(accident.id)}
                             className="text-red-600 hover:text-red-800 cursor-pointer"

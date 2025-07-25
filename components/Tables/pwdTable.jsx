@@ -135,7 +135,7 @@ export default function PWDPage() {
     URL.revokeObjectURL(a.href); // Clean up URL object
   };
 
-  // Save edited assistance info
+  // Save edited 
   const handleSaveEdit = async () => {
     if (!selectedPWD) return;
 
@@ -208,26 +208,40 @@ export default function PWDPage() {
 
 
 
+  //Removes the PWD (Person With Disability) status for a specific individual.
+  const handleDelete = async (pwd) => {
+    if (!pwd) return;
 
-  // Remove assistance info from DB
-  const handleDelete = async (householdId) => {
+    if (!confirm(`Are you sure you want to remove PWD status for ${pwd.name}?`)) return;
+
+    setLoading(true);
+
     try {
-      await updateDoc(doc(db, 'households', householdId, 'health', 'main'), {
-        assistanceReceived: '',
+      const { householdId, id } = pwd;
+      const lineNumber = id.replace(`${householdId}-`, '');
+
+      // Clear PWD flag and disability in health doc
+      const healthRef = doc(db, 'households', householdId, 'health', 'main');
+      await updateDoc(healthRef, {
+        isPWD: false,
+        pwdLineNumber: '',
+        pwdDisabilityType: '',
       });
 
-      // Update UI by clearing value
-      setPwds((prev) =>
-        prev.map((item) =>
-          item.householdId === householdId ? { ...item, assistance: '' } : item
-        )
-      );
-      alert('Assistance deleted.');
+      // Optionally, you could also clear demographic info related to PWD if needed
+
+      // Remove from local state
+      setPwds((prev) => prev.filter((item) => item.id !== id));
+
+      toast.success(`PWD status removed for ${pwd.name}`);
     } catch (error) {
-      console.error('Delete failed:', error);
-      alert('Failed to delete assistance.');
+      console.error('Failed to remove PWD status:', error);
+      toast.error('Failed to remove PWD status.');
+    } finally {
+      setLoading(false);
     }
   };
+
 
   return (
     <div className="p-4">
@@ -265,12 +279,14 @@ export default function PWDPage() {
           </div>
         </div>
         
-        {/* Data Table */}
+        {/* PWD Data Table */}
         <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4 ">
           {loading ? (
             <p className="text-center text-gray-500 py-6 animate-pulse">Loading PWD records...</p>
+          ) : pwds.length === 0 ? (
+            <p className="text-center text-gray-500 py-6">No PWD records found.</p>
           ) : filteredData.length === 0 ? (
-            <p className="text-center text-gray-500 py-6">No results matched your search.</p>
+            <p className="text-center text-gray-500 py-6">No PWD record results.</p>
           ) : (
             <>
               <table className="w-full text-sm text-center print:text-xs print:w-full">
@@ -298,6 +314,7 @@ export default function PWDPage() {
                         <td className="px-4 py-2 border">{item.disability}</td>
                         <td className="px-4 py-2 border print:hidden">
                           <div className="flex justify-center gap-3">
+
                             {/* Edit button */}
                             <button
                               className="text-blue-600 hover:text-blue-800 cursor-pointer"
@@ -313,11 +330,7 @@ export default function PWDPage() {
                             {/* Delete button */}
                             <button
                               className="text-red-600 hover:text-red-800 cursor-pointer"
-                              onClick={() => {
-                                if (confirm('Are you sure you want to delete assistance received info?')) {
-                                  handleDelete(item.householdId);
-                                }
-                              }}
+                              onClick={() => handleDelete(item)}
                               title="Delete"
                             >
                               <FiTrash2 />

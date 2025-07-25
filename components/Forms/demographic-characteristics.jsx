@@ -7,11 +7,13 @@ import { toast } from 'react-toastify';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function DemographicCharacteristics({ householdId, goToNext, setSavedMembers }) {
+  // State to manage saving status
   const [isSaving, setIsSaving] = useState(false);
 
+  // State to manage members data
   const [members, setMembers] = useState([
     {
-      id: uuidv4(),
+      id: uuidv4(), // Generate a unique id for the member
       lastName: '',
       firstName: '',
       middleName: '',
@@ -39,6 +41,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
     },
   ]);
 
+  // Array of difficulty options for each member
   const difficultyOptions = [
     'Seeing (even with glasses)',
     'Hearing (even with hearing aid)',
@@ -48,6 +51,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
     'Communicating (usual language)',
   ];
 
+  // Predefined select options for various fields
   const selectFields = {
     relationshipToHead: ['', 'Head', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister', 'Father', 'Mother', 'Father-in-law', 'Mother-in-law', 'Brother-in-law', 'Sister-in-law', 'Uncle', 'Aunt', 'Nephew', 'Niece', 'Other Relative', 'Border', 'Domestic Helper', 'Nonrelative'],
     nuclearRelation: ['', 'None', 'Family Head', 'Spouse', 'Partner', 'Son', 'Daughter', 'Brother', 'Sister', 'Father', 'Mother', 'Other'],
@@ -62,23 +66,26 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
     seniorCitizenId: ['', 'Yes', 'No', "Don't Know"]
   };
 
+  // Handle changes in member fields (e.g., firstName, lastName)
   const handleMemberChange = (index, field) => (e) => {
-    const newMembers = [...members];
-    newMembers[index][field] = e.target.value;
-    setMembers(newMembers);
+    const newMembers = [...members]; // Copy the existing members array
+    newMembers[index][field] = e.target.value; // Update the specific field of the member
+    setMembers(newMembers); // Update state with the new members array
   };
 
+  // Handle changes in difficulty fields for each member
   const handleDifficultyChange = (index, question) => (e) => {
-    const newMembers = [...members];
-    newMembers[index].difficulties[question] = e.target.value;
-    setMembers(newMembers);
+    const newMembers = [...members]; // Copy the existing members array
+    newMembers[index].difficulties[question] = e.target.value; // Update difficulty for the specific question
+    setMembers(newMembers); // Update state with the new members array
   };
 
+  // Add a new member to the members array
   const addMember = () => {
     setMembers((prev) => [
       ...prev,
       {
-        id: uuidv4(),
+        id: uuidv4(), // Generate a unique id for the new member
         lastName: '',
         firstName: '',
         middleName: '',
@@ -102,21 +109,24 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
         soloParentId: '',
         seniorCitizenId: '',
         contactNumber: '',
-        difficulties: {},
+        difficulties: {}, // Default empty object for difficulties
       },
     ]);
   };
 
+  // Remove a member from the members array
   const removeMember = (index) => {
-    setMembers(members.filter((_, i) => i !== index));
+    setMembers(members.filter((_, i) => i !== index)); // Remove member at the specified index
   };
 
+  // Handle form submission for saving member data to Firestore
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSaving(true);
+    setIsSaving(true); // Set the saving state to true (to disable UI during save)
 
-    const user = auth.currentUser;
+    const user = auth.currentUser; // Get the current authenticated user
 
+    // If user is not authenticated, show an error and stop the save process
     if (!user) {
       toast.error('User not authenticated.');
       setIsSaving(false);
@@ -124,46 +134,71 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
     }
 
     try {
+      // Map over all members and save each member to Firestore
       const saveTasks = members.map(async (member) => {
-        const memberRef = doc(db, 'households', householdId, 'members', member.id);
-
+        // Prepare the member data by ensuring all fields are sanitized and populated
         const cleanedMember = {
-          firstName: member.firstName,
-          lastName: member.lastName,
-          middleName: member.middleName,
+          firstName: member.firstName || '',
+          lastName: member.lastName || '',
+          middleName: member.middleName || '',
           suffix: member.suffix || '',
-          uid: user.uid,
-          sex: member.sex,
-          age: Number(member.age),
+          uid: user.uid, // Associate the member with the authenticated user
+          sex: member.sex || '',
+          age: Number(member.age) || 0, // Convert age to a number, defaulting to 0 if invalid
           relationshipToHead: member.relationshipToHead || '',
-          updatedAt: new Date(), // <-- Firestore timestamp
+          updatedAt: new Date(), // Timestamp for when the record is saved/updated
+          contactNumber: member.contactNumber || '', // Contact number field
+          ethnicity: member.ethnicity || '',
+          religion: member.religion || '',
+          philsysNumber: member.philsysNumber || '',
+          lguIdNumber: member.lguIdNumber || '',
+          nuclearBelonging: member.nuclearBelonging || '',
+          maritalStatus: member.maritalStatus || '',
+          difficulties: member.difficulties || {}, // Ensure difficulties are saved
+          soloParent: member.soloParent || '',
+          soloParentId: member.soloParentId || '',
+          seniorCitizenId: member.seniorCitizenId || '',
+          hasNationalID: member.hasNationalID || '',
+          hasBiometric: member.hasBiometric || '',
+          hasLGUID: member.hasLGUID || '',
         };
 
-        // Save to /members/{id}
+        // Log the cleaned member data for debugging purposes
+        console.log('Saving member data:', cleanedMember);
+
+        // Firestore reference to the member document
+        const memberRef = doc(db, 'households', householdId, 'members', member.id);
+
+        // Save the member data to Firestore
         await setDoc(memberRef, cleanedMember);
 
-        // Save to /members/{id}/demographicCharacteristics/main
+        // Save demographic data in a sub-collection for each member
         const demoRef = doc(memberRef, 'demographicCharacteristics', 'main');
         await setDoc(demoRef, {
-          ...cleanedMember,
-        }, { merge: true }); // <-- merge to avoid overwriting extra fields
+          ...cleanedMember,  // Merge all member data
+        }, { merge: true });  // Use merge to avoid overwriting existing data
       });
 
+      // Wait for all member data to be saved
       await Promise.all(saveTasks);
 
-      // Save all members to the parent household document (optional flat list)
+      // Optionally, save a list of all members to the parent household document
       await updateDoc(doc(db, 'households', householdId), {
         demographicCharacteristics: members,
       });
 
+      // Callback to update the saved members state in the parent component
       setSavedMembers?.(members);
+      
+      // Show success toast and move to the next step
       toast.success('Demographic information saved!');
-      goToNext();
+      goToNext(); // Navigate to the next step
     } catch (error) {
+      // Handle any errors during the save process
       console.error('❌ Error saving demographic info:', error);
       toast.error('Failed to save data.');
     } finally {
-      setIsSaving(false);
+      setIsSaving(false); // Reset saving state
     }
   };
 

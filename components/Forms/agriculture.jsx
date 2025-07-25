@@ -257,7 +257,7 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Select Parcel Type Question #1 */}
       <div className="space-y-0">
-        <label className="block">
+        <label htmlFor="parcelType" className="block">
           Does any member of your household operate the agricultural activity mainly using ______?
         </label>
         <select
@@ -266,6 +266,7 @@ export default function Agriculture({ householdId, goToNext }) {
           className="border p-2 rounded w-full"
           value={form.parcelType || ''}
           onChange={(e) => handleChange('parcelType', e.target.value)}
+          aria-required="true"  /* mark required fields for screen readers */
         >
           <option value="">-- Select Parcel Type --</option>
           {parcelTypes.map((opt) => (
@@ -278,7 +279,7 @@ export default function Agriculture({ householdId, goToNext }) {
       {form.parcelType === 'Agricultural land/parcel' && (
         <section className="border p-4 rounded bg-gray-50 space-y-4 mt-4">
           <div className="space-y-0">
-            <label className="block">
+            <label htmlFor="parcelCount" className="block">
               How many parcels are being operated/managed by the household (either alone or jointly with someone else)?
             </label>
             <input
@@ -291,9 +292,9 @@ export default function Agriculture({ householdId, goToNext }) {
               onChange={(e) => handleChange('parcelCount', e.target.value)}
             />
           </div>
-        
+
           <div className="space-y-0">
-            <label className="block">Where is the parcel located?</label>
+            <label htmlFor="parcelLocation" className="block">Where is the parcel located?</label>
             <select
               id="parcelLocation"
               name="parcelLocation"
@@ -307,9 +308,9 @@ export default function Agriculture({ householdId, goToNext }) {
               ))}
             </select>
           </div>
-      
+
           <div className="space-y-0">
-            <label className="block">Which activity/ies is/are done in the parcel?</label>
+            <label htmlFor="parcelActivity" className="block">Which activity/ies is/are done in the parcel?</label>
             <select
               id="parcelActivity"
               name="parcelActivity"
@@ -329,7 +330,7 @@ export default function Agriculture({ householdId, goToNext }) {
           </h2>
           {/* Question #4 */}
           <div className="space-y-0">
-            <label className="block">
+            <label htmlFor="tenureStatus" className="block">
               What is the tenure status of the parcel that the household operates?
             </label>
             <select
@@ -345,12 +346,12 @@ export default function Agriculture({ householdId, goToNext }) {
               ))}
             </select>
           </div>
-          
+
           {/* Question #5 */}
           {['Crop Farming', 'Both Crop Farming and Livestock and/or poultry raising'].includes(form.parcelActivity) && (
             <>
               <div className="space-y-0">
-                <label className="block">Was the parcel irrigated as of July 01, 2022?</label>
+                <label htmlFor="irrigatedOnDate" className="block">Was the parcel irrigated as of July 01, 2022?</label>
                 <select
                   id="irrigatedOnDate"
                   name="irrigatedOnDate"
@@ -367,7 +368,7 @@ export default function Agriculture({ householdId, goToNext }) {
               {/* Question #6 */}
               {form.irrigatedOnDate === 'YES' && (
                 <div className="space-y-0">
-                  <label className="block">What is the status of irrigation of the parcel?</label>
+                  <label htmlFor="irrigationStatus" className="block">What is the status of irrigation of the parcel?</label>
                   <select
                     id="irrigationStatus"
                     name="irrigationStatus"
@@ -385,7 +386,7 @@ export default function Agriculture({ householdId, goToNext }) {
               {/* Question #7 */}
               {['YES', 'NO'].includes(form.irrigatedOnDate) && (
                 <div className="space-y-0">
-                  <label className="block">Is the farm operated rainfed upland or rainfed lowland?</label>
+                  <label htmlFor="rainfedType" className="block">Is the farm operated rainfed upland or rainfed lowland?</label>
                   <select
                     id="rainfedType"
                     name="rainfedType"
@@ -404,7 +405,7 @@ export default function Agriculture({ householdId, goToNext }) {
           )}
           {/* Question #8 */}
           <div className="space-y-0">
-            <label className="block">
+            <label htmlFor="parcelArea" className="block">
               What is the physical area of the parcel? (in hectares)
             </label>
             <input
@@ -419,7 +420,7 @@ export default function Agriculture({ householdId, goToNext }) {
           </div>
           {/* Question #9 */}
           <div className="space-y-0">
-            <label className="block">
+            <label htmlFor="landOperator" className="block">
               Who among the household members are operator/s of the agricultural land/parcel?
             </label>
             <select
@@ -442,7 +443,7 @@ export default function Agriculture({ householdId, goToNext }) {
           </div>
           {/* Question #10 */}
           <div className="space-y-0">
-            <label className="block">
+            <label htmlFor="totalParcelArea" className="block">
               What is the total physical area of all the parcels of land operated by the household?
             </label>
             <input
@@ -456,7 +457,7 @@ export default function Agriculture({ householdId, goToNext }) {
           </div>
           {/* Question #11 */}
           <div className="space-y-0">
-            <label className="block">
+            <label htmlFor="hasOtherParcels" className="block">
               Are there other agricultural land/parcels operated by the household?
             </label>
             <select
@@ -476,12 +477,12 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Question #11.1 */}
       <div className="space-y-0">
-        <label className="block">
+        <label htmlFor="engagedInAgriFishery" className="block">
           In the past 12 months, was there any member of this household engaged in any agricultural or fishery activities?
         </label>
         <select
-          id='engagedInAgriFishery'
-          name='engagedInAgriFishery'
+          id="engagedInAgriFishery"
+          name="engagedInAgriFishery"
           className="border p-2 rounded w-full"
           value={form.engagedInAgriFishery || ''}
           onChange={(e) => handleChange('engagedInAgriFishery', e.target.value)}
@@ -498,8 +499,8 @@ export default function Agriculture({ householdId, goToNext }) {
         <label className="block">Who among the household members is engaged in these activities?</label>
         <div className="flex gap-2">
           <select
-            id='selectedEngagedMember'
-            name='selectedEngagedMember'
+            id="selectedEngagedMember"
+            name="selectedEngagedMember"
             className="border p-2 rounded w-full"
             value={form.selectedEngagedMember || ''}
             onChange={(e) => handleChange('selectedEngagedMember', e.target.value)}
@@ -542,6 +543,7 @@ export default function Agriculture({ householdId, goToNext }) {
           </button>
         </div>
       </div>
+
       
       {/* Per-member subform */}
       {(form.engagedMembers || []).map((member) => (
@@ -550,7 +552,7 @@ export default function Agriculture({ householdId, goToNext }) {
 
           {/* Question #12 */}
           <div className="space-y-0">
-            <label className="block">
+            <label htmlFor='memberActivitiesMap' className="block">
               In what agricultural and fishery activity/ies is the member engaged in?
             </label>
             <select
@@ -604,7 +606,7 @@ export default function Agriculture({ householdId, goToNext }) {
           {isCropOrLivestock && (
             <>
               {/* Q13 */}
-              <label className="block mt-4">What is the type of engagement in crop/livestock/poultry raising?</label>
+              <label htmlFor='engagementTypeCrops' className="block mt-4">What is the type of engagement in crop/livestock/poultry raising?</label>
               <select
                 id='engagementTypeCrops'
                 name='engagementTypeCrops'
@@ -632,7 +634,7 @@ export default function Agriculture({ householdId, goToNext }) {
               </select>
 
               {/* Q14 */}
-              <label className="block mt-4">Which production activity/ies does the member engage in?</label>
+              <label htmlFor='productionActivitiesAgri' className="block mt-4">Which production activity/ies does the member engage in?</label>
               <input
                 id='productionActivitiesAgri'
                 name='productionActivitiesAgri'
@@ -658,7 +660,7 @@ export default function Agriculture({ householdId, goToNext }) {
           {isFishery && (
             <>
               {/* Q15 */}
-              <label className="block mt-4">What is the type of engagement in the fisheries activity?</label>
+              <label htmlFor='engagementTypeFishery' className="block mt-4">What is the type of engagement in the fisheries activity?</label>
               <input
                 id='engagementTypeFishery'
                 name='engagementTypeFishery'
@@ -680,7 +682,7 @@ export default function Agriculture({ householdId, goToNext }) {
               />
 
               {/* Q16 */}
-              <label className="block mt-4">Which production activity/ies in aquaculture/fish capture/gleaning?</label>
+              <label htmlFor='productionActivitiesFishery' className="block mt-4">Which production activity/ies in aquaculture/fish capture/gleaning?</label>
               <input
                 id='productionActivitiesFishery'
                 name='productionActivitiesFishery'
@@ -704,7 +706,7 @@ export default function Agriculture({ householdId, goToNext }) {
           )}
 
           {/* Q17 */}
-          <label className="block mt-4">Is the member a part of any agricultural organization?</label>
+          <label htmlFor='isOrgMember' className="block mt-4">Is the member a part of any agricultural organization?</label>
           <select
             id='isOrgMember'
             name='isOrgMember'
@@ -729,7 +731,7 @@ export default function Agriculture({ householdId, goToNext }) {
           </select>
 
           {/* Q18 */}
-          <label className="block mt-4"> What is/are the name/s of the organization/s?</label>
+          <label htmlFor='organizationNames' className="block mt-4"> What is/are the name/s of the organization/s?</label>
           <input
             id='organizationNames'
             name='organizationNames'
@@ -751,7 +753,7 @@ export default function Agriculture({ householdId, goToNext }) {
           />
 
           {/* Q19 */}
-          <label className="block mt-4">
+          <label htmlFor='hydroponicSystem' className="block mt-4">
             What type of hydroponics system did you or your household member use?
           </label>
           <select
@@ -864,7 +866,7 @@ export default function Agriculture({ householdId, goToNext }) {
 
         {/* Q21 */}
         <div className="space-y-0 mt-4">
-          <label className="block">Draft animals, agri equipment, facilities, and other tools used:</label>
+          <label htmlFor='equipmentName' className="block">Draft animals, agri equipment, facilities, and other tools used:</label>
           <input
             id='equipmentName'
             name='equipmentName'
@@ -877,7 +879,7 @@ export default function Agriculture({ householdId, goToNext }) {
 
           {/* Q22 */}
           <div className="space-y-2">
-            <label className="block">
+            <label htmlFor="ownedQty" className="block">
               How many of these draft animals, agricultural equipment, facilities, and other tools were owned?
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -894,7 +896,7 @@ export default function Agriculture({ householdId, goToNext }) {
                 />
               </div>
               <div>
-                <label className="block text-sm mb-1">Rented</label>
+                <label htmlFor="rentedQty" className="block text-sm mb-1">Rented</label>
                 <input
                   id="rentedQty"
                   name="rentedQty"
@@ -906,7 +908,7 @@ export default function Agriculture({ householdId, goToNext }) {
                 />
               </div>
               <div>
-                <label className="block text-sm mb-1">Rent-Free</label>
+                <label htmlFor="rentFreeQty" className="block text-sm mb-1">Rent-Free</label>
                 <input
                   id="rentFreeQty"
                   name="rentFreeQty"
@@ -918,7 +920,7 @@ export default function Agriculture({ householdId, goToNext }) {
                 />
               </div>
               <div>
-                <label className="block text-sm mb-1">Total</label>
+                <label htmlFor="totalQty" className="block text-sm mb-1">Total</label>
                 <input
                   id="totalQty"
                   name="totalQty"
@@ -931,166 +933,168 @@ export default function Agriculture({ householdId, goToNext }) {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Q23 */}
-        <section>
-          <h3 className="mt-8" >Continuous Crop Farming in the Past 3 Years</h3>
-          <select
-            id='cropContinuously'
-            name='cropContinuously'
-            className="border p-2 rounded w-full"
-            value={form.cropContinuously || ''}
-            onChange={(e) => handleChange('cropContinuously', e.target.value)}
-          >
-            <option value="">-- Select --</option>
-            <option value="YES">Yes</option>
-            <option value="NO">No</option>
-          </select>
-        </section>
+          {/* Q23 */}
+          <section>
+            <h3 className="mt-8">Continuous Crop Farming in the Past 3 Years</h3>
+            <select
+              id="cropContinuously"
+              name="cropContinuously"
+              className="border p-2 rounded w-full"
+              value={form.cropContinuously || ''}
+              onChange={(e) => handleChange('cropContinuously', e.target.value)}
+            >
+              <option value="">-- Select --</option>
+              <option value="YES">Yes</option>
+              <option value="NO">No</option>
+            </select>
+          </section>
 
-        {/* Q24 */}
-        <section>
-          <h3 className="mt-8">Did Your Household's Harvest Decrease, Increase, or Stay the Same?</h3>
-          <select
-            id='cropChange'
-            name='cropChange'
-            className="border p-2 rounded w-full"
-            value={form.cropChange || ''}
-            onChange={(e) => handleChange('cropChange', e.target.value)}
-          >
-            <option value="">-- Select --</option>
-            <option value="DECREASE">Decrease</option>
-            <option value="INCREASE">Increase</option>
-            <option value="SAME">Remain the Same</option>
-          </select>
-        </section>
+          {/* Q24 */}
+          <section>
+            <h3 className="mt-8">Did Your Household's Harvest Decrease, Increase, or Stay the Same?</h3>
+            <select
+              id="cropChange"
+              name="cropChange"
+              className="border p-2 rounded w-full"
+              value={form.cropChange || ''}
+              onChange={(e) => handleChange('cropChange', e.target.value)}
+            >
+              <option value="">-- Select --</option>
+              <option value="DECREASE">Decrease</option>
+              <option value="INCREASE">Increase</option>
+              <option value="SAME">Remain the Same</option>
+            </select>
+          </section>
 
-        {/* Q25-26: Shown only if Decreased */}
-        {form.cropChange === 'DECREASE' && (
-          <>
-            <section>
-              <h3 className=" mt-8">What Was the Primary Reason for the Decrease?</h3>
-              <input
-                id='cropChangeReason'
-                name='cropChangeReason'
-                type="text"
-                className="border p-2 rounded w-full"
-                placeholder="e.g., Drought, Typhoon, Fertilizer cost"
-                value={form.cropChangeReason || ''}
-                onChange={(e) => handleChange('cropChangeReason', e.target.value)}
-              />
-            </section>
-            <section>
-              <h3 className="mt-4">Percentage Decrease in Latest Harvest (%)</h3>
-              <input
-                id='cropDecreasePercent'
-                name='cropDecreasePercent'
-                type="number"
-                className="border p-2 rounded w-full"
-                placeholder="Enter percentage"
-                value={form.cropDecreasePercent || ''}
-                onChange={(e) => handleChange('cropDecreasePercent', e.target.value)}
-              />
-            </section>
-          </>
-        )}
+          {/* Q25-26: Shown only if Decreased */}
+          {form.cropChange === 'DECREASE' && (
+            <>
+              <section>
+                <h3 className="mt-8">What Was the Primary Reason for the Decrease?</h3>
+                <input
+                  id="cropChangeReason"
+                  name="cropChangeReason"
+                  type="text"
+                  className="border p-2 rounded w-full"
+                  placeholder="e.g., Drought, Typhoon, Fertilizer cost"
+                  value={form.cropChangeReason || ''}
+                  onChange={(e) => handleChange('cropChangeReason', e.target.value)}
+                />
+              </section>
+              <section>
+                <h3 className="mt-4">Percentage Decrease in Latest Harvest (%)</h3>
+                <input
+                  id="cropDecreasePercent"
+                  name="cropDecreasePercent"
+                  type="number"
+                  className="border p-2 rounded w-full"
+                  placeholder="Enter percentage"
+                  value={form.cropDecreasePercent || ''}
+                  onChange={(e) => handleChange('cropDecreasePercent', e.target.value)}
+                />
+              </section>
+            </>
+          )}
 
-        {/* Q27: Livestock */}
-        <section>
-          <h3 className="mt-8">Livestock and/or Poultry Operator</h3>
-          {[0, 1, 2].map((_, i) => (
-            <div key={i} className="mb-4">
-              <label className="block" htmlFor='livestockMembers'>HH Member {i + 1} Line Number</label>
-              <input
-                id='livestockMembers'
-                name='livestockMembers'
-                type="text"
-                className="border p-2 rounded w-full"
-                value={form.livestockMembers[i]?.lineNumber || ''}
-                onChange={(e) => {
-                  const updated = [...form.livestockMembers];
-                  updated[i] = { ...updated[i], lineNumber: e.target.value };
-                  handleChange('livestockMembers', updated);
-                }}
-              />
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                {['Carabao', 'Cattle', 'Swine', 'Goat', 'Chicken', 'Duck', 'Horse', 'Sheep', 'Rabbit', 'Others'].map((animal, index) => (
-                  <label key={index} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={form.livestockMembers[i]?.animals?.includes(animal) || false}
-                      onChange={(e) => {
-                        const updated = [...form.livestockMembers];
-                        const animals = updated[i]?.animals || [];
-                        if (e.target.checked) {
-                          updated[i].animals = [...animals, animal];
-                        } else {
-                          updated[i].animals = animals.filter((a) => a !== animal);
-                        }
-                        handleChange('livestockMembers', updated);
-                      }}
-                    />
-                    {animal}
-                  </label>
-                ))}
+          {/* Q27: Livestock */}
+          <section>
+            <h3 className="mt-8">Livestock and/or Poultry Operator</h3>
+            {[0, 1, 2].map((_, i) => (
+              <div key={i} className="mb-4">
+                <label className="block" htmlFor={`livestockMemberLineNumber${i}`}>
+                  HH Member {i + 1} Line Number
+                </label>
+                <input
+                  id={`livestockMemberLineNumber${i}`}
+                  name={`livestockMemberLineNumber${i}`}
+                  type="text"
+                  className="border p-2 rounded w-full"
+                  value={form.livestockMembers?.[i]?.lineNumber || ''}
+                  onChange={(e) => {
+                    const updated = [...(form.livestockMembers || [])];
+                    updated[i] = { ...updated[i], lineNumber: e.target.value };
+                    handleChange('livestockMembers', updated);
+                  }}
+                />
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {['Carabao', 'Cattle', 'Swine', 'Goat', 'Chicken', 'Duck', 'Horse', 'Sheep', 'Rabbit', 'Others'].map((animal, index) => (
+                    <label key={index} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={form.livestockMembers?.[i]?.animals?.includes(animal) || false}
+                        onChange={(e) => {
+                          const updated = [...(form.livestockMembers || [])];
+                          const animals = updated[i]?.animals || [];
+                          if (e.target.checked) {
+                            updated[i] = { ...updated[i], animals: [...animals, animal] };
+                          } else {
+                            updated[i] = { ...updated[i], animals: animals.filter(a => a !== animal) };
+                          }
+                          handleChange('livestockMembers', updated);
+                        }}
+                      />
+                      {animal}
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </section>
+            ))}
+          </section>
 
-        {/* Q28 */}
-        <section>
-          <h3 className=" mt-8">Tools/Machinery Used for Livestock</h3>
-          <input
-            id='toolsUsedText'
-            name='toolsUsedText'
-            type="text"
-            className="border p-2 rounded w-full"
-            placeholder="List tools/machines used in livestock raising..."
-            value={form.toolsUsedText || ''}
-            onChange={(e) => handleChange('toolsUsedText', e.target.value)}
-          />
-        </section>
+          {/* Q28 */}
+          <section>
+            <h3 className="mt-8">Tools/Machinery Used for Livestock</h3>
+            <input
+              id="toolsUsedText"
+              name="toolsUsedText"
+              type="text"
+              className="border p-2 rounded w-full"
+              placeholder="List tools/machines used in livestock raising..."
+              value={form.toolsUsedText || ''}
+              onChange={(e) => handleChange('toolsUsedText', e.target.value)}
+            />
+          </section>
 
-        {/* Q29 */}
-        <section>
-          <h3 className="mt-8">Ownership of the Above Livestock Equipment</h3>
-          <input
-            id='livestockOwnership'
-            name='livestockOwnership'
-            type="text"
-            className="border p-2 rounded w-full"
-            placeholder="Owned / Rented / Rent-Free breakdown"
-            value={form.livestockOwnership || ''}
-            onChange={(e) => handleChange('livestockOwnership', e.target.value)}
-          />
-        </section>
+          {/* Q29 */}
+          <section>
+            <h3 className="mt-8">Ownership of the Above Livestock Equipment</h3>
+            <input
+              id="livestockOwnership"
+              name="livestockOwnership"
+              type="text"
+              className="border p-2 rounded w-full"
+              placeholder="Owned / Rented / Rent-Free breakdown"
+              value={form.livestockOwnership || ''}
+              onChange={(e) => handleChange('livestockOwnership', e.target.value)}
+            />
+          </section>
 
-        {/* Q30 */}
-        <section>
-          <h3 className="mt-8">Continuously Raised Livestock in Last 3 Years?</h3>
-          <select
-            id='livestockContinuously'
-            name='livestockContinuously'
-            className="border p-2 rounded w-full"
-            value={form.livestockContinuously || ''}
-            onChange={(e) => handleChange('livestockContinuously', e.target.value)}
-          >
-            <option value="">-- Select --</option>
-            <option value="YES">Yes</option>
-            <option value="NO">No</option>
-          </select>
-        </section>
+          {/* Q30 */}
+          <section>
+            <h3 className="mt-8">Continuously Raised Livestock in Last 3 Years?</h3>
+            <select
+              id="livestockContinuously"
+              name="livestockContinuously"
+              className="border p-2 rounded w-full"
+              value={form.livestockContinuously || ''}
+              onChange={(e) => handleChange('livestockContinuously', e.target.value)}
+            >
+              <option value="">-- Select --</option>
+              <option value="YES">Yes</option>
+              <option value="NO">No</option>
+            </select>
+          </section>
+        </div>
       </>
-
 
       {/* Q31 */}
       <section>
         <h3 className="mt-8">Did Volume of Livestock Change Compared to 2019?</h3>
+        <label htmlFor="livestockChange" className="sr-only">Volume of Livestock Change</label>
         <select
-          id='livestockChange'
-          name='livestockChange'
+          id="livestockChange"
+          name="livestockChange"
           className="border p-2 rounded w-full"
           value={form.livestockChange || ''}
           onChange={(e) => handleChange('livestockChange', e.target.value)}
@@ -1107,9 +1111,10 @@ export default function Agriculture({ householdId, goToNext }) {
         <>
           <section>
             <h3 className="mt-8">Reason for Livestock Decrease</h3>
+            <label htmlFor="livestockChangeReason" className="sr-only">Reason for Livestock Decrease</label>
             <input
-              id='livestockChangeReason'
-              name='livestockChangeReason'
+              id="livestockChangeReason"
+              name="livestockChangeReason"
               type="text"
               className="border p-2 rounded w-full"
               placeholder="e.g., Disease, Flood, Hot Weather"
@@ -1119,9 +1124,10 @@ export default function Agriculture({ householdId, goToNext }) {
           </section>
           <section>
             <h3 className=" mt-4">Percentage Decrease (%)</h3>
+            <label htmlFor="livestockDecreasePercent" className="sr-only">Percentage Decrease</label>
             <input
-              id='livestockDecreasePercent'
-              name='livestockDecreasePercent'
+              id="livestockDecreasePercent"
+              name="livestockDecreasePercent"
               type="number"
               className="border p-2 rounded w-full"
               value={form.livestockDecreasePercent || ''}
@@ -1136,10 +1142,10 @@ export default function Agriculture({ householdId, goToNext }) {
         <h3 className="mt-8">Aquafarm Operation</h3>
         <div className="grid grid-cols-6 gap-4 mt-2">
           {form.aquaFarms?.map((checked, index) => (
-            <label key={index} className="flex items-center gap-2">
+            <label key={index} htmlFor={`aquaFarms_${index}`} className="flex items-center gap-2">
               <input
-                id='aquaFarms'
-                name='aquaFarms'
+                id={`aquaFarms_${index}`}
+                name="aquaFarms"
                 type="checkbox"
                 checked={checked}
                 onChange={(e) => {
@@ -1156,9 +1162,9 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Q36 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">Where is the aquafarm located?</label>
+        <label htmlFor="aquafarmLocation" className="font-medium block mb-1">Where is the aquafarm located?</label>
         <select
-          id='aquafarmLocation'
+          id="aquafarmLocation"
           name="aquafarmLocation"
           className="border p-2 rounded w-full"
           value={form.aquafarmLocation || ''}
@@ -1173,9 +1179,9 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Q37 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">What is the type of aquafarm?</label>
+        <label htmlFor="aquafarmType" className="font-medium block mb-1">What is the type of aquafarm?</label>
         <select
-          id='aquafarmType'
+          id="aquafarmType"
           name="aquafarmType"
           className="border p-2 rounded w-full"
           value={form.aquafarmType || ''}
@@ -1192,39 +1198,44 @@ export default function Agriculture({ householdId, goToNext }) {
           <option value="9">Others</option>
         </select>
         {form.aquafarmType === '9' && (
-          <input
-            id='aquafarmOther'
-            type="text"
-            name="aquafarmOther"
-            placeholder="If others, specify"
-            className="border p-2 rounded w-full mt-2"
-            value={form.aquafarmOther || ''}
-            onChange={(e) => handleChange('aquafarmOther', e.target.value)}
-          />
+          <>
+            <label htmlFor="aquafarmOther" className="sr-only">Specify Other Aquafarm Type</label>
+            <input
+              id="aquafarmOther"
+              type="text"
+              name="aquafarmOther"
+              placeholder="If others, specify"
+              className="border p-2 rounded w-full mt-2"
+              value={form.aquafarmOther || ''}
+              onChange={(e) => handleChange('aquafarmOther', e.target.value)}
+            />
+          </>
         )}
       </div>
 
       {/* Q38 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">Aquafarm measurement</label>
+        <label htmlFor="area" className="font-medium block mb-1">Aquafarm measurement - Area (sq. m)</label>
         <input
-          id='area'
+          id="area"
           name="area"
           placeholder="Area (sq. m)"
           className="border p-2 rounded w-full mb-2"
           value={form.area || ''}
           onChange={(e) => handleChange('area', e.target.value)}
         />
+        <label htmlFor="depth" className="sr-only">Aquafarm measurement - Depth (m)</label>
         <input
-          id='depth'
+          id="depth"
           name="depth"
           placeholder="Depth (m)"
           className="border p-2 rounded w-full mb-2"
           value={form.depth || ''}
           onChange={(e) => handleChange('depth', e.target.value)}
         />
+        <label htmlFor="volume" className="sr-only">Aquafarm measurement - Volume (cu. m)</label>
         <input
-          id='volume'
+          id="volume"
           name="volume"
           placeholder="Volume (cu. m)"
           className="border p-2 rounded w-full"
@@ -1235,9 +1246,9 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Q39 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">Type of water environment</label>
+        <label htmlFor="waterType" className="font-medium block mb-1">Type of water environment</label>
         <select
-          id='waterType'
+          id="waterType"
           name="waterType"
           className="border p-2 rounded w-full"
           value={form.waterType || ''}
@@ -1252,9 +1263,9 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Q40 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">Tenurial status of the aquafarm</label>
+        <label htmlFor="tenureStatus" className="font-medium block mb-1">Tenurial status of the aquafarm</label>
         <select
-          id='tenureStatus'
+          id="tenureStatus"
           name="tenureStatus"
           className="border p-2 rounded w-full"
           value={form.tenureStatus || ''}
@@ -1273,25 +1284,28 @@ export default function Agriculture({ householdId, goToNext }) {
           <option value="Others">Others</option>
         </select>
         {form.tenureStatus === 'Others' && (
-          <input
-            id='tenureOther'
-            type="text"
-            name="tenureOther"
-            placeholder="If others, specify"
-            className="border p-2 rounded w-full mt-2"
-            value={form.tenureOther || ''}
-            onChange={(e) => handleChange('tenureOther', e.target.value)}
-          />
+          <>
+            <label htmlFor="tenureOther" className="sr-only">Specify Other Tenurial Status</label>
+            <input
+              id="tenureOther"
+              type="text"
+              name="tenureOther"
+              placeholder="If others, specify"
+              className="border p-2 rounded w-full mt-2"
+              value={form.tenureOther || ''}
+              onChange={(e) => handleChange('tenureOther', e.target.value)}
+            />
+          </>
         )}
       </div>
-
-
-      {/* Q41–42 */}
-      <div className="mt-6">
-        <label className="font-medium block mb-2">Aquafarm machineries, equipment/facilities</label>
+      
+      {/* Q41-42 */}
+      <fieldset className="mt-6">
+        <legend className="font-medium block mb-2">Aquafarm machineries, equipment/facilities</legend>
         {[...Array(5)].map((_, i) => (
           <div key={i} className="flex gap-2 mb-2">
             <input
+              id={`equipName${i}`}
               name={`equipName${i}`}
               placeholder="Equipment Name"
               className="border p-2 rounded w-full"
@@ -1299,6 +1313,7 @@ export default function Agriculture({ householdId, goToNext }) {
               onChange={handleChange}
             />
             <input
+              id={`equipCode${i}`}
               name={`equipCode${i}`}
               placeholder="Code"
               className="border p-2 rounded w-20"
@@ -1306,6 +1321,7 @@ export default function Agriculture({ householdId, goToNext }) {
               onChange={handleChange}
             />
             <input
+              id={`owned${i}`}
               name={`owned${i}`}
               placeholder="Owned"
               type="number"
@@ -1314,6 +1330,7 @@ export default function Agriculture({ householdId, goToNext }) {
               onChange={handleChange}
             />
             <input
+              id={`rented${i}`}
               name={`rented${i}`}
               placeholder="Rented"
               type="number"
@@ -1322,6 +1339,7 @@ export default function Agriculture({ householdId, goToNext }) {
               onChange={handleChange}
             />
             <input
+              id={`rentFree${i}`}
               name={`rentFree${i}`}
               placeholder="Rent-Free"
               type="number"
@@ -1331,13 +1349,14 @@ export default function Agriculture({ householdId, goToNext }) {
             />
           </div>
         ))}
-      </div>
+      </fieldset>
+
 
       {/* Q43 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">Continuously operating aquafarm in past 3 years?</label>
+        <label className="font-medium block mb-1" htmlFor="continuousAquafarm">Continuously operating aquafarm in past 3 years?</label>
         <select
-          id='continuousAquafarm'
+          id="continuousAquafarm"
           name="continuousAquafarm"
           className="border p-2 rounded w-full"
           value={form.continuousAquafarm || ''}
@@ -1351,9 +1370,9 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Q44 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">Aquafarm harvest trend since 2019</label>
+        <label className="font-medium block mb-1" htmlFor="aquafarmHarvestTrend">Aquafarm harvest trend since 2019</label>
         <select
-          id='aquafarmHarvestTrend'
+          id="aquafarmHarvestTrend"
           name="aquafarmHarvestTrend"
           className="border p-2 rounded w-full"
           value={form.aquafarmHarvestTrend || ''}
@@ -1366,12 +1385,12 @@ export default function Agriculture({ householdId, goToNext }) {
         </select>
       </div>
 
-      {/* Q45 - Show only if Q44 answer is "1" (Decrease) */}
+      {/* Q45 - Show only if Q44 answer is "Decrease" */}
       {form.aquafarmHarvestTrend === 'Decrease' && (
         <div className="mt-6">
-          <label className="font-medium block mb-1">Reason for harvest decrease</label>
+          <label className="font-medium block mb-1" htmlFor="harvestDecreaseReason">Reason for harvest decrease</label>
           <select
-            id='harvestDecreaseReason'
+            id="harvestDecreaseReason"
             name="harvestDecreaseReason"
             className="border p-2 rounded w-full"
             value={form.harvestDecreaseReason || ''}
@@ -1388,9 +1407,9 @@ export default function Agriculture({ householdId, goToNext }) {
           </select>
 
           {/* If 'Others' is selected */}
-          {form.harvestDecreaseReason === '9' && (
+          {form.harvestDecreaseReason === 'Others' && (
             <input
-              id='harvestOther'
+              id="harvestOther"
               name="harvestOther"
               placeholder="If others, specify"
               className="border p-2 rounded w-full mt-2"
@@ -1403,9 +1422,9 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Q46 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">Percentage decrease in latest aquafarm harvest</label>
+        <label className="font-medium block mb-1" htmlFor="aquafarmDecreasePercent">Percentage decrease in latest aquafarm harvest</label>
         <input
-          id='aquafarmDecreasePercent'
+          id="aquafarmDecreasePercent"
           name="aquafarmDecreasePercent"
           type="number"
           className="border p-2 rounded w-full"
@@ -1416,9 +1435,9 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Q47 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">Does any member of the household use boat/vessel for fish capture?</label>
+        <label className="font-medium block mb-1" htmlFor="usesBoat">Does any member of the household use boat/vessel for fish capture?</label>
         <select
-          id='usesBoat'
+          id="usesBoat"
           name="usesBoat"
           className="border p-2 rounded w-full"
           value={form.usesBoat || ''}
@@ -1432,9 +1451,9 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Q48 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">How many boats/vessels does the household use for fish capture?</label>
+        <label className="font-medium block mb-1" htmlFor="numBoats">How many boats/vessels does the household use for fish capture?</label>
         <input
-          id='numBoats'
+          id="numBoats"
           name="numBoats"
           type="number"
           className="border p-2 rounded w-full"
@@ -1446,8 +1465,9 @@ export default function Agriculture({ householdId, goToNext }) {
       {/* Q49–50 */}
       {[...Array(3)].map((_, i) => (
         <div key={i} className="space-y-2 mt-4">
-          <label className="font-medium block">Boat/Vessel {i + 1}</label>
+          <label className="font-medium block" htmlFor={`boat${i}_owned`}>Boat/Vessel {i + 1}</label>
           <select
+            id={`boat${i}_owned`}
             name={`boat${i}_owned`}
             className="border p-2 rounded w-full"
             value={form[`boat${i}_owned`] || ''}
@@ -1458,6 +1478,7 @@ export default function Agriculture({ householdId, goToNext }) {
             <option value="Not Owned">Not Owned</option>
           </select>
           <select
+            id={`boat${i}_type`}
             name={`boat${i}_type`}
             className="border p-2 rounded w-full"
             value={form[`boat${i}_type`] || ''}
@@ -1472,11 +1493,15 @@ export default function Agriculture({ householdId, goToNext }) {
         </div>
       ))}
 
+
+
       {/* Q51 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1">Where is the fish capture operation most often performed?</label>
+        <label className="font-medium block mb-1" htmlFor="fishCaptureLocation">
+          Where is the fish capture operation most often performed?
+        </label>
         <select
-          id='fishCaptureLocation'
+          id="fishCaptureLocation"
           name="fishCaptureLocation"
           className="border p-2 rounded w-full"
           value={form.fishCaptureLocation || ''}
@@ -1495,6 +1520,7 @@ export default function Agriculture({ householdId, goToNext }) {
         {[...Array(5)].map((_, i) => (
           <div key={i} className="flex gap-2 mb-2">
             <input
+              id={`gearName${i}`}
               name={`gearName${i}`}
               placeholder="Name"
               className="border p-2 rounded w-full"
@@ -1502,6 +1528,7 @@ export default function Agriculture({ householdId, goToNext }) {
               onChange={handleChange}
             />
             <input
+              id={`gearCode${i}`}
               name={`gearCode${i}`}
               placeholder="Code"
               className="border p-2 rounded w-24"
@@ -1574,12 +1601,13 @@ export default function Agriculture({ householdId, goToNext }) {
         ))}
       </div>
 
-
       {/* Q54 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1" htmlFor='continuousFishCaptures'>Continuously operating fish capture in last 3 years?</label>
+        <label className="font-medium block mb-1" htmlFor="continuousFishCapture">
+          Continuously operating fish capture in last 3 years?
+        </label>
         <select
-          id='continuousFishCapture'
+          id="continuousFishCapture"
           name="continuousFishCapture"
           className="border p-2 rounded w-full"
           value={form.continuousFishCapture || ''}
@@ -1593,9 +1621,11 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Q55 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1" htmlFor='fishCatchTrends'>Fish catch trend since 2019</label>
+        <label className="font-medium block mb-1" htmlFor="fishCatchTrend">
+          Fish catch trend since 2019
+        </label>
         <select
-          id='fishCatchTrend'
+          id="fishCatchTrend"
           name="fishCatchTrend"
           className="border p-2 rounded w-full"
           value={form.fishCatchTrend || ''}
@@ -1611,9 +1641,11 @@ export default function Agriculture({ householdId, goToNext }) {
       {/* Q56 - Show only if Q55 = "Decrease" */}
       {form.fishCatchTrend === 'Decrease' && (
         <div className="mt-6">
-          <label className="font-medium block mb-1" htmlFor='fishCatchReasons'>Reason for decrease in fish catch</label>
+          <label className="font-medium block mb-1" htmlFor="fishCatchReason">
+            Reason for decrease in fish catch
+          </label>
           <select
-            id='fishCatchReason'
+            id="fishCatchReason"
             name="fishCatchReason"
             className="border p-2 rounded w-full"
             value={form.fishCatchReason || ''}
@@ -1636,7 +1668,7 @@ export default function Agriculture({ householdId, goToNext }) {
           {/* If "Others", show text input */}
           {form.fishCatchReason === 'Others' && (
             <input  
-              id='fishCatchOther'
+              id="fishCatchOther"
               name="fishCatchOther"
               placeholder="If others, specify"
               className="border p-2 rounded w-full mt-2"
@@ -1649,9 +1681,11 @@ export default function Agriculture({ householdId, goToNext }) {
 
       {/* Q57 */}
       <div className="mt-6">
-        <label className="font-medium block mb-1" >Percentage decrease in latest fish catch</label>
+        <label className="font-medium block mb-1" htmlFor="fishCatchDecreasePercent">
+          Percentage decrease in latest fish catch
+        </label>
         <input
-          id='fishCatchDecreasePercent'
+          id="fishCatchDecreasePercent"
           name="fishCatchDecreasePercent"
           type="number"
           className="border p-2 rounded w-full"
@@ -1659,6 +1693,7 @@ export default function Agriculture({ householdId, goToNext }) {
           onChange={handleChange}
         />
       </div>
+
 
       {/* ✅ Submit button */}
       <div className="pt-6 flex justify-end">
