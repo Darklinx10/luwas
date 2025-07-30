@@ -13,15 +13,18 @@ import {
 
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
-import { collection, collectionGroup, getDocs, getDoc, doc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
+import { db, auth } from '@/firebase/config';
+import { onAuthStateChanged } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
-// Dynamically load charts to avoid SSR issues
+// Dynamically load charts
 const BarChartComponent = dynamic(() => import('@/components/barchart'), { ssr: false });
 const AgeBracketChart = dynamic(() => import('@/components/agebracket'), { ssr: false });
 
 export default function DashboardPage() {
-  // Initial state to store statistics
+  const router = useRouter();
+
   const [stats, setStats] = useState({
     residents: 0,
     householdHeads: 0,
@@ -30,19 +33,24 @@ export default function DashboardPage() {
     families: 0,
     pwd: 0,
     seniors: 0,
-    ageCount: 0, // total combined age
+    ageCount: 0,
     hazards: 0,
     growthRate: '0%',
   });
 
+  // Auth + Data Fetch
   useEffect(() => {
-    // Fetch statistics from Firestore
-    const fetchStats = async () => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        console.warn('🚫 Not authenticated, redirecting to login...');
+        router.push('/login');
+        return;
+      }
+
       try {
         const householdSnap = await getDocs(collection(db, 'households'));
         const householdCount = householdSnap.size;
 
-        // Tracking variables
         let residentCount = 0;
         let householdHeads = 0;
         let householdMembers = 0;
@@ -53,28 +61,20 @@ export default function DashboardPage() {
         for (const householdDoc of householdSnap.docs) {
           const householdId = householdDoc.id;
 
-          // Get head of household data (age)
           const geoDocRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
           const geoSnap = await getDoc(geoDocRef);
           const geoData = geoSnap.exists() ? geoSnap.data() : {};
           const headAge = parseInt(geoData.headAge);
 
-         
           householdHeads++;
-
           if (!isNaN(headAge)) {
             ageCount += headAge;
-            
           }
 
-          // Fetch household members
           const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-
-          // Fetch health data
           const healthSnap = await getDocs(collection(db, 'households', householdId, 'health'));
           const healthMap = new Map(healthSnap.docs.map((h) => [h.id, h.data()]));
 
-          // Check if head is PWD
           try {
             const mainHealthDoc = await getDoc(doc(db, 'households', householdId, 'health', 'main'));
             if (mainHealthDoc.exists()) {
@@ -83,18 +83,15 @@ export default function DashboardPage() {
                 pwdCount++;
               }
             }
-          } catch (e) {
-            console.warn(`⚠️ No main health document for household ${householdId}`);
+          } catch {
+            console.warn(`⚠️ Missing health doc for household ${householdId}`);
           }
 
-          // Update member counts
           residentCount += membersSnap.size;
           householdMembers += membersSnap.size;
 
-          // Loop through members to check age, seniors, and PWD
           for (const memberDoc of membersSnap.docs) {
             const memberId = memberDoc.id;
-
             const demoSnap = await getDoc(doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main'));
             const demo = demoSnap.exists() ? demoSnap.data() : {};
             const age = parseInt(demo.age);
@@ -111,41 +108,31 @@ export default function DashboardPage() {
           }
         }
 
-        // Count total hazards from all nested "hazards" collections
-        //let hazardsCount = 0;
-        //try {
-         // const hazardSnap = await getDocs(collectionGroup(db, 'hazards'));
-         // hazardsCount = hazardSnap.size;
-        //} catch (e) {
-        //  console.warn('No hazards collection found.');
-        //}
-        const hazardsCount = 0;
+        // Set dummy hazard count for now (or replace with actual query if needed)
+        const hazardsCount = 8;
 
-        // Update state with collected stats
         setStats({
           residents: residentCount,
           householdHeads,
           householdMembers,
           households: householdCount,
-          families: householdCount, // currently same as households
+          families: householdCount,
           pwd: pwdCount,
           seniors: seniorCount,
-          ageCount: residentCount, // note: should be total age if renamed
+          ageCount,
           hazards: hazardsCount,
-          growthRate: '0%', // static for now
+          growthRate: '30%', // Example static
         });
       } catch (err) {
-        console.error('Error fetching dashboard stats:', err);
+        console.error('🔥 Error fetching dashboard stats:', err);
       }
-    };
+    });
 
-    fetchStats();
-  }, []); // only runs once on page load
-
+    return () => unsubscribe();
+  }, [router]);
 
   return (
     <div className="space-y-6">
-
       {/* Top Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-5">
         <SummaryCard title="Total Residents" value={stats.residents} icon={<FaUsers />} color="bg-blue-500" />
@@ -160,7 +147,6 @@ export default function DashboardPage() {
           <h3 className="text-lg font-semibold mb-4">Residents Data</h3>
           <BarChartComponent />
         </div>
-
         <div className="bg-white rounded-xl shadow p-4">
           <h3 className="text-lg font-semibold mb-4">Age Bracket</h3>
           <AgeBracketChart />
@@ -178,7 +164,7 @@ export default function DashboardPage() {
   );
 }
 
-//  Reusable Summary Card component
+// Reusable summary card
 function SummaryCard({ title, value, icon, color }) {
   return (
     <div className={`flex items-center p-4 rounded-xl text-white shadow ${color}`}>
@@ -191,7 +177,7 @@ function SummaryCard({ title, value, icon, color }) {
   );
 }
 
-//  Reusable Bottom Stat Card
+// Reusable bottom stat
 function BottomStat({ title, value, icon, color }) {
   return (
     <div className="flex items-center justify-between bg-white rounded-xl shadow p-6">

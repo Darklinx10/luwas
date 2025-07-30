@@ -81,7 +81,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
       toast.success('You have been logged out.');
       setTimeout(() => {
         router.push('/');
-      }, 500); // short delay for smooth UI
+      }, 50); // short delay for smooth UI
     } catch (error) {
       console.error('Logout failed:', error);
       toast.error('Failed to log out.');

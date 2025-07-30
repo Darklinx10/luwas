@@ -46,7 +46,7 @@ export default function MapPopup({
 }) {
   const defaultLocation = { lat: 9.9611, lng: 124.0247 }; // Default location fallback
   const [position, setPosition] = useState(location || defaultLocation);
-  const [hazardGeoJSON, setHazardGeoJSON] = useState(null); // Store hazard geojson data
+  const [boundaryGeoJSON, setHboundaryGeoJSON] = useState(null); // Store boundary geojson data
 
   // Update marker position if location prop changes
   useEffect(() => {
@@ -55,11 +55,11 @@ export default function MapPopup({
     }
   }, [location]);
 
-  // Load hazard map GeoJSON from public folder
+  // Load boundary map GeoJSON from public folder
   useEffect(() => {
     fetch('/data/map.geojson')
       .then((res) => res.json())
-      .then((data) => setHazardGeoJSON(data))
+      .then((data) => setHboundaryGeoJSON(data))
       .catch((err) => console.error('Error loading GeoJSON:', err));
   }, []);
 
@@ -93,10 +93,10 @@ export default function MapPopup({
               </BaseLayer>
             </LayersControl>
 
-            {/* Hazard boundaries overlay */}
-            {hazardGeoJSON && (
+            {/* boundaries overlay */}
+            {boundaryGeoJSON && (
               <GeoJSON
-                data={hazardGeoJSON}
+                data={boundaryGeoJSON}
                 style={{
                   color: 'black',        
                   weight: 1,             

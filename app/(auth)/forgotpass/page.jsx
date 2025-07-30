@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white px-4 font-roboto">
+    <div className="min-h-screen flex items-center justify-center bg-[#fafafa] px-4 font-roboto">
       <div className="w-full max-w-lg flex flex-col items-center space-y-6">
 
         {/* Logos */}
@@ -70,9 +70,9 @@ export default function ForgotPasswordPage() {
         </div>
 
         {/* System title */}
-        <h1 className="text-3xl font-extrabold text-gray-800 tracking-wide mb-2">BMIS</h1>
+        <h1 className="text-3xl font-extrabold text-gray-800 tracking-wide mb-2">LUWAS</h1>
         <h2 className="text-center text-base sm:text-lg md:text-xl font-semibold text-gray-700 leading-snug mt-2">
-          Barangay Monitoring Information System
+          LGU Unified Web-based Alert System for Risk Mapping and Accident Reporting
         </h2>
 
         {/* Forgot Password form container */}

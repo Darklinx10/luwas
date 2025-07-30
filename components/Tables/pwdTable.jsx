@@ -440,17 +440,27 @@ export default function PWDPage() {
 
                 <div>
                   <label htmlFor="pwd-disability" className="block text-sm font-medium">Disability</label>
-                  <input
+                  <select
                     id="pwd-disability"
                     name="disability"
-                    type="text"
                     className="w-full border rounded px-3 py-2"
                     value={selectedPWD.disability}
                     onChange={(e) =>
                       setSelectedPWD((prev) => ({ ...prev, disability: e.target.value }))
                     }
-                  />
+                  >
+                    <option value="">-- Select type of disability --</option>
+                    <option>VISUAL DISABILITY</option>
+                    <option>DEAF OR HEARING DISABILITY</option>
+                    <option>INTELLECTUAL DISABILITY</option>
+                    <option>PHYSICAL DISABILITY</option>
+                    <option>MENTAL DISABILITY</option>
+                    <option>PSYCHOSOCIAL DISABILITY</option>
+                    <option>SPEECH AND LANGUAGE IMPAIRMENT</option>
+                    <option>LEARNING DISABILITY</option>
+                  </select>
                 </div>
+
 
                 {/* Save/Cancel buttons */}
                 <div className="flex justify-end gap-2 pt-4">

@@ -149,7 +149,7 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
 
       <div id="print-section">
         {/* Report Title */}
-        <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg print:text-black print:bg-white print:text-center">
+        <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-bold text-lg print:text-black print:bg-white print:text-center">
           {title}
         </div>
 

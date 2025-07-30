@@ -17,61 +17,102 @@ export default function LoginPage() {
   const [password, setPassword] = useState(""); // Holds the password input
   const [showPassword, setShowPassword] = useState(false); // Toggles password visibility
   const [loading, setLoading] = useState(false); // Tracks loading state for login button
+  const [showPageLoader, setShowPageLoader] = useState(false)
 
   // Handles login submission
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent form default behavior
+    e.preventDefault(); // Prevent default form submission
 
-    // Check if email or password is empty
+    // Validate input
     if (!email.trim() || !password.trim()) {
       toast.error("Email and password cannot be empty.");
       return;
     }
 
-    setLoading(true); // Start loading spinner
-    try {
-      // Attempt Firebase Auth login
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid; // Get user ID
+    setLoading(true); // Show loading indicator
 
-      // Retrieve user profile from Firestore
+    try {
+      // Sign in using Firebase Authentication
+      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      const uid = user.uid;
+
+      // Fetch user profile from Firestore
       const docRef = doc(db, "users", uid);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        const profile = docSnap.data(); // Extract profile data
-        console.log("User profile:", profile); // Debug: log user profile
+        const profile = docSnap.data();
 
-        // Store profile in localStorage
+        // Save profile to localStorage
         localStorage.setItem("userProfile", JSON.stringify(profile));
 
-        toast.success("Logged in successfully");
-        router.push("/dashboard"); // Redirect to dashboard
+        toast.success("Logged in successfully.");
       } else {
-        toast.warn("Logged in, but profile not found."); // Edge case: no Firestore document
-        router.push("/dashboard");
+        toast.warn("Logged in, but user profile not found.");
       }
 
+       setShowPageLoader(true);
+
+      // Navigate to dashboard
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1000);
+
     } catch (error) {
-      console.error("Login error:", error); // Debug: log error
-      // Handle specific auth errors
-      if (error.code === "auth/invalid-credential") {
-        toast.error("Invalid credentials provided.");
-      } else if (
-        error.code === "auth/wrong-password" ||
-        error.code === "auth/user-not-found"
-      ) {
-        toast.error("Incorrect email or password.");
-      } else {
-        toast.error("Login failed. Please check your credentials.");
+      console.error("Login error:", error);
+
+      // Handle known Firebase Auth errors
+      switch (error.code) {
+        case "auth/invalid-credential":
+        case "auth/wrong-password":
+        case "auth/user-not-found":
+          toast.error("Incorrect email or password.");
+          break;
+        case "auth/too-many-requests":
+          toast.error("Too many attempts. Please try again later.");
+          break;
+        default:
+          toast.error("Login failed. Please try again.");
       }
     } finally {
-      setLoading(false); // Stop loading spinner
+      setLoading(false); // Hide loading indicator
     }
   };
 
+  // Full-page loader UI
+  if (showPageLoader) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="flex flex-col items-center">
+          <svg
+            className="animate-spin h-10 w-10 text-green-600 mb-3"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8z"
+            />
+          </svg>
+          <p className="text-gray-600 text-sm">Redirecting to Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white px-4 font-roboto">
+    <div className="min-h-screen flex items-center justify-center bg-[#fafafa] px-4 font-roboto">
       <div className="w-full max-w-lg flex flex-col items-center space-y-6">
 
         {/* Logo and titles */}
@@ -95,9 +136,9 @@ export default function LoginPage() {
         </div>
 
         {/* System title */}
-        <h1 className="text-3xl font-extrabold text-gray-800 tracking-wide mb-2">BMIS</h1>
+        <h1 className="text-3xl font-extrabold text-gray-800 tracking-wide mb-2">LUWAS</h1>
         <h2 className="text-center text-base sm:text-lg md:text-xl font-semibold text-gray-700 leading-snug mt-2">
-          Barangay Monitoring Information System
+          LGU Unified Web-based Alert System for Risk Mapping and Accident Reporting
         </h2>
 
         {/* Login form container */}

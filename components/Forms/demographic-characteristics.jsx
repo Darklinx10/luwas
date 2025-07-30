@@ -6,6 +6,21 @@ import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import { v4 as uuidv4 } from 'uuid';
 
+function calculateAge(dateString) {
+  const today = new Date();
+  const birthDate = new Date(dateString);
+  if (isNaN(birthDate)) return '';
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  return age;
+}
+
 export default function DemographicCharacteristics({ householdId, goToNext, setSavedMembers }) {
   // State to manage saving status
   const [isSaving, setIsSaving] = useState(false);
@@ -70,6 +85,10 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
   const handleMemberChange = (index, field) => (e) => {
     const newMembers = [...members]; // Copy the existing members array
     newMembers[index][field] = e.target.value; // Update the specific field of the member
+    if (field === 'birthdate') {
+      const ageCalculated = calculateAge(e.target.value);
+      newMembers[index].age = isNaN(ageCalculated) ? '' : ageCalculated.toString();
+    }
     setMembers(newMembers); // Update state with the new members array
   };
 
@@ -247,10 +266,11 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
                   className="border p-2 rounded w-full"
                   required={!['middleName', 'suffix', 'philsysNumber', 'lguIdNumber'].includes(id)}
                   {...props}
+                  readOnly={id === 'age'}
+                  style={id === 'age' ? {  pointerEvents: 'none' } : {}}
                 />
               </label>
             ))}
-
             {[
               'relationshipToHead',
               'nuclearRelation',

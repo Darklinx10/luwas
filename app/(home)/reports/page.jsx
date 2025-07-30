@@ -12,11 +12,7 @@ const reportData = {
   hazards: [
     { type: 'Flood', location: 'Zone 1', date: '2025-06-01' },
     { type: 'Landslide', location: 'Zone 3', date: '2025-07-01' },
-  ],
-  accident: [
-    { type: 'Collision', location: 'Highway 1', date: '2025-06-20', injuries: 2 },
-    { type: 'Overturn', location: 'Zone 5', date: '2025-06-22', injuries: 0 },
-  ],
+  ]
 };
 
 export default function ReportsPage() {
@@ -51,8 +47,8 @@ export default function ReportsPage() {
             onClick={() => setSelectedReport(key)} 
             className={`px-4 py-2 rounded cursor-pointer ${
               selectedReport === key
-                ? 'bg-green-600 text-white' 
-                : 'bg-gray-200 text-gray-800 hover:bg-green-100' 
+                ? 'bg-green-600 text-white font-bold' 
+                : 'bg-gray-300 text-gray-800 hover:bg-green-300' 
             }`}
           >
             {/* Remove "List of" and trim for shorter tab labels */}

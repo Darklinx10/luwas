@@ -8,9 +8,13 @@ import {
   Popup,
   LayersControl,
   GeoJSON,
-  useMap
+  useMap,
+  CircleMarker,
+  Tooltip
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.heat';
+import { getDistance } from 'geolib';
 import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -19,6 +23,32 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import AccidentMapForm from '@/components/accidentMapForm';
 import HazardLayers from '@/components/hazards/hazardLayers';
+
+// ✅ Heatmap Component
+function AccidentHeatmap({ points }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !points.length) return;
+
+    const heatLayer = L.heatLayer(points, {
+      radius: 25,
+      blur: 15,
+      maxZoom: 10,
+      gradient: {
+        0.4: 'green',   // ~2 accidents
+        0.6: 'yellow',  // ~3–4 accidents
+        0.9: 'red'      // 5 or more accidents
+      }
+    }).addTo(map);
+
+    return () => {
+      map.removeLayer(heatLayer);
+    };
+  }, [map, points]);
+
+  return null;
+}
 
 // ✅ Move MapWithHazards OUTSIDE of MapPage
 function MapWithHazards({ activeHazard, setLoading }) {
@@ -34,22 +64,24 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow.src,
 });
 
-// Custom icon for households
+// Custom icons
 const houseIcon = new L.Icon({
   iconUrl: 'https://cdn-icons-png.flaticon.com/512/7720/7720546.png',
   iconSize: [30, 30],
   iconAnchor: [15, 30],
+  popupAnchor: [0, -32]
 });
-
-// Custom icon for accidents
 const accidentIcon = new L.Icon({
   iconUrl: 'https://cdn-icons-png.flaticon.com/512/564/564619.png',
   iconSize: [30, 30],
   iconAnchor: [15, 30],
+  popupAnchor: [0, -32]
 });
 
 const { BaseLayer } = LayersControl;
 const defaultPosition = [9.941975, 124.033194]; // Default map center
+
+
 
 export default function MapPage() {
   const [activeMap, setActiveMap] = useState('Household Map');
@@ -59,7 +91,6 @@ export default function MapPage() {
   const [addingAccident, setAddingAccident] = useState(false);
   const [clarinBoundary, setClarinBoundary] = useState(null);
   const [loading, setLoading] = useState(false);
-
   const isHouseholdMap = activeMap === 'Household Map';
   const isAccidentMap = activeMap === 'Accident Map';
 
@@ -116,9 +147,63 @@ export default function MapPage() {
     setAddingAccident(false);
   };
 
+  // ✅ Group nearby accidents (within 50m) and show heatmap only for groups with ≥3
+  function groupNearbyAccidents(accidents, radius = 50) {
+    const clusters = [];
+
+    accidents.forEach(acc => {
+      const { position } = acc;
+      if (!position) return;
+
+      // ✅ Handle both [lat, lng] and { lat: ..., lng: ... }
+      const [lat, lng] = Array.isArray(position)
+        ? position
+        : [position.lat, position.lng];
+
+      if (!lat || !lng) return;
+
+      let added = false;
+
+      for (const cluster of clusters) {
+        const distance = getDistance(
+          { latitude: lat, longitude: lng },
+          { latitude: cluster.lat, longitude: cluster.lng }
+        );
+
+        if (distance <= radius) {
+          cluster.count += 1;
+          cluster.accidents.push(acc);
+          added = true;
+          break;
+        }
+      }
+
+      if (!added) {
+        clusters.push({
+          lat,
+          lng,
+          count: 1,
+          accidents: [acc],
+        });
+      }
+    });
+
+    return clusters;
+  }
+  const clustered = groupNearbyAccidents(accidents, 50); // 50m radius
+
+  const MAX_ACCIDENTS = 5;
+
+  const accidentHeatPoints = clustered
+    .filter(c => c.count >= 2) // include from 2 and up
+    .map(c => {
+      const intensity = Math.min(c.count / MAX_ACCIDENTS, 1); // normalize 0–1
+      return [c.lat, c.lng, intensity];
+    });
+
+
   return (
     <div className="relative">
-      {/* Map selection buttons */}
       <div className="mb-4 flex gap-3 z-30 relative ">
         {['Household Map', 'Accident Map'].map((option) => (
           <button
@@ -130,8 +215,8 @@ export default function MapPage() {
             }}
             className={`px-4 py-2 rounded cursor-pointer ${
               activeMap === option
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-200 text-gray-800 hover:bg-green-100'
+                ? 'bg-green-600 text-white font-bold'
+                : 'bg-gray-300 text-gray-800 hover:bg-green-300'
             }`}
           >
             {option}
@@ -139,7 +224,6 @@ export default function MapPage() {
         ))}
       </div>
 
-      {/* Leaflet map container */}
       <MapContainer
         center={defaultPosition}
         zoom={13}
@@ -178,7 +262,6 @@ export default function MapPage() {
           />
         )}
 
-        {/* Hazard Dropdown */}
         {isHouseholdMap && (
           <div className="leaflet-top leaflet-left ml-10">
             <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2">
@@ -229,7 +312,6 @@ export default function MapPage() {
           </div>
         )}
 
-        {/* Accident map add button */}
         {isAccidentMap && (
           <div className="leaflet-top leaflet-left ml-10">
             <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2">
@@ -243,7 +325,6 @@ export default function MapPage() {
           </div>
         )}
 
-        {/* Household Markers */}
         {isHouseholdMap &&
           householdMarkers.map((marker) => (
             <Marker
@@ -265,7 +346,6 @@ export default function MapPage() {
             </Marker>
           ))}
 
-        {/* Accident Form and Markers */}
         {isAccidentMap && addingAccident && <AccidentMapForm onSubmit={handleAccidentSubmit} />}
 
         {isAccidentMap &&
@@ -288,9 +368,62 @@ export default function MapPage() {
             </Marker>
           ))}
 
-        {/* ✅ Render hazards only when selected */}
         {isHouseholdMap && activeHazard && (
           <MapWithHazards activeHazard={activeHazard} setLoading={setLoading} />
+        )}
+
+        {isAccidentMap && (
+          <>
+            {/* Accident Heatmap */}
+            <AccidentHeatmap points={accidentHeatPoints} />
+
+            {/* Cluster Labels */}
+            {clustered
+            .filter(c => c.count >= 2)
+            .map((c, index) => (
+              <CircleMarker
+                key={`label-${index}`}
+                center={[c.lat, c.lng]}
+                radius={10}
+                pathOptions={{
+                  color: 'transparent',
+                  fillOpacity: 0,
+                }}
+                eventHandlers={{
+                  mouseover: (e) => {
+                    e.target.openTooltip();
+                  },
+                  mouseout: (e) => {
+                    e.target.closeTooltip();
+                  },
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -10]} opacity={1} permanent={false}>
+                  <div
+                    style={{
+                      background:
+                        c.count >= 5
+                          ? 'rgba(255,0,0,0.8)'
+                          : c.count >= 3
+                          ? 'rgba(255,255,0,0.8)'
+                          : 'rgba(0,128,0,0.8)',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      color: 'black',
+                      border: '1px solid #222',
+                      textAlign: 'center',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+                      pointerEvents: 'auto',
+                    }}
+                  >
+                    ⚠️ {c.count} Accident{c.count > 1 ? 's' : ''}
+                  </div>
+                </Tooltip>
+              </CircleMarker>
+            ))}
+          </>
         )}
       </MapContainer>
     </div>

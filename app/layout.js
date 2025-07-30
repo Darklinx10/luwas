@@ -10,8 +10,8 @@ import { HouseholdProvider } from '@/context/householdContext';
 
 // Page metadata including title, description, and icons
 export const metadata = {
-  title: "BMIS", 
-  description: "Barangay Management Information System", 
+  title: "LUWAS", 
+  description: "LGU Unified Web-based Alert System for Risk Mapping and Accident Reporting", 
   icons: {
     icon: [
       { url: "/clarinLogo.png", type: "image/png" }, 

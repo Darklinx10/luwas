@@ -26,7 +26,7 @@ export default function DashboardLayout({ children }) {
      
 
         {/* Main content */}
-        <main className="flex-1 bg-white p-6 ">
+        <main className="flex-1 bg-[#fafafa] p-6 ">
         {children}
         </main>
       </div>

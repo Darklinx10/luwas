@@ -55,7 +55,7 @@ export default function Sidebar({ sidebarOpen }) {
           className="rounded-full"
           priority // Preload the image for better performance
         />
-        <h1 className="text-2xl font-extrabold text-gray-800 tracking-wide mb-2">BMIS</h1>
+        <h1 className="text-2xl font-extrabold text-gray-800 tracking-wide mb-2">LUWAS</h1>
       </div>
 
       {/* Navigation Links */}
