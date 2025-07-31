@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef} from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -16,6 +16,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 import { getDistance } from 'geolib';
 import L from 'leaflet';
+import * as turf from '@turf/turf';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -78,6 +79,14 @@ const accidentIcon = new L.Icon({
   popupAnchor: [0, -32]
 });
 
+const affectedIcon = new L.Icon({
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/4539/4539472.png',
+  iconSize: [30, 30],
+  iconAnchor: [15, 30],
+  popupAnchor: [0, -32]
+});
+
+
 const { BaseLayer } = LayersControl;
 const defaultPosition = [9.941975, 124.033194]; // Default map center
 
@@ -93,13 +102,56 @@ export default function MapPage() {
   const [loading, setLoading] = useState(false);
   const isHouseholdMap = activeMap === 'Household Map';
   const isAccidentMap = activeMap === 'Accident Map';
+  const [affectedHouseholds, setAffectedHouseholds] = useState([]);
+  const [hazardGeoJSON, setHazardGeoJSON] = useState({});
+
 
   useEffect(() => {
-    fetch('/data/map.geojson')
+    fetch('/data/Clarin_Political_Boundary_converted.geojson')
       .then((res) => res.json())
       .then((data) => setClarinBoundary(data))
       .catch((err) => console.error('Failed to load GeoJSON:', err));
   }, []);
+
+  useEffect(() => {
+    window.setHazardGeoJSON = (geojson) => {
+      if (!geojson || !geojson.features) return;
+      setHazardGeoJSON(geojson);
+
+      const affected = householdMarkers.filter(house => {
+        const point = turf.point([house.lng, house.lat]);
+
+        return geojson.features.some(feature =>
+          turf.booleanPointInPolygon(point, feature)
+        );
+      });
+
+      setAffectedHouseholds(affected);
+    };
+  }, [householdMarkers]);
+
+
+  useEffect(() => {
+    if (!hazardGeoJSON || !householdMarkers.length) return;
+
+    const affected = householdMarkers.filter(house => {
+      const point = turf.point([house.lng, house.lat]);
+      return hazardGeoJSON.features.some(feature =>
+        turf.booleanPointInPolygon(point, feature)
+      );
+    });
+
+    setAffectedHouseholds(affected);
+  }, [hazardGeoJSON, householdMarkers]);
+
+  useEffect(() => {
+    if (!activeHazard) {
+      setHazardGeoJSON(null);
+      setAffectedHouseholds([]);
+    }
+  }, [activeHazard]);
+
+
 
   useEffect(() => {
     const fetchHouseholds = async () => {
@@ -121,6 +173,8 @@ export default function MapPage() {
               name: `${data.headFirstName || ''} ${data.headLastName || ''}`.trim(),
               lat,
               lng,
+              barangay: data.barangay || 'N/A',
+              contactNumber: data.contactNumber || 'N/A',
             });
           }
         });
@@ -254,13 +308,14 @@ export default function MapPage() {
           <GeoJSON
             data={clarinBoundary}
             style={{
-              color: 'black',
-              weight: 1,
-              fillOpacity: 0.5,
-              dashArray: '2 4',
-            }}
+                  color: 'black',        
+                  weight: 1,             
+                  fillOpacity: 0,
+                  dashArray: '2 4',        
+                }}
           />
         )}
+
 
         {isHouseholdMap && (
           <div className="leaflet-top leaflet-left ml-10">
@@ -326,11 +381,15 @@ export default function MapPage() {
         )}
 
         {isHouseholdMap &&
-          householdMarkers.map((marker) => (
+        householdMarkers.map((marker) => {
+          const isAffected = affectedHouseholds.some(h => h.id === marker.id);
+          const iconToUse = isAffected ? affectedIcon : houseIcon;
+
+          return (
             <Marker
               key={marker.id}
               position={[marker.lat, marker.lng]}
-              icon={houseIcon}
+              icon={iconToUse}
               eventHandlers={{
                 mouseover: (e) => e.target.openPopup(),
                 mouseout: (e) => e.target.closePopup(),
@@ -344,7 +403,9 @@ export default function MapPage() {
                 Lat: {marker.lat.toFixed(4)}, Lng: {marker.lng.toFixed(4)}
               </Popup>
             </Marker>
-          ))}
+          );
+        })}
+
 
         {isAccidentMap && addingAccident && <AccidentMapForm onSubmit={handleAccidentSubmit} />}
 
@@ -424,6 +485,29 @@ export default function MapPage() {
               </CircleMarker>
             ))}
           </>
+        )}
+
+        {isHouseholdMap && affectedHouseholds.length > 0 && (
+          <div className="absolute bottom-4 left-4 z-[1000] p-4 bg-white  rounded shadow max-h-[300px] overflow-auto w-[90vw] max-w-sm sm:max-w-md text-sm">
+            <h3 className="font-semibold mb-2 text-lg">
+              Affected Households ({affectedHouseholds.length})
+            </h3>
+            {activeHazard && (
+              <p className="text-sm text-gray-600 mb-2">
+                💡 Hazard: <strong>{activeHazard}</strong>
+              </p>
+            )}
+            <ul className="list-disc ml-5">
+              {affectedHouseholds.map((h) => (
+                <li key={h.id} className="mb-2">
+                  <strong>{h.name || 'Unnamed'}</strong><br />
+                  📍 Barangay: {h.barangay || 'N/A'}<br />
+                  📞 Contact: {h.contactNumber || 'N/A'}<br />
+                  🌐 Location: Lat: {h.lat}, Lng: {h.lng}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </MapContainer>
     </div>

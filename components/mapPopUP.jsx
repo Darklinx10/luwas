@@ -57,7 +57,7 @@ export default function MapPopup({
 
   // Load boundary map GeoJSON from public folder
   useEffect(() => {
-    fetch('/data/map.geojson')
+    fetch('/data/Clarin_Political_Boundary_converted.geojson')
       .then((res) => res.json())
       .then((data) => setHboundaryGeoJSON(data))
       .catch((err) => console.error('Error loading GeoJSON:', err));

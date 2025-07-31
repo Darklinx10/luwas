@@ -1,59 +1,125 @@
 'use client';
 
+import { useState } from 'react';
+import { FiSearch } from 'react-icons/fi';
+
 export default function HazardTable({
   data = [],
   title = 'Hazard Reports (2025)',
   loading = false,
-  onMapClick = () => {},
 }) {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredData = data.filter((h) =>
+    Object.values(h).some((val) =>
+      String(val).toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
+
+  const handlePrint = () => window.print();
+
+  const handleDownloadCSV = () => {
+    if (!filteredData.length) return;
+
+    const headers = 'Name,Barangay,Contact Number,Susceptibility,Latitude,Longitude';
+    const rows = filteredData.map((h) =>
+      [
+        h.name,
+        h.barangay,
+        h.contactnumber,
+        h.susceptibility,
+        h.lat,
+        h.lng,
+      ].join(',')
+    );
+    const csv = [headers, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'hazard_reports_2025.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   return (
     <div className="p-4">
       {/* ✅ Breadcrumb */}
-      <div className="text-sm text-right text-gray-500 mb-2">
+      <div className="text-sm text-right text-gray-500 mb-2 print:hidden">
         Home / Reports / Hazards
       </div>
 
-      {/* ✅ Header */}
-      <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg">
-        {title}
-      </div>
+      <div id="print-section">
+        {/* ✅ Header */}
+        <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg print:text-black print:bg-white print:text-center">
+          {title}
+        </div>
 
-      {/* ✅ Table Wrapper */}
-      <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
-        {loading || data.length === 0 ? (
-          <p className="text-center text-gray-500 py-6 animate-pulse">
-            {loading ? 'Loading hazard records...' : 'No hazard reports found.'}
-          </p>
-        ) : (
-          <table className="w-full text-sm text-center border-collapse">
-            <caption className="sr-only">{title}</caption>
-            <thead className="bg-gray-100 text-gray-600">
-              <tr>
-                <th scope="col" className="px-4 py-2 border">Hazard Type</th>
-                <th scope="col" className="px-4 py-2 border">Location</th>
-                <th scope="col" className="px-4 py-2 border">Date</th>
-                <th scope="col" className="px-4 py-2 border">Map</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((h, i) => (
-                <tr key={i} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 border">{h.type}</td>
-                  <td className="px-4 py-2 border">{h.location}</td>
-                  <td className="px-4 py-2 border">{h.date}</td>
-                  <td className="px-4 py-2 border">
-                    <button
-                      onClick={() => onMapClick(h)}
-                      className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700"
-                    >
-                      View Map
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        {/* ✅ Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-white shadow border-t-0 px-4 py-3 print:hidden">
+          <div className="relative w-full max-w-xs">
+            <FiSearch className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search here"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded w-full focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={handlePrint} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+              Print
+            </button>
+            <button onClick={handleDownloadCSV} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+              Download CSV
+            </button>
+          </div>
+        </div>
+
+        {/* ✅ Table */}
+        <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
+          {loading || data.length === 0 ? (
+            <p className="text-center text-gray-500 py-6 animate-pulse">
+              {loading ? 'Loading hazard records...' : 'No hazard reports found.'}
+            </p>
+          ) : filteredData.length === 0 ? (
+            <p className="text-center text-gray-500 py-6">No matching hazard reports found.</p>
+          ) : (
+            <>
+              <table className="w-full text-sm text-center print:text-xs print:border print:border-gray-400">
+                <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
+                  <tr>
+                    <th className="px-4 py-2 border">Household</th>
+                    <th className="px-4 py-2 border">Barangay</th>
+                    <th className="px-4 py-2 border">Contact Number</th>
+                    <th className="px-4 py-2 border">Susceptibility</th>
+                    <th className="px-4 py-2 border">Location</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredData.map((h, i) => (
+                    <tr key={i}>
+                      <td className="px-4 py-2 border">{h.name}</td>
+                      <td className="px-4 py-2 border">{h.barangay}</td>
+                      <td className="px-4 py-2 border">{h.contactnumber}</td>
+                      <td className="px-4 py-2 border">{h.susceptibility}</td>
+                      <td className="px-4 py-2 border">
+                        Lat: {h.lat}, Lng: {h.lng}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* ✅ Footer */}
+              <p className="text-sm text-gray-700 mt-4 print:hidden">
+                <strong>Total Records:</strong> {filteredData.length}
+              </p>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
