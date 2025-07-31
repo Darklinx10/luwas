@@ -126,7 +126,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="absolute right-0 mt-2 bg-white rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] z-50 w-56 p-4 origin-top-right"
+              className="absolute right-0 mt-2 bg-white rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] z-1999 w-56 p-4 origin-top-right"
             >
               {/* User Info */}
               <div className="flex flex-col items-center mb-4">
