@@ -24,6 +24,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import AccidentMapForm from '@/components/accidentMapForm';
 import HazardLayers from '@/components/hazards/hazardLayers';
+import { formatSusceptibility } from '@/app/utils/susceptibility';
 
 // ✅ Heatmap Component
 function AccidentHeatmap({ points }) {
@@ -104,6 +105,8 @@ export default function MapPage() {
   const isAccidentMap = activeMap === 'Accident Map';
   const [affectedHouseholds, setAffectedHouseholds] = useState([]);
   const [hazardGeoJSON, setHazardGeoJSON] = useState({});
+  
+
 
 
   useEffect(() => {
@@ -132,25 +135,36 @@ export default function MapPage() {
 
 
   useEffect(() => {
-    if (!hazardGeoJSON || !householdMarkers.length) return;
+    if (!hazardGeoJSON || householdMarkers.length === 0) return;
 
-    const affected = householdMarkers.map(house => {
-      const point = turf.point([house.lng, house.lat]);
+    const affected = householdMarkers
+      .map((house) => {
+        const point = turf.point([house.lng, house.lat]);
 
-      for (const feature of hazardGeoJSON.features) {
-        if (turf.booleanPointInPolygon(point, feature)) {
+        const matchingFeature = hazardGeoJSON.features.find((feature) =>
+          turf.booleanPointInPolygon(point, feature)
+        );
+
+        if (matchingFeature) {
+          const susceptibility =
+            matchingFeature.properties?.Susciptibi ||
+            matchingFeature.properties?.susceptibility ||
+            matchingFeature.properties?.Susceptibility ||
+            'Unknown';
+
           return {
             ...house,
-            susceptibility: feature.properties?.Susceptibilit || feature.properties?.susceptibility || 'Unknown'
+            susceptibility,
           };
         }
-      }
 
-      return null;
-    }).filter(Boolean);
+        return null; // not affected
+      })
+      .filter(Boolean);
 
     setAffectedHouseholds(affected);
   }, [hazardGeoJSON, householdMarkers]);
+
 
 
   useEffect(() => {
@@ -184,6 +198,7 @@ export default function MapPage() {
               lng,
               barangay: data.barangay || 'N/A',
               contactNumber: data.contactNumber || 'N/A',
+              
             });
           }
         });
@@ -505,6 +520,7 @@ export default function MapPage() {
               <p className="text-sm text-gray-600 mb-2">
                 💡 Hazard: <strong>{activeHazard}</strong>
               </p>
+              
             )}
             <ul className="list-disc ml-5">
               {affectedHouseholds.map((h) => (
@@ -512,7 +528,8 @@ export default function MapPage() {
                   <strong>{h.name || 'Unnamed'}</strong><br />
                   📍 Barangay: {h.barangay || 'N/A'}<br />
                   📞 Contact: {h.contactNumber || 'N/A'}<br />
-                  🌐 Location: Lat: {h.lat}, Lng: {h.lng}
+                  🌐 Location: Lat: {h.lat}, Lng: {h.lng}<br />
+                  <p><strong>🌋Susceptibility:</strong> {formatSusceptibility(h.susceptibility)}</p>
                 </li>
               ))}
             </ul>

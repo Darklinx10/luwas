@@ -103,7 +103,7 @@ export default function HazardTable({
                       <td className="px-4 py-2 border">{h.name}</td>
                       <td className="px-4 py-2 border">{h.barangay}</td>
                       <td className="px-4 py-2 border">{h.contactnumber}</td>
-                      <td className="px-4 py-2 border">{h.susceptibility}</td>
+                      <td className="px-4 py-2 border">{h.susceptibility || 'Unknown'}</td>
                     </tr>
                   ))}
                 </tbody>

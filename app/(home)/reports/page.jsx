@@ -82,13 +82,22 @@ export default function ReportsPage() {
           });
         }
 
-        // Filter affected households
-        const affected = households.filter(h => {
+        // ✅ Now include susceptibility from hazard GeoJSON
+        const affected = [];
+
+        households.forEach((h) => {
           const point = turf.point([h.location.lng, h.location.lat]);
-          return geojson.features.some(feature => {
+
+          for (const feature of geojson.features) {
             const polygon = turf.feature(feature.geometry);
-            return turf.booleanPointInPolygon(point, polygon);
-          });
+            if (turf.booleanPointInPolygon(point, polygon)) {
+              affected.push({
+                ...h,
+                susceptibility: feature.properties?.Susciptibi || 'Unknown',
+              });
+              break; // Stop once matched
+            }
+          }
         });
 
         setAffectedHouseholds(affected);
@@ -102,6 +111,7 @@ export default function ReportsPage() {
 
     loadAffectedHouseholds();
   }, [selectedReport]);
+
 
   const renderTable = () => {
     const title = titleMap[selectedReport];
