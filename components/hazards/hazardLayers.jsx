@@ -3,15 +3,19 @@ import { useEffect, useRef } from 'react';
 import * as esri from 'esri-leaflet';
 import L from 'leaflet';
 import { faultCategories } from '@/app/utils/faultcategories';
+import {normalizeSusceptibility} from '@/app/utils/susceptibility'
+
 
 export default function HazardLayers({ activeHazard, map, setLoading }) {
   const infoDivRef = useRef(null);
   const geoJsonLayerRef = useRef(null);
-  const infoRef = useRef(null);
+ 
+  
 
-  useEffect(() => {
+  useEffect(() => { 
     if (!map || !activeHazard) return;
 
+    //Initialize Leaflet info control
     const info = L.control({ position: 'bottomright' });
 
     info.onAdd = () => {
@@ -27,7 +31,7 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
     };
 
     info.addTo(map);
-
+    //Update info panel dynamically
     const updateInfo = (title, description) => {
       const content = infoDivRef.current?.querySelector('#info-content');
       if (content) {
@@ -37,35 +41,39 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
       }
     };
 
+    //Create and load GeoJSON layer
     const createGeoJsonLayer = ({ url, popupLabel, styleFn, infoText }) => {
-      
-
       const layer = L.geoJSON(null, {
         onEachFeature: (feature, layer) => {
-          const label =
+          const rawLabel =
             feature.properties?.Susciptibi ??
             feature.properties?.Susceptibility ??
             feature.properties?.HazardLevel ??
-            feature.properties?.Inundation ??
-            'Unknown';
+            feature.properties?.Inundation;
+
+          const label = normalizeSusceptibility(rawLabel);
           layer.bindPopup(`<strong>${popupLabel}:</strong> ${label}`);
         },
-        style: styleFn
+        style: styleFn //Apply feature style
       });
 
-      setLoading(true);
+      setLoading(true); //Start loading spinner
       fetch(url)
         .then(res => res.json())
         .then(data => {
+
+          //Remove existing layer if present
           if (geoJsonLayerRef.current) {
             map.removeLayer(geoJsonLayerRef.current);
             geoJsonLayerRef.current = null;
           }
           layer.clearLayers();
-          layer.addData(data);
+          layer.addData(data); //Load new data
           layer.addTo(map);
-          geoJsonLayerRef.current = layer;
+          geoJsonLayerRef.current = layer; //Save reference
           updateInfo(popupLabel, `<p class="mb-2">${infoText}</p>`);
+
+          // expose data globally for dev tools
           if (typeof window !== 'undefined' && window.setHazardGeoJSON) {
             window.setHazardGeoJSON(data); // <-- Make data available globally
           }
@@ -73,11 +81,12 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
         .catch(err => {
           console.error(`Error loading ${popupLabel} GeoJSON:`, err);
         })
-        .finally(() => setLoading(false));
+        .finally(() => setLoading(false)); //Stop loading spinner
 
       return layer;
     };
 
+    //Map hazard values to styles
     const styleBySusceptibility = (value) => {
       let fillColor = '#ccc';
       let fillOpacity = 0.7;
@@ -93,13 +102,14 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
       return { color: '#555', weight: 0.5, fillOpacity, fillColor };
     };
 
+    //Style for storm surge values
     const stormSurgeStyle = (feature) => {
       const value = feature.properties?.Inundation || feature.properties?.Inundiation;
       let fillColor = '#0ea5e9';
       let fillOpacity = 0.6;
       switch (value) {
         case '>1m. to 4m. surges':
-        case 'Greater than 4.0m': fillColor = '#b91c1c'; break;
+        case 'Greater than 4.0m': fillColor = '#ef4444'; break;
         case '>1m. to 4m.':
         case '1.0m to 4.0m': fillColor = '#f97316'; break;
         case 'Up to 1.0m':
@@ -108,16 +118,18 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
       return { color: '#555', weight: 0.5, fillOpacity, fillColor };
     };
 
-      const tsunamiStyle = () => ({
-        color: '#fb923c', weight: 1, fillOpacity: 0.7, fillColor: '#fb923c'
-      });
+    //Fixed style for tsunami zones
+    const tsunamiStyle = () => ({
+      color: '#ea580c', weight: 1, fillOpacity: 0.7, fillColor: '#ea580c'
+    });
 
+    //Predefined GeoJSON hazard layers
     const geoJsonLayers = {
       'Liquefaction': () =>
         createGeoJsonLayer({
           url: '/data/Clarin_Liquefaction_converted.geojson',
           popupLabel: 'Liquefaction Susceptibility',
-          styleFn: (f) => styleBySusceptibility(f.properties?.Susciptibi),
+          styleFn: (f) => styleBySusceptibility(normalizeSusceptibility(f.properties?.Susciptibi)),
           infoText: `
               <p class="mb-2">Areas with potential for ground failure due to soil liquefaction during strong earthquakes.</p>
               <p class="font-medium mb-1">Legend:</p>
@@ -134,7 +146,7 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
         createGeoJsonLayer({
           url: '/data/Clarin_EIL_converted.geojson',
           popupLabel: 'Earthquake-Induced Landslide Susceptibility',
-          styleFn: (f) => styleBySusceptibility(f.properties?.Susciptibi || f.properties?.Susceptibility),
+          styleFn: (f) => styleBySusceptibility(normalizeSusceptibility(f.properties?.Susciptibi)),
           infoText: `
               <p class="mb-2">Areas susceptible to landslides triggered by earthquake ground shaking.</p>
               <p class="font-medium mb-1">Legend:</p>
@@ -152,7 +164,7 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
         createGeoJsonLayer({
           url: '/data/Clarin_RIL_converted.geojson',
           popupLabel: 'Rain-Induced Landslide Susceptibility',
-          styleFn: (f) => styleBySusceptibility(f.properties?.Susceptibility || f.properties?.Susciptibi),
+          styleFn: (f) => styleBySusceptibility(normalizeSusceptibility(f.properties?.Susciptibi)),
           infoText: `
             <p class="mb-2">Areas susceptible to landslides triggered by heavy or continuous rainfall.</p>
             <p class="font-medium mb-1">Legend:</p>
@@ -201,6 +213,7 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
         })
     };
 
+    // Dynamic map layers using ESRI
     const hazardLayers = {
       'Active Faults': esri.dynamicMapLayer({
         url: 'https://ulap-hazards.georisk.gov.ph/arcgis/rest/services/PHIVOLCSPublic/ActiveFault/MapServer',
@@ -264,9 +277,9 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
 
     // Add new hazard layer
     if (geoJsonLayers[activeHazard]) {
-      geoJsonLayers[activeHazard]();
+      geoJsonLayers[activeHazard](); //Load and display GeoJSON hazard
     } else if (hazardLayers[activeHazard]) {
-      hazardLayers[activeHazard].addTo(map);
+      hazardLayers[activeHazard].addTo(map); // Add ESRI layer
     }
 
     return () => {
@@ -283,4 +296,3 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
 
   return null;
 }
-

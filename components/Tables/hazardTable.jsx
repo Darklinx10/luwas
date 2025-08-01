@@ -79,7 +79,7 @@ export default function HazardTable({
         </div>
 
         {/* ✅ Table */}
-        <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
+        <div className="overflow-x-auto max-h-[500px] overflow-y-auto shadow border-t-0 rounded-b-md bg-white p-4 scrollbar-thin">
           {loading || data.length === 0 ? (
             <p className="text-center text-gray-500 py-6 animate-pulse">
               {loading ? 'Loading hazard records...' : 'No hazard reports found.'}
@@ -95,7 +95,6 @@ export default function HazardTable({
                     <th className="px-4 py-2 border">Barangay</th>
                     <th className="px-4 py-2 border">Contact Number</th>
                     <th className="px-4 py-2 border">Susceptibility</th>
-                    <th className="px-4 py-2 border">Location</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -105,9 +104,6 @@ export default function HazardTable({
                       <td className="px-4 py-2 border">{h.barangay}</td>
                       <td className="px-4 py-2 border">{h.contactnumber}</td>
                       <td className="px-4 py-2 border">{h.susceptibility}</td>
-                      <td className="px-4 py-2 border">
-                        Lat: {h.lat}, Lng: {h.lng}
-                      </td>
                     </tr>
                   ))}
                 </tbody>

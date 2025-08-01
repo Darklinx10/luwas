@@ -241,7 +241,7 @@ export default function SeniorPage() {
         </div>
 
         {/*  Senior Data Table  */}
-        <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
+        <div className="overflow-x-auto max-h-[500px] overflow-y-auto shadow border-t-0 rounded-b-md bg-white p-4 scrollbar-thin">
          {loading ? (
           <p className="text-center text-gray-500 py-6 animate-pulse">Loading senior citizen records...</p>
          ) : seniors.length === 0 ? (

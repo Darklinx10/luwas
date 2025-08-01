@@ -42,18 +42,18 @@ export default function Sidebar({ sidebarOpen }) {
   return (
     <aside
       className={`fixed top-0 left-0 h-full w-64 bg-white shadow-md p-4 z-40 transform transition-transform duration-300 ease-in-out ${
-        sidebarOpen ? "translate-x-0" : "-translate-x-full" // Show or hide sidebar based on `sidebarOpen`
-      }`}
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      } sm:w-56 md:w-64`} // Adjust width for small and medium screens
     >
       {/* Logo and System Title */}
       <div className="flex flex-col items-center mb-6 space-y-2">
         <Image
-          src="/clarinLogo.png" // Logo image path
-          alt="BMIS Logo" // Alt text for accessibility
+          src="/clarinLogo.png"
+          alt="BMIS Logo"
           width={80}
           height={80}
           className="rounded-full"
-          priority // Preload the image for better performance
+          priority
         />
         <h1 className="text-2xl font-extrabold text-gray-800 tracking-wide mb-2">LUWAS</h1>
       </div>
@@ -62,16 +62,16 @@ export default function Sidebar({ sidebarOpen }) {
       <nav className="space-y-2">
         {navItems.map(({ href, label, icon, isActive }) => (
           <Link
-            key={href} // Unique key for React rendering
-            href={href} // Route path
+            key={href}
+            href={href}
             className={`flex items-center gap-4 px-4 py-2 rounded-md transition-all ${
               isActive
-                ? "bg-[#0BAD4A] text-white font-semibold" // Active styling
-                : "text-gray-700 hover:bg-green-100 hover:text-[#0BAD4A]" // Inactive styling
+                ? "bg-[#0BAD4A] text-white font-semibold"
+                : "text-gray-700 hover:bg-green-100 hover:text-[#0BAD4A]"
             }`}
           >
-            {icon} {/* Render corresponding icon */}
-            <span>{label}</span> {/* Render label */}
+            {icon}
+            <span className="text-base sm:text-sm md:text-base">{label}</span> {/* Adjust text size for responsiveness */}
           </Link>
         ))}
       </nav>

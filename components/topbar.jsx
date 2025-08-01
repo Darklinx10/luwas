@@ -12,7 +12,6 @@ import { toast } from 'react-toastify';
 import ConfirmModal from './modals/confirmModal';
 import { motion, AnimatePresence } from 'framer-motion';
 
-
 export default function Topbar({ toggleSidebar, sidebarOpen }) {
   const [showMenu, setShowMenu] = useState(false);
   const [userName, setUserName] = useState('');
@@ -20,6 +19,25 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
   const menuRef = useRef();
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
+
+  // Fetch current user data from Firestore
+  const fetchUserData = async () => {
+    const user = auth.currentUser;
+    if (user) {
+      try {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const fullName = `${data.firstName || ''} ${data.middleName || ''} ${data.lastName || ''}`.trim();
+          setUserName(fullName);
+          setUserPhoto(data.photoURL || null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data:', error.message);
+      }
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -32,64 +50,40 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch logged-in user's name
+  // Monitor authentication state changes and fetch user data
   useEffect(() => {
-    let isMounted = true;
-
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        if (isMounted) {
-          setUserName('');
-          setUserPhoto(null);
-        }
-        return;
+      if (user) {
+        fetchUserData();
+      } else {
+        setUserName('');
+        setUserPhoto(null);
       }
-
-      // ✅ Guarded and clean fetch
-      const fetchUserData = async () => {
-        try {
-          const docRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(docRef);
-
-          if (isMounted && docSnap.exists()) {
-            const data = docSnap.data();
-            const fullName = `${data.firstName || ''} ${data.middleName || ''} ${data.lastName || ''}`.trim();
-            setUserName(fullName);
-            setUserPhoto(data.photoURL || null);
-          }
-        } catch (error) {
-          console.error('Failed to fetch user data:', error.message);
-        }
-      };
-
-      fetchUserData();
     });
 
-    // Register this unsubscribe function for global cleanup on logout
+    // Register listener and return cleanup
     registerListener(unsubscribe);
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
-  //Logout
+  // Fetch updated user info when the tab regains focus (after editing profile)
+  useEffect(() => {
+    const handleFocus = () => fetchUserData();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  // Logout handler
   const handleLogout = async () => {
     try {
       await signOut(auth);
       toast.success('You have been logged out.');
-      setTimeout(() => {
-        router.push('/');
-      }, 50); // short delay for smooth UI
+      setTimeout(() => router.push('/'), 50); // Delay for smooth UI transition
     } catch (error) {
       console.error('Logout failed:', error);
       toast.error('Failed to log out.');
     }
   };
-
-
-
 
   return (
     <div className="flex items-center justify-between px-6 h-15 border-b border-gray-200 bg-white shadow-sm relative">
@@ -175,7 +169,6 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
             </motion.div>
           </AnimatePresence>
         )}
-
       </div>
     </div>
   );

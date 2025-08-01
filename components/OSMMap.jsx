@@ -134,15 +134,24 @@ export default function MapPage() {
   useEffect(() => {
     if (!hazardGeoJSON || !householdMarkers.length) return;
 
-    const affected = householdMarkers.filter(house => {
+    const affected = householdMarkers.map(house => {
       const point = turf.point([house.lng, house.lat]);
-      return hazardGeoJSON.features.some(feature =>
-        turf.booleanPointInPolygon(point, feature)
-      );
-    });
+
+      for (const feature of hazardGeoJSON.features) {
+        if (turf.booleanPointInPolygon(point, feature)) {
+          return {
+            ...house,
+            susceptibility: feature.properties?.Susceptibilit || feature.properties?.susceptibility || 'Unknown'
+          };
+        }
+      }
+
+      return null;
+    }).filter(Boolean);
 
     setAffectedHouseholds(affected);
   }, [hazardGeoJSON, householdMarkers]);
+
 
   useEffect(() => {
     if (!activeHazard) {
