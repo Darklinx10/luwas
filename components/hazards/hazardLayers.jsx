@@ -38,6 +38,8 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
     };
 
     const createGeoJsonLayer = ({ url, popupLabel, styleFn, infoText }) => {
+      
+
       const layer = L.geoJSON(null, {
         onEachFeature: (feature, layer) => {
           const label =
@@ -55,6 +57,10 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
       fetch(url)
         .then(res => res.json())
         .then(data => {
+          if (geoJsonLayerRef.current) {
+            map.removeLayer(geoJsonLayerRef.current);
+            geoJsonLayerRef.current = null;
+          }
           layer.clearLayers();
           layer.addData(data);
           layer.addTo(map);
@@ -247,16 +253,13 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
     };
 
     
-    // Remove previous layers before adding new ones
+    // Remove previous layers
     Object.values(hazardLayers).forEach(layer => {
       if (map.hasLayer(layer)) map.removeLayer(layer);
     });
     if (geoJsonLayerRef.current) {
       map.removeLayer(geoJsonLayerRef.current);
       geoJsonLayerRef.current = null;
-    }
-    if (infoRef.current) {
-      infoRef.current.remove();
     }
 
     // Add new hazard layer
@@ -267,8 +270,10 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
     }
 
     return () => {
-      info.remove();
-      Object.values(hazardLayers).forEach(layer => map.removeLayer(layer));
+      map.removeControl(info); // ✅ Properly remove info control
+      Object.values(hazardLayers).forEach(layer => {
+        if (map.hasLayer(layer)) map.removeLayer(layer);
+      });
       if (geoJsonLayerRef.current) {
         map.removeLayer(geoJsonLayerRef.current);
         geoJsonLayerRef.current = null;
@@ -278,3 +283,4 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
 
   return null;
 }
+
