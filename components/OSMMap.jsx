@@ -529,7 +529,7 @@ export default function MapPage() {
                   📍 Barangay: {h.barangay || 'N/A'}<br />
                   📞 Contact: {h.contactNumber || 'N/A'}<br />
                   🌐 Location: Lat: {h.lat}, Lng: {h.lng}<br />
-                  <p><strong>🌋Susceptibility:</strong> {formatSusceptibility(h.susceptibility)}</p>
+                  🌋Susceptibility: {formatSusceptibility(h.susceptibility)}
                 </li>
               ))}
             </ul>
