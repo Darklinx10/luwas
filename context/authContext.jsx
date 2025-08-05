@@ -1,30 +1,63 @@
+// AuthContext.js
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../firebase/config'; // Firebase authentication instance
-import { onAuthStateChanged } from 'firebase/auth'; // Listener for auth state changes
+import { auth, db } from '@/firebase/config';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
-// Create a new context for authentication
 const AuthContext = createContext();
 
-// AuthProvider wraps the app and provides the current user to children components
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // Holds the current logged-in user
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-    // Subscribe to Firebase authentication state changes
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser || null); // Update state with user or null if signed out
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+
+      if (firebaseUser) {
+        try {
+          const docRef = doc(db, 'users', firebaseUser.uid);
+          let docSnap = await getDoc(docRef);
+
+          // Try up to 3 times to get the doc (helps with new writes not showing instantly)
+          let retries = 2;
+          while (!docSnap.exists() && retries > 0) {
+            await new Promise(res => setTimeout(res, 300)); // wait 300ms
+            docSnap = await getDoc(docRef);
+            retries--;
+          }
+
+          if (docSnap.exists()) {
+            const userData = docSnap.data();
+            setRole(userData.role);
+            setProfile(userData); // ✅ fix: now profile will be usable
+          } else {
+            console.warn('User profile not found after retries');
+            setRole('Guest');
+            setProfile(null); // or handle as needed
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+          setRole(null);
+        }
+      }
+
+
+      setLoading(false);
     });
 
-    // Cleanup the listener when the component unmounts
     return () => unsubscribe();
-  }, []); // Empty dependency array ensures this runs once on mount
+  }, []);
 
-  // Provide the current user to all child components
-  return <AuthContext.Provider value={{ user }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ profile , setProfile, user, setUser, role, setRole, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// Custom hook to easily access auth context in components
 export const useAuth = () => useContext(AuthContext);
-

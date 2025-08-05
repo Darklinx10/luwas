@@ -6,7 +6,8 @@ import { FaUserCircle } from 'react-icons/fa';
 import { auth, db } from '@/firebase/config'; 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { toast } from 'react-toastify'; 
+import { toast } from 'react-toastify';
+import  RoleGuard  from '@/components/roleGuard'
 
 export default function UserProfile() {
   const router = useRouter();
@@ -70,6 +71,7 @@ export default function UserProfile() {
   if (!userProfile) return null;
 
   return (
+    <RoleGuard allowedRoles={['Secretary', 'OfficeStaff', 'SeniorAdmin']}>
     <div className="max-w-xl mx-auto p-6 bg-white shadow-md rounded-lg mt-10">
 
       {/* Back button */}
@@ -117,6 +119,7 @@ export default function UserProfile() {
         </button>
       </div>
     </div>
+    </RoleGuard>
   );
 }
 

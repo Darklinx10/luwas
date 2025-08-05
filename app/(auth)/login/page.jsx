@@ -1,3 +1,7 @@
+
+
+  
+
 "use client";
 
 import { useState } from "react";
@@ -5,63 +9,80 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase/config";
 import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
 
-  // State hooks
-  const [email, setEmail] = useState(""); // Holds the email input
-  const [password, setPassword] = useState(""); // Holds the password input
-  const [showPassword, setShowPassword] = useState(false); // Toggles password visibility
-  const [loading, setLoading] = useState(false); // Tracks loading state for login button
-  const [showPageLoader, setShowPageLoader] = useState(false)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showPageLoader, setShowPageLoader] = useState(false);
 
-  // Handles login submission
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent default form submission
+    e.preventDefault();
 
-    // Validate input
     if (!email.trim() || !password.trim()) {
       toast.error("Email and password cannot be empty.");
       return;
     }
 
-    setLoading(true); // Show loading indicator
+    setLoading(true);
 
     try {
-      // Sign in using Firebase Authentication
       const { user } = await signInWithEmailAndPassword(auth, email, password);
       const uid = user.uid;
-
-      // Fetch user profile from Firestore
       const docRef = doc(db, "users", uid);
       const docSnap = await getDoc(docRef);
 
+      let profile;
+
       if (docSnap.exists()) {
-        const profile = docSnap.data();
-
-        // Save profile to localStorage
-        localStorage.setItem("userProfile", JSON.stringify(profile));
-
+        profile = docSnap.data();
         toast.success("Logged in successfully.");
       } else {
-        toast.warn("Logged in, but user profile not found.");
+        // Auto-create default profile
+        profile = {
+          uid: user.uid,
+          email: user.email || '',
+          displayName: user.displayName || '',
+          photoURL: user.photoURL || '',
+          role: "SeniorUser",
+          createdAt: new Date(),
+        };
+
+        await setDoc(docRef, profile);
+        toast.warn("Logged in, but user profile not found. A new profile has been created.");
       }
 
-       setShowPageLoader(true);
+      // Save to localStorage
+      localStorage.setItem("userProfile", JSON.stringify(profile));
+      setShowPageLoader(true);
 
-      // Navigate to dashboard
+      // Role-based redirect
       setTimeout(() => {
-        router.push("/dashboard");
+        const role = profile.role;
+
+        switch (role) {
+          case "SeniorAdmin":
+            router.push("/maps");
+            break;
+          case "Secretary":
+            router.push("/dashboard");
+            break;
+          case "OfficeStaff":
+            router.push("/dashboard");
+            break;
+          default:
+            router.push("/dashboard");
+        }
       }, 1000);
 
     } catch (error) {
       console.error("Login error:", error);
-
-      // Handle known Firebase Auth errors
       switch (error.code) {
         case "auth/invalid-credential":
         case "auth/wrong-password":
@@ -75,7 +96,7 @@ export default function LoginPage() {
           toast.error("Login failed. Please try again.");
       }
     } finally {
-      setLoading(false); // Hide loading indicator
+      setLoading(false);
     }
   };
 
@@ -110,45 +131,27 @@ export default function LoginPage() {
     );
   }
 
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#fafafa] px-4 font-roboto">
       <div className="w-full max-w-lg flex flex-col items-center space-y-6">
 
-        {/* Logo and titles */}
+        {/* Logos */}
         <div className="flex justify-center gap-4 ml-6 mb-6">
-          <Image
-            src="/clarinLogo.png"
-            alt="Clarin Municipality Logo"
-            width={90}
-            height={90}
-            className="rounded-full"
-            priority
-          />
-          <Image
-            src="/mdrrmcLogo.png"
-            alt="MDRRMC Logo"
-            width={150}
-            height={150}
-            className="object-contain"
-            priority
-          />
+          <Image src="/clarinLogo.png" alt="Clarin Municipality Logo" width={90} height={90} className="rounded-full" priority />
+          <Image src="/mdrrmcLogo.png" alt="MDRRMC Logo" width={150} height={150} className="object-contain" priority />
         </div>
 
-        {/* System title */}
+        {/* Title */}
         <h1 className="text-3xl font-extrabold text-gray-800 tracking-wide mb-2">LUWAS</h1>
         <h2 className="text-center text-base sm:text-lg md:text-xl font-semibold text-gray-700 leading-snug mt-2">
           LGU Unified Web-based Alert System for Risk Mapping and Accident Reporting
         </h2>
 
-        {/* Login form container */}
+        {/* Login form */}
         <div className="bg-white border border-gray-300 p-8 rounded-2xl shadow-md w-[342px] h-[400px] mt-4">
           <h2 className="text-xl font-bold text-gray-700 mb-6 text-center">Login</h2>
-
-          {/* Form start */}
           <form onSubmit={handleSubmit}>
-
-            {/* Email field */}
+            {/* Email */}
             <div className="mb-4">
               <label htmlFor="email" className="block text-sm text-gray-700 mb-1">Email</label>
               <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
@@ -157,7 +160,7 @@ export default function LoginPage() {
                   type="email"
                   id="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)} // Update email state
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   className="w-full outline-none text-sm"
                   required
@@ -166,16 +169,16 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Password field with show/hide */}
+            {/* Password */}
             <div className="mb-4">
               <label htmlFor="password" className="block text-sm text-gray-700 mb-1">Password</label>
               <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
                 <FiLock className="text-gray-500 mr-2" />
                 <input
-                  type={showPassword ? "text" : "password"} // Toggle visibility
+                  type={showPassword ? "text" : "password"}
                   id="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)} // Update password state
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full outline-none text-sm"
                   required
@@ -183,7 +186,7 @@ export default function LoginPage() {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)} // Toggle state
+                  onClick={() => setShowPassword(!showPassword)}
                   className="ml-2 text-gray-500 focus:outline-none"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
@@ -192,53 +195,30 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember me and forgot password */}
+            {/* Options */}
             <div className="flex items-center justify-between mb-6 text-sm">
               <label htmlFor="rememberMe" className="text-sm font-normal italic flex items-center text-gray-400/90">
-                <input
-                  type="checkbox"
-                  id="rememberMe"
-                  name="rememberMe"
-                  className="mr-2 accent-blue-600"
-                />
+                <input type="checkbox" id="rememberMe" name="rememberMe" className="mr-2 accent-blue-600" />
                 Remember me
               </label>
-              <a href="/forgotpass" className="text-[#0BAD4A] hover:underline text-sm">
-                Forgot password?
-              </a>
+              <a href="/forgotpass" className="text-[#0BAD4A] hover:underline text-sm">Forgot password?</a>
             </div>
 
-            {/* Login button */}
+            {/* Button */}
             <div className="flex justify-center">
               <button
                 type="submit"
                 className="w-[200px] bg-[#0BAD4A] hover:bg-[#0a9c43] text-white font-medium py-2 rounded-lg transition flex justify-center items-center"
-                disabled={loading} // Disable while loading
+                disabled={loading}
               >
                 {loading ? (
-                  // Spinner icon during loading
                   <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-                    />
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
                   </svg>
-                ) : (
-                  "Login" // Button text
-                )}
+                ) : "Login"}
               </button>
             </div>
-
           </form>
         </div>
       </div>

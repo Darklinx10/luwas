@@ -11,6 +11,8 @@ import { doc, getDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import ConfirmModal from './modals/confirmModal';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/context/authContext'; // adjust path as needed
+
 
 export default function Topbar({ toggleSidebar, sidebarOpen }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -19,6 +21,10 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
   const menuRef = useRef();
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
+  const [userRole, setUserRole] = useState('');
+  const { setUser, setRole } = useAuth();
+
+
 
   // Fetch current user data from Firestore
   const fetchUserData = async () => {
@@ -32,6 +38,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
           const fullName = `${data.firstName || ''} ${data.middleName || ''} ${data.lastName || ''}`.trim();
           setUserName(fullName);
           setUserPhoto(data.photoURL || null);
+          setUserRole(data.role || ''); // ✅ Add this
         }
       } catch (error) {
         console.error('Failed to fetch user data:', error.message);
@@ -74,16 +81,28 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
   }, []);
 
   // Logout handler
+  
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      toast.success('You have been logged out.');
-      setTimeout(() => router.push('/'), 50); // Delay for smooth UI transition
+      setUser(null);
+      setRole(null);
+      localStorage.removeItem("userProfile");
+      toast.success("You have been logged out.");
+
+      // Delay 5 seconds (5000ms) before redirecting
+      setTimeout(() => {
+        router.push("/");
+      }, 50);
     } catch (error) {
-      console.error('Logout failed:', error);
-      toast.error('Failed to log out.');
+      console.error("Logout failed:", error);
+      toast.error("Failed to log out.");
     }
   };
+
+
+
+
 
   return (
     <div className="flex items-center justify-between px-6 h-15 border-b border-gray-200 bg-white shadow-sm relative">
@@ -137,6 +156,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
                 )}
                 <span className="mt-2 text-sm font-semibold text-gray-800 text-center">
                   {userName || 'Guest User'}
+                  {userRole && <p className="text-xs text-gray-500 mt-3">{userRole}</p>}
                 </span>
               </div>
 

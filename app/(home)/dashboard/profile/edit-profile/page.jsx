@@ -8,8 +8,18 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'react-toastify';
+import RoleGuard from '@/components/roleGuard'; // ✅ RoleGuard import
 
 export default function EditProfilePage() {
+  return (
+    <RoleGuard allowedRoles={['SeniorAdmin', 'OfficeStaff', 'Secretary']}>
+      <EditProfileContent />
+    </RoleGuard>
+  );
+}
+
+// Separated profile editing logic to this component
+function EditProfileContent() {
   const router = useRouter();
 
   const [form, setForm] = useState({
@@ -25,7 +35,7 @@ export default function EditProfilePage() {
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [uid, setUid] = useState(null);
-  const [loading, setLoading] = useState(false); // <-- loading state
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -163,7 +173,6 @@ export default function EditProfilePage() {
           <InputField type="email" name="email" label="Email Address" value={form.email} onChange={handleChange} required />
         </div>
 
-        {/* Updated Submit Button with Spinner */}
         <div className="col-span-2 mt-4 flex justify-end">
           <button
             type="submit"

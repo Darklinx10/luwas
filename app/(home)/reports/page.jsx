@@ -9,6 +9,7 @@ import PWDTable from '@/components/Tables/pwdTable';
 import SeniorTable from '@/components/Tables/seniorTable';
 import HazardTable from '@/components/Tables/hazardTable';
 import AccidentTable from '@/components/Tables/accidentTable';
+import RoleGuard from '@/components/roleGuard'; // ✅ Import RoleGuard
 
 const hazardTypes = [
   'Active Faults',
@@ -32,9 +33,7 @@ const geoJsonFileMap = {
   'Landslide': '/data/Clarin_Landslide_converted.geojson',
 };
 
-const reportData = {
-    
-};
+const reportData = {};
 
 const titleMap = {
   pwd: 'List of Person with Disability (2025)',
@@ -46,7 +45,7 @@ const titleMap = {
   }, {}),
 };
 
-export default function ReportsPage() {
+function ReportsPageContent() {
   const [selectedReport, setSelectedReport] = useState('pwd');
   const [affectedHouseholds, setAffectedHouseholds] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -82,7 +81,6 @@ export default function ReportsPage() {
           });
         }
 
-        // ✅ Now include susceptibility from hazard GeoJSON
         const affected = [];
 
         households.forEach((h) => {
@@ -95,7 +93,7 @@ export default function ReportsPage() {
                 ...h,
                 susceptibility: feature.properties?.Susciptibi || 'Unknown',
               });
-              break; // Stop once matched
+              break;
             }
           }
         });
@@ -111,7 +109,6 @@ export default function ReportsPage() {
 
     loadAffectedHouseholds();
   }, [selectedReport]);
-
 
   const renderTable = () => {
     const title = titleMap[selectedReport];
@@ -170,5 +167,13 @@ export default function ReportsPage() {
         {renderTable()}
       </div>
     </div>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <RoleGuard allowedRoles={['OfficeStaff']}>
+      <ReportsPageContent />
+    </RoleGuard>
   );
 }

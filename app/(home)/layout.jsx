@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import Sidebar from '@/components/sidebar';
 import Topbar from '@/components/topbar';
+import { useAuth } from '@/context/authContext';
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const { profile } = useAuth(); 
+  const userRole = profile?.role;
 
   return (
     <div className="flex">
@@ -16,7 +19,7 @@ export default function DashboardLayout({ children }) {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } fixed z-40 inset-y-0 left-0 w-64 pl-2 bg-white shadow-md`}
       >
-        <Sidebar sidebarOpen={sidebarOpen} />
+        <Sidebar sidebarOpen={sidebarOpen} userRole={userRole} />
       </div>
 
       {/* Content area (with margin left for sidebar) */}

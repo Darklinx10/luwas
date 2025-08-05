@@ -9,7 +9,8 @@ import { db } from '@/firebase/config';
 import dynamic from 'next/dynamic';
 import EditHouseholdModal from '@/components/modals/editHouseholModal';
 import { toast } from 'react-toastify';
-
+import  RoleGuard  from '@/components/roleGuard'
+ 
 // Dynamically import map component to avoid SSR issues
 const MapPopup = dynamic(() => import('@/components/mapPopUp'), { ssr: false });
 
@@ -29,6 +30,8 @@ export default function HouseholdPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedHouseholdId, setSelectedHouseholdId] = useState(null);
   const [loadingMembers, setLoadingMembers] = useState({});
+  const [profile, setProfile] = useState(null);
+
 
   // Redirect to add household form
   const handleAddClick = () => {
@@ -205,6 +208,7 @@ export default function HouseholdPage() {
   });
 
   return (
+    <RoleGuard allowedRoles={['Secretary', 'OfficeStaff']}>
     <div className="p-4">
       {/* Breadcrumb */}
       <div className="text-sm text-right text-gray-500 mb-2">Home / Households</div>
@@ -229,19 +233,47 @@ export default function HouseholdPage() {
           />
         </div>
 
-        <button
-          onClick={handleAddClick}
-          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 cursor-pointer"
-        >
-          <FiPlus />
-          Add
-        </button>
+        {profile?.role === 'Secretary' && (
+          <button
+            onClick={() => router.push('/add-household')}
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+          >
+            <FiPlus />
+            Add Household
+          </button>
+        )}
+
       </div>
 
       {/* Table Section */}
       <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
         {loading ? (
-          <p className="text-center text-gray-500 py-6 animate-pulse">Loading household records...</p>
+          <div className="flex items-center justify-center py-10">
+            <div className="flex flex-col items-center">
+              <svg
+                className="animate-spin h-10 w-10 text-green-500 mb-3"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
+              </svg>
+              <p className="text-gray-600 text-sm">Loading household records...</p>
+            </div>
+          </div>
+          
         ) : households.length === 0 ? (
           <p className="text-center text-gray-500 py-6">No household records found.</p>
         ) : filteredHouseholds.length === 0 ? (
@@ -444,5 +476,6 @@ export default function HouseholdPage() {
         readOnly={true}
       />
     </div>
+    </RoleGuard>
   );
 }

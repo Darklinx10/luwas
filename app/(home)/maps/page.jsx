@@ -3,12 +3,16 @@
 
 // Dynamically import the OSMMap component, disabling server-side rendering for it
 import dynamic from 'next/dynamic';
+import RoleGuard from '@/components/roleGuard';
+
 const OSMMap = dynamic(() => import('@/components/OSMMap'), { ssr: false });
 
-export default function HomePage() {
+export default function MapPage() {
   return (
-    <div className="p-4"> 
-      <OSMMap /> 
-    </div>
+    <RoleGuard allowedRoles={['SeniorAdmin', 'OfficeStaff']}>
+      <div className="p-4">
+        <OSMMap />
+      </div>
+    </RoleGuard>
   );
 }

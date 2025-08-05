@@ -5,9 +5,10 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // Context Providers for auth and household
-import { AuthProvider } from '@/context/authContext';
+
 import { HouseholdProvider } from '@/context/householdContext'; 
 
+import { AuthProvider } from '@/context/authContext';
 // Page metadata including title, description, and icons
 export const metadata = {
   title: "LUWAS", 

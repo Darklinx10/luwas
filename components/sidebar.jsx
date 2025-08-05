@@ -6,10 +6,15 @@ import Image from 'next/image';
 import { BsFillHousesFill } from "react-icons/bs";
 import { HiDocumentReport } from "react-icons/hi";
 import { IoMapSharp } from "react-icons/io5";
+import { FaExclamationTriangle } from "react-icons/fa";
+import { MdOutlineMap } from "react-icons/md";
+import { FaUserShield } from "react-icons/fa";
 import { MdSpaceDashboard } from "react-icons/md";
+import { useAuth } from '@/context/authContext'
 
-export default function Sidebar({ sidebarOpen }) {
+export default function Sidebar({ sidebarOpen, userRole }) {
   const pathname = usePathname().toLowerCase(); // Get current path in lowercase
+const { user, profile } = useAuth(); // profile.role should contain the role
 
   // Navigation items definition
   const navItems = [
@@ -18,24 +23,49 @@ export default function Sidebar({ sidebarOpen }) {
       label: "Dashboard", // Label displayed
       icon: <MdSpaceDashboard className="text-2xl" />, // Icon component
       isActive: pathname === "/dashboard", // Mark as active if exact path
+      allowedRoles: ["Secretary", "OfficeStaff"],
     },
     {
       href: "/household", // Path to household section
       label: "Households",
       icon: <BsFillHousesFill className="text-2xl" />,
       isActive: pathname.startsWith("/household"), // Active if path starts with /household
+      allowedRoles: ["Secretary", "OfficeStaff"],
     },
     {
       href: "/maps",
       label: "Maps",
       icon: <IoMapSharp className="text-2xl" />,
       isActive: pathname.startsWith("/maps"), // Active if path starts with /maps
+      allowedRoles: ["SeniorAdmin", "OfficeStaff"],
+    },
+    {
+      href: "/hazards",
+      label: "Hazards",
+      icon: <FaExclamationTriangle className="text-2xl" />,
+      isActive: pathname.startsWith("/hazards"),
+      allowedRoles: ["SeniorAdmin"],
+    },
+    {
+      href: "/boundaries",
+      label: "Boundaries",
+      icon: <MdOutlineMap className="text-2xl" />,
+      isActive: pathname.startsWith("/boundaries"),
+      allowedRoles: ["SeniorAdmin"],
+    },
+    {
+      href: "/users",
+      label: "User Management",
+      icon: <FaUserShield className="text-2xl" />,
+      isActive: pathname.startsWith("/users"),
+      allowedRoles: ["SeniorAdmin"],
     },
     {
       href: "/reports",
       label: "Reports",
       icon: <HiDocumentReport className="text-2xl" />,
       isActive: pathname.startsWith("/reports"), // Active if path starts with /reports
+      allowedRoles: ["OfficeStaff"],
     },
   ];
 
@@ -60,20 +90,29 @@ export default function Sidebar({ sidebarOpen }) {
 
       {/* Navigation Links */}
       <nav className="space-y-2">
-        {navItems.map(({ href, label, icon, isActive }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`flex items-center gap-4 px-4 py-2 rounded-md transition-all ${
-              isActive
-                ? "bg-[#0BAD4A] text-white font-semibold"
-                : "text-gray-700 hover:bg-green-100 hover:text-[#0BAD4A]"
-            }`}
-          >
-            {icon}
-            <span className="text-base sm:text-sm md:text-base">{label}</span> {/* Adjust text size for responsiveness */}
-          </Link>
-        ))}
+        {navItems
+          .filter((item) =>
+            item.allowedRoles.map((role) => role.toLowerCase()).includes(userRole?.toLowerCase())
+          )
+          .map(({ href, label, icon, isActive }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-4 px-4 py-2 rounded-md transition-all ${
+                isActive
+                  ? "bg-[#0BAD4A] text-white font-semibold"
+                  : "text-gray-700 hover:bg-green-100 hover:text-[#0BAD4A]"
+              }`}
+            >
+              {icon}
+              <span className="text-base sm:text-sm md:text-base">{label}</span>
+            </Link>
+          ))}
+
+        {!userRole && (
+          <p className="text-sm text-red-500 mt-4">No role provided. Sidebar hidden.</p>
+        )}
+
       </nav>
     </aside>
   );

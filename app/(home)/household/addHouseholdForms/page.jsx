@@ -13,8 +13,9 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '@/firebase/config';
+import { useAuth } from '@/context/authContext';
 
-// Sidebar and form section components
+// Components
 import FormSectionSidebar from '@/components/formSectionSidebar';
 import GeographicIdentification from '@/components/Forms/geographic-information';
 import DemographicCharacteristics from '@/components/Forms/demographic-characteristics';
@@ -37,8 +38,6 @@ import WaterSanitation from '@/components/Forms/water-sanitation';
 import HousingCharacteristics from '@/components/Forms/housing-characteristics';
 import Refusal from '@/components/Forms/refusal-specialcases';
 
-
-// Map of section names to their respective components
 const formSections = {
   'Geographic Identification': GeographicIdentification,
   'Demographic Characteristics': DemographicCharacteristics,
@@ -62,28 +61,25 @@ const formSections = {
   'Refusal and Special Cases': Refusal,
 };
 
-export default function AddHouseholdFormPage() {
-  // State declarations
+function AddHouseholdFormPage() {
+  const { user, profile } = useAuth();
+  const userRole = profile?.role;
+
   const [currentSection, setCurrentSection] = useState('Geographic Identification');
   const [householdId, setHouseholdId] = useState(null);
-  const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savedMembers, setSavedMembers] = useState([]);
   const [isComplete, setIsComplete] = useState(false);
+
   const sectionKeys = Object.keys(formSections);
-  // Add states at the top of your component
 
-
-  // Main useEffect logic
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
         setLoading(false);
         return;
       }
-
-      setUser(currentUser);
 
       try {
         const userRef = doc(db, 'users', currentUser.uid);
@@ -92,7 +88,6 @@ export default function AddHouseholdFormPage() {
         if (userSnap.exists()) {
           setUserData(userSnap.data());
 
-          // Check if user has an unfinished household form
           const q = query(
             collection(db, 'households'),
             where('createdBy', '==', currentUser.uid),
@@ -104,20 +99,16 @@ export default function AddHouseholdFormPage() {
 
           if (unfinished) {
             const confirmResume = window.confirm('You have an unfinished form. Do you want to continue?');
-
             if (confirmResume) {
-              // Resume unfinished form
               setHouseholdId(unfinished.id);
               setCurrentSection(unfinished.data().lastSection || 'Geographic Identification');
               setLoading(false);
               return;
             } else {
-              // Mark unfinished form as discarded
               await setDoc(doc(db, 'households', unfinished.id), { discarded: true }, { merge: true });
             }
           }
 
-          // Create a new household record
           const householdRef = await addDoc(collection(db, 'households'), {
             createdBy: currentUser.uid,
             createdAt: new Date(),
@@ -137,26 +128,21 @@ export default function AddHouseholdFormPage() {
     return () => unsubscribe();
   }, []);
 
-  // Go to the next section
   const goToNext = async () => {
     const currentIndex = sectionKeys.indexOf(currentSection);
     const nextSection = sectionKeys[currentIndex + 1];
 
     if (nextSection) {
       setCurrentSection(nextSection);
-
       if (householdId) {
-        const householdRef = doc(db, 'households', householdId);
-        await setDoc(householdRef, {
+        await setDoc(doc(db, 'households', householdId), {
           lastSection: nextSection,
           updatedAt: new Date(),
         }, { merge: true });
       }
     } else {
-      // Form is complete
       if (householdId) {
-        const householdRef = doc(db, 'households', householdId);
-        await setDoc(householdRef, {
+        await setDoc(doc(db, 'households', householdId), {
           isComplete: true,
           updatedAt: new Date(),
         }, { merge: true });
@@ -165,11 +151,9 @@ export default function AddHouseholdFormPage() {
     }
   };
 
-  // Determine current section component
   const SectionComponent = formSections[currentSection] || (() => <div>Section not found</div>);
 
-  // Loading screen
-  if (loading) {
+  if (loading || !profile) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="flex flex-col items-center">
@@ -179,19 +163,8 @@ export default function AddHouseholdFormPage() {
             fill="none"
             viewBox="0 0 24 24"
           >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v8z"
-            />
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
           </svg>
           <p className="text-gray-600 text-sm">Loading form, please wait...</p>
         </div>
@@ -199,43 +172,39 @@ export default function AddHouseholdFormPage() {
     );
   }
 
-  // Error if user not loaded
-  if (!user || !userData) {
+  if (userRole !== 'Secretary') {
     return (
-      <div className="p-6 text-red-500">
-        ❌ Unable to load form. Make sure you're logged in.
+      <div className="p-6 text-red-500 text-center">
+        ❌ Access Denied: This page is restricted to <strong>Secretary</strong> users.
       </div>
     );
   }
 
-  // Show while creating a new household record
+  if (!user || !userData) {
+    return <div className="p-6 text-red-500">❌ Unable to load form. Make sure you're logged in.</div>;
+  }
+
   if (!householdId) {
     return <div className="p-6 text-gray-500">Creating household record...</div>;
   }
 
-  // Success message after completing form
   if (isComplete) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-green-700">🎉 All forms completed!</h1>
-          <p className="text-gray-600 mt-2">
-            Thank you for completing the household survey.
-          </p>
+          <p className="text-gray-600 mt-2">Thank you for completing the household survey.</p>
         </div>
       </div>
     );
   }
 
-  // Main form layout
   return (
     <div className="flex h-screen">
       <FormSectionSidebar current={currentSection} setSection={setCurrentSection} />
-
       <main className="flex-1 p-6 bg-white rounded-r-lg shadow text-sm border-t border-gray-200 overflow-y-auto h-screen">
         <div className="h-full overflow-y-auto pr-2">
           <h2 className="text-2xl font-bold mb-1">{currentSection}</h2>
-
           <SectionComponent
             householdId={householdId}
             setHouseholdId={setHouseholdId}
@@ -245,9 +214,10 @@ export default function AddHouseholdFormPage() {
             userData={userData}
             goToNext={goToNext}
           />
-
         </div>
       </main>
     </div>
   );
 }
+
+export default AddHouseholdFormPage;

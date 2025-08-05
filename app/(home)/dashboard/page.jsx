@@ -8,7 +8,7 @@ import {
   FaWheelchair,
   FaUserClock,
   FaExclamationTriangle,
-  FaBirthdayCake,
+  FaCarCrash,
 } from 'react-icons/fa';
 
 import dynamic from 'next/dynamic';
@@ -17,13 +17,23 @@ import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db, auth } from '@/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import RoleGuard from '@/components/roleGuard';
 
-// Dynamically load charts
+// Charts (lazy load)
 const BarChartComponent = dynamic(() => import('@/components/barchart'), { ssr: false });
 const AgeBracketChart = dynamic(() => import('@/components/agebracket'), { ssr: false });
 
-export default function DashboardPage() {
+export default function DashboardPageWrapper() {
+  return (
+    <RoleGuard allowedRoles={['Secretary', 'OfficeStaff']}>
+      <DashboardPage />
+    </RoleGuard>
+  );
+}
+
+function DashboardPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
   const [stats, setStats] = useState({
     residents: 0,
@@ -35,10 +45,10 @@ export default function DashboardPage() {
     seniors: 0,
     ageCount: 0,
     hazards: 0,
+    accidents: 0,
     growthRate: '0%',
   });
 
-  // Auth + Data Fetch
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -58,6 +68,9 @@ export default function DashboardPage() {
         let seniorCount = 0;
         let ageCount = 0;
 
+        const accidentsSnap = await getDocs(collection(db, 'accidents'));
+        const accidentsCount = accidentsSnap.size;
+
         for (const householdDoc of householdSnap.docs) {
           const householdId = householdDoc.id;
 
@@ -67,9 +80,7 @@ export default function DashboardPage() {
           const headAge = parseInt(geoData.headAge);
 
           householdHeads++;
-          if (!isNaN(headAge)) {
-            ageCount += headAge;
-          }
+          if (!isNaN(headAge)) ageCount += headAge;
 
           const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
           const healthSnap = await getDocs(collection(db, 'households', householdId, 'health'));
@@ -79,9 +90,7 @@ export default function DashboardPage() {
             const mainHealthDoc = await getDoc(doc(db, 'households', householdId, 'health', 'main'));
             if (mainHealthDoc.exists()) {
               const mainHealth = mainHealthDoc.data();
-              if (mainHealth?.isPWD === true) {
-                pwdCount++;
-              }
+              if (mainHealth?.isPWD === true) pwdCount++;
             }
           } catch {
             console.warn(`⚠️ Missing health doc for household ${householdId}`);
@@ -102,14 +111,11 @@ export default function DashboardPage() {
             }
 
             const health = healthMap.get(memberId);
-            if (health?.isPWD === true) {
-              pwdCount++;
-            }
+            if (health?.isPWD === true) pwdCount++;
           }
         }
 
-        // Set dummy hazard count for now (or replace with actual query if needed)
-        const hazardsCount = 8;
+        const hazardsCount = 8; // static or fetched if implemented
 
         setStats({
           residents: residentCount,
@@ -121,10 +127,13 @@ export default function DashboardPage() {
           seniors: seniorCount,
           ageCount,
           hazards: hazardsCount,
-          growthRate: '30%', // Example static
+          accidents: accidentsCount,
+          growthRate: '30%',
         });
       } catch (err) {
         console.error('🔥 Error fetching dashboard stats:', err);
+      } finally {
+        setLoading(false);
       }
     });
 
@@ -135,13 +144,13 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Top Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-5">
-        <SummaryCard title="Total Residents" value={stats.residents} icon={<FaUsers />} color="bg-blue-500" />
-        <SummaryCard title="Total Households" value={stats.households} icon={<FaHome />} color="bg-green-500" />
-        <SummaryCard title="Total Families" value={stats.families} icon={<FaUsersCog />} color="bg-yellow-500" />
-        <SummaryCard title="Population Growth Rate" value={stats.growthRate} icon={<FaChartLine />} color="bg-red-500" />
+        <SummaryCard title="Total Residents" value={stats.residents} icon={<FaUsers />} color="bg-blue-500" loading={loading} />
+        <SummaryCard title="Total Households" value={stats.households} icon={<FaHome />} color="bg-green-500" loading={loading} />
+        <SummaryCard title="Total Families" value={stats.families} icon={<FaUsersCog />} color="bg-yellow-500" loading={loading} />
+        <SummaryCard title="Population Growth Rate" value={stats.growthRate} icon={<FaChartLine />} color="bg-red-500" loading={loading} />
       </div>
 
-      {/* Charts Section */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="col-span-2 bg-white rounded-xl shadow p-4">
           <h3 className="text-lg font-semibold mb-4">Residents Data</h3>
@@ -155,39 +164,54 @@ export default function DashboardPage() {
 
       {/* Bottom Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <BottomStat title="Total PWD" value={stats.pwd} icon={<FaWheelchair />} color="bg-blue-500" />
-        <BottomStat title="Total Senior Citizens" value={stats.seniors} icon={<FaUserClock />} color="bg-green-500" />
-        <BottomStat title="Total Hazards" value={stats.hazards} icon={<FaExclamationTriangle />} color="bg-yellow-500" />
-        <BottomStat title="Total Age" value={stats.ageCount} icon={<FaBirthdayCake />} color="bg-red-500" />
+        <BottomStat title="Total PWD" value={stats.pwd} icon={<FaWheelchair />} color="bg-blue-500" loading={loading} />
+        <BottomStat title="Total Senior Citizens" value={stats.seniors} icon={<FaUserClock />} color="bg-green-500" loading={loading} />
+        <BottomStat title="Total Hazards" value={stats.hazards} icon={<FaExclamationTriangle />} color="bg-yellow-500" loading={loading} />
+        <BottomStat title="Total Accidents" value={stats.accidents} icon={<FaCarCrash />} color="bg-red-500" loading={loading} />
       </div>
     </div>
   );
 }
 
-// Reusable summary card
-function SummaryCard({ title, value, icon, color }) {
+// Spinner Component
+function Spinner() {
+  return (
+    <div className="w-5 h-5 border-2 border-gray border-t-transparent rounded-full animate-spin" />
+  );
+}
+
+// Summary Card Component
+function SummaryCard({ title, value, icon, color, loading }) {
   return (
     <div className={`flex items-center p-4 rounded-xl text-white shadow ${color}`}>
       <div className="text-3xl mr-4">{icon}</div>
       <div>
-        <div className="text-lg font-semibold">{value}</div>
+        <div className="text-lg font-semibold">
+          {loading ? <Spinner /> : value}
+        </div>
         <div className="text-sm">{title}</div>
       </div>
     </div>
   );
 }
 
-// Reusable bottom stat
-function BottomStat({ title, value, icon, color }) {
+
+// Bottom Stat Card
+function BottomStat({ title, value, icon, color, loading }) {
   return (
     <div className="flex items-center justify-between bg-white rounded-xl shadow p-6">
       <div className="flex items-center">
-        <div className={`text-xl p-2 rounded-full text-white ${color} mr-3`}>{icon}</div>
+        <div className={`text-xl p-2 rounded-full text-white ${color} mr-3`}>
+          {icon}
+        </div>
         <div>
           <div className="text-sm">{title}</div>
-          <div className="text-lg font-bold">{value}</div>
+          <div className="text-lg font-bold">
+            {loading ? <Spinner className="text-gray-200" /> : value}
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
