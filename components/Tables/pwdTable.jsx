@@ -7,44 +7,41 @@ import { FiSearch, FiEdit, FiTrash2, FiX } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 
 export default function PWDPage() {
-  const [pwds, setPwds] = useState([]); // Stores the list of PWD records
-  const [searchTerm, setSearchTerm] = useState(''); // Input value for searching
-  const [loading, setLoading] = useState(false); // Indicates loading state
-  const [selectedPWD, setSelectedPWD] = useState(null); // Currently selected PWD for editing
-  const [showModal, setShowModal] = useState(false); // Modal visibility flag
+  const [pwds, setPwds] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [selectedPWD, setSelectedPWD] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
-  
   useEffect(() => {
     const fetchPWDs = async () => {
       setLoading(true);
-
       try {
         const householdsSnap = await getDocs(collection(db, 'households'));
 
         const promises = householdsSnap.docs.map(async (householdDoc) => {
           const householdId = householdDoc.id;
 
-          // Fetch barangay only
-          const geoSnap = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
-          const geoData = geoSnap.exists() ? geoSnap.data() : {};
-          const barangay = geoData?.barangay || '—';
+          const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
+          const healthRef = doc(db, 'households', householdId, 'health', 'main');
 
-          // Fetch health info
-          const healthSnap = await getDoc(doc(db, 'households', householdId, 'health', 'main'));
+          const [geoSnap, healthSnap] = await Promise.all([getDoc(geoRef), getDoc(healthRef)]);
+          const geoData = geoSnap.exists() ? geoSnap.data() : {};
           const health = healthSnap.exists() ? healthSnap.data() : null;
 
           if (!health?.isPWD || typeof health.pwdLineNumber !== 'string') return null;
 
           const lineNumber = health.pwdLineNumber;
+          const barangay = geoData?.barangay || '—';
 
           let name = '—';
           let age = '—';
           let sex = '—';
           let contact = '—';
 
-          // Fetch demographic info depending on whether PWD is head or member
           if (lineNumber === 'head') {
-            const demoSnap = await getDoc(doc(db, 'households', householdId, 'demographicCharacteristics', 'main'));
+            const demoRef = doc(db, 'households', householdId, 'demographicCharacteristics', 'main');
+            const demoSnap = await getDoc(demoRef);
             const demo = demoSnap.exists() ? demoSnap.data() : null;
             if (!demo) return null;
 
@@ -60,12 +57,17 @@ export default function PWDPage() {
             sex = demo?.sex || '—';
             contact = demo?.contactNumber || '—';
           } else {
-            const memberDoc = await getDoc(doc(db, 'households', householdId, 'members', lineNumber));
-            const member = memberDoc.exists() ? memberDoc.data() : null;
-            if (!member) return null;
+            const memberRef = doc(db, 'households', householdId, 'members', lineNumber);
+            const demoRef = doc(db, 'households', householdId, 'members', lineNumber, 'demographicCharacteristics', 'main');
 
-            const demoSnap = await getDoc(doc(db, 'households', householdId, 'members', lineNumber, 'demographicCharacteristics', 'main'));
+            const [memberDoc, demoSnap] = await Promise.all([
+              getDoc(memberRef),
+              getDoc(demoRef),
+            ]);
+
+            const member = memberDoc.exists() ? memberDoc.data() : null;
             const demo = demoSnap.exists() ? demoSnap.data() : null;
+            if (!member) return null;
 
             const nameParts = [
               member.firstName || '',
@@ -93,7 +95,7 @@ export default function PWDPage() {
         });
 
         const allData = await Promise.all(promises);
-        setPwds(allData.filter(Boolean)); // Remove any null results
+        setPwds(allData.filter(Boolean));
       } catch (error) {
         console.error('Error fetching PWD data:', error);
         toast.error('Failed to load PWD data. Please try again.');
@@ -105,18 +107,14 @@ export default function PWDPage() {
     fetchPWDs();
   }, []);
 
-
-  // Filter PWDs by search term
   const filteredData = pwds.filter((item) =>
     Object.values(item).some((val) =>
       String(val).toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
 
-  // Trigger browser print dialog
   const handlePrint = () => window.print();
 
-  // Export filtered data to CSV
   const handleDownloadCSV = () => {
     if (!filteredData.length) return;
 
@@ -130,17 +128,15 @@ export default function PWDPage() {
 
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `pwd_report_2025.csv`; // Download file name
+    a.download = `pwd_report_2025.csv`;
     a.click();
-    URL.revokeObjectURL(a.href); // Clean up URL object
+    URL.revokeObjectURL(a.href);
   };
 
-  // Save edited 
   const handleSaveEdit = async () => {
     if (!selectedPWD) return;
 
-    setLoading(true); // Start loading spinner
-
+    setLoading(true);
     const {
       householdId,
       id,
@@ -154,44 +150,32 @@ export default function PWDPage() {
 
     try {
       const lineNumber = id.replace(`${householdId}-`, '');
-
-      // 1. Update disability in health
-      const healthRef = doc(db, 'households', householdId, 'health', 'main');
-      await updateDoc(healthRef, {
-        pwdDisabilityType: disability ?? '',
-      });
-
-      // 2. Update barangay in geographicIdentification
-      const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-      await updateDoc(geoRef, {
-        barangay: barangay ?? '',
-      });
-
-      // 3. Update demographic info
       const isHead = lineNumber === 'head';
+
+      const healthRef = doc(db, 'households', householdId, 'health', 'main');
+      const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
       const demographicRef = isHead
         ? doc(db, 'households', householdId, 'demographicCharacteristics', 'main')
         : doc(db, 'households', householdId, 'members', lineNumber, 'demographicCharacteristics', 'main');
 
-      await updateDoc(demographicRef, {
-        sex: sex ?? '',
-        age: age ?? '',
-        contactNumber: contact ?? '',
-      });
+      await Promise.all([
+        updateDoc(healthRef, {
+          pwdDisabilityType: disability ?? '',
+        }),
+        updateDoc(geoRef, {
+          barangay: barangay ?? '',
+        }),
+        updateDoc(demographicRef, {
+          sex: sex ?? '',
+          age: age ?? '',
+          contactNumber: contact ?? '',
+        }),
+      ]);
 
-      // 4. Update local state
       setPwds((prev) =>
         prev.map((item) =>
           item.id === id
-            ? {
-                ...item,
-                name,
-                sex,
-                age,
-                contact,
-                barangay,
-                disability,
-              }
+            ? { ...item, name, sex, age, contact, barangay, disability }
             : item
         )
       );
@@ -202,25 +186,19 @@ export default function PWDPage() {
       console.error('Update failed:', error);
       toast.error('Failed to update PWD information.');
     } finally {
-      setLoading(false); // End loading spinner
+      setLoading(false);
     }
   };
 
-
-
-  //Removes the PWD (Person With Disability) status for a specific individual.
   const handleDelete = async (pwd) => {
     if (!pwd) return;
-
     if (!confirm(`Are you sure you want to remove PWD status for ${pwd.name}?`)) return;
 
     setLoading(true);
-
     try {
       const { householdId, id } = pwd;
       const lineNumber = id.replace(`${householdId}-`, '');
 
-      // Clear PWD flag and disability in health doc
       const healthRef = doc(db, 'households', householdId, 'health', 'main');
       await updateDoc(healthRef, {
         isPWD: false,
@@ -228,11 +206,7 @@ export default function PWDPage() {
         pwdDisabilityType: '',
       });
 
-      // Optionally, you could also clear demographic info related to PWD if needed
-
-      // Remove from local state
       setPwds((prev) => prev.filter((item) => item.id !== id));
-
       toast.success(`PWD status removed for ${pwd.name}`);
     } catch (error) {
       console.error('Failed to remove PWD status:', error);
@@ -241,7 +215,6 @@ export default function PWDPage() {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="p-4">

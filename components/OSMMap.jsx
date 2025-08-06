@@ -110,7 +110,7 @@ export default function MapPage() {
 
 
   useEffect(() => {
-    fetch('/data/Clarin_Political_Boundary_converted.geojson')
+    fetch('/data/Clarin_Boundary.geojson')
       .then((res) => res.json())
       .then((data) => setClarinBoundary(data))
       .catch((err) => console.error('Failed to load GeoJSON:', err));
@@ -178,37 +178,49 @@ export default function MapPage() {
 
   useEffect(() => {
     const fetchHouseholds = async () => {
-      const snapshot = await getDocs(collection(db, 'households'));
-      const locations = [];
+      try {
+        const snapshot = await getDocs(collection(db, 'households'));
 
-      for (const doc of snapshot.docs) {
-        const geoSnap = await getDocs(
-          collection(db, 'households', doc.id, 'geographicIdentification')
-        );
-        geoSnap.forEach((geoDoc) => {
-          const data = geoDoc.data();
-          const lat = Number(data.latitude);
-          const lng = Number(data.longitude);
+        // Prepare all subcollection fetch promises
+        const promises = snapshot.docs.map(async (doc) => {
+          const geoSnap = await getDocs(
+            collection(db, 'households', doc.id, 'geographicIdentification')
+          );
 
-          if (!isNaN(lat) && !isNaN(lng)) {
-            locations.push({
-              id: `${doc.id}_${geoDoc.id}`,
-              name: `${data.headFirstName || ''} ${data.headLastName || ''}`.trim(),
-              lat,
-              lng,
-              barangay: data.barangay || 'N/A',
-              contactNumber: data.contactNumber || 'N/A',
-              
-            });
-          }
+          return geoSnap.docs.map((geoDoc) => {
+            const data = geoDoc.data();
+            const lat = Number(data.latitude);
+            const lng = Number(data.longitude);
+
+            if (!isNaN(lat) && !isNaN(lng)) {
+              return {
+                id: `${doc.id}_${geoDoc.id}`,
+                name: `${data.headFirstName || ''} ${data.headLastName || ''}`.trim(),
+                lat,
+                lng,
+                barangay: data.barangay || 'N/A',
+                contactNumber: data.contactNumber || 'N/A',
+              };
+            }
+
+            return null;
+          });
         });
-      }
 
-      setHouseholdMarkers(locations);
+        const results = await Promise.all(promises);
+
+        // Flatten and filter out nulls
+        const locations = results.flat().filter(Boolean);
+
+        setHouseholdMarkers(locations);
+      } catch (error) {
+        console.error('Error fetching households:', error);
+      }
     };
 
     fetchHouseholds();
   }, []);
+
 
   useEffect(() => {
     const fetchAccidents = async () => {

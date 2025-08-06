@@ -77,7 +77,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
     hasBiometric: ['', 'Yes', 'No', "Don't Know"],
     hasLGUID: ['', 'Yes', 'No', "Don't Know"],
     soloParent: ['', 'Yes', 'No'],
-    soloParentId: ['', 'Yes', 'No', "Don't Know"],
+    soloParentId: ['', 'Yes', 'No', "Don't Know"],  
     seniorCitizenId: ['', 'Yes', 'No', "Don't Know"]
   };
 

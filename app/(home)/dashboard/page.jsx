@@ -58,77 +58,94 @@ function DashboardPage() {
       }
 
       try {
-        const householdSnap = await getDocs(collection(db, 'households'));
-        const householdCount = householdSnap.size;
+        const [householdSnap, accidentsSnap] = await Promise.all([
+          getDocs(collection(db, 'households')),
+          getDocs(collection(db, 'accidents')),
+        ]);
 
+        const householdCount = householdSnap.size;
         let residentCount = 0;
         let householdHeads = 0;
         let householdMembers = 0;
         let pwdCount = 0;
         let seniorCount = 0;
         let ageCount = 0;
+        let actualHouseholds = 0;
 
-        const accidentsSnap = await getDocs(collection(db, 'accidents'));
-        const accidentsCount = accidentsSnap.size;
+        await Promise.all(
+          householdSnap.docs.map(async (householdDoc) => {
+            const householdId = householdDoc.id;
 
-        for (const householdDoc of householdSnap.docs) {
-          const householdId = householdDoc.id;
+            const geoDocRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
+            const geoSnapPromise = getDoc(geoDocRef);
+            const membersSnapPromise = getDocs(collection(db, 'households', householdId, 'members'));
+            const healthSnapPromise = getDocs(collection(db, 'households', householdId, 'health'));
+            const mainHealthDocPromise = getDoc(doc(db, 'households', householdId, 'health', 'main'));
 
-          const geoDocRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-          const geoSnap = await getDoc(geoDocRef);
-          const geoData = geoSnap.exists() ? geoSnap.data() : {};
-          const headAge = parseInt(geoData.headAge);
+            const [geoSnap, membersSnap, healthSnap, mainHealthDoc] = await Promise.all([
+              geoSnapPromise,
+              membersSnapPromise,
+              healthSnapPromise,
+              mainHealthDocPromise,
+            ]);
 
-          householdHeads++;
-          if (!isNaN(headAge)) ageCount += headAge;
+            const geoData = geoSnap.exists() ? geoSnap.data() : {};
+            const headAge = parseInt(geoData.headAge);
 
-          const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-          const healthSnap = await getDocs(collection(db, 'households', householdId, 'health'));
-          const healthMap = new Map(healthSnap.docs.map((h) => [h.id, h.data()]));
+            // Only count as valid household if there's a valid headAge
+            if (!isNaN(headAge)) {
+              actualHouseholds++;
+              householdHeads++;
+              ageCount += headAge;
+            }
 
-          try {
-            const mainHealthDoc = await getDoc(doc(db, 'households', householdId, 'health', 'main'));
+            const healthMap = new Map(healthSnap.docs.map((h) => [h.id, h.data()]));
+
             if (mainHealthDoc.exists()) {
               const mainHealth = mainHealthDoc.data();
               if (mainHealth?.isPWD === true) pwdCount++;
             }
-          } catch {
-            console.warn(`⚠️ Missing health doc for household ${householdId}`);
-          }
 
-          residentCount += membersSnap.size;
-          householdMembers += membersSnap.size;
+            residentCount += membersSnap.size;
+            householdMembers += membersSnap.size;
 
-          for (const memberDoc of membersSnap.docs) {
-            const memberId = memberDoc.id;
-            const demoSnap = await getDoc(doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main'));
-            const demo = demoSnap.exists() ? demoSnap.data() : {};
-            const age = parseInt(demo.age);
+            const demoSnaps = await Promise.all(
+              membersSnap.docs.map((memberDoc) =>
+                getDoc(doc(db, 'households', householdId, 'members', memberDoc.id, 'demographicCharacteristics', 'main'))
+              )
+            );
 
-            if (!isNaN(age)) {
-              ageCount += age;
-              if (age >= 60) seniorCount++;
-            }
+            demoSnaps.forEach((demoSnap, idx) => {
+              if (demoSnap.exists()) {
+                const demo = demoSnap.data();
+                const age = parseInt(demo.age);
+                if (!isNaN(age)) {
+                  ageCount += age;
+                  if (age >= 60) seniorCount++;
+                }
 
-            const health = healthMap.get(memberId);
-            if (health?.isPWD === true) pwdCount++;
-          }
-        }
-
+                const health = healthMap.get(membersSnap.docs[idx].id);
+                if (health?.isPWD === true) pwdCount++;
+              }
+            });
+          })
+        );
+        
+        //Reminder! Change it later, Dont Hard Code it.
         const hazardsCount = 8; // static or fetched if implemented
 
         setStats({
           residents: residentCount,
           householdHeads,
           householdMembers,
-          households: householdCount,
-          families: householdCount,
+          households: actualHouseholds,
+          families: actualHouseholds,
           pwd: pwdCount,
           seniors: seniorCount,
           ageCount,
           hazards: hazardsCount,
-          accidents: accidentsCount,
-          growthRate: '30%',
+          accidents: accidentsSnap.size,
+          growthRate: '0%',
         });
       } catch (err) {
         console.error('🔥 Error fetching dashboard stats:', err);
@@ -173,14 +190,12 @@ function DashboardPage() {
   );
 }
 
-// Spinner Component
 function Spinner() {
   return (
     <div className="w-5 h-5 border-2 border-gray border-t-transparent rounded-full animate-spin" />
   );
 }
 
-// Summary Card Component
 function SummaryCard({ title, value, icon, color, loading }) {
   return (
     <div className={`flex items-center p-4 rounded-xl text-white shadow ${color}`}>
@@ -195,8 +210,6 @@ function SummaryCard({ title, value, icon, color, loading }) {
   );
 }
 
-
-// Bottom Stat Card
 function BottomStat({ title, value, icon, color, loading }) {
   return (
     <div className="flex items-center justify-between bg-white rounded-xl shadow p-6">
@@ -214,4 +227,3 @@ function BottomStat({ title, value, icon, color, loading }) {
     </div>
   );
 }
-

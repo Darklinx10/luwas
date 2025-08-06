@@ -24,27 +24,27 @@ export default function BarChartComponent() {
         const snapshot = await getDocs(collection(db, 'households'));
         const barangayCounts = {};
 
-        for (const doc of snapshot.docs) {
-          const householdId = doc.id;
+        await Promise.all(
+          snapshot.docs.map(async (doc) => {
+            const householdId = doc.id;
 
-          const geoSnap = await getDocs(
-            collection(db, 'households', householdId, 'geographicIdentification')
-          );
+            const [geoSnap, membersSnap] = await Promise.all([
+              getDocs(collection(db, 'households', householdId, 'geographicIdentification')),
+              getDocs(collection(db, 'households', householdId, 'members')),
+            ]);
 
-          const membersSnap = await getDocs(
-            collection(db, 'households', householdId, 'members')
-          );
-          const memberCount = membersSnap.size;
+            const memberCount = membersSnap.size;
 
-          geoSnap.forEach((geoDoc) => {
-            const geoData = geoDoc.data();
-            const barangay = geoData.barangay;
+            geoSnap.forEach((geoDoc) => {
+              const geoData = geoDoc.data();
+              const barangay = geoData.barangay;
 
-            if (barangay) {
-              barangayCounts[barangay] = (barangayCounts[barangay] || 0) + memberCount;
-            }
-          });
-        }
+              if (barangay) {
+                barangayCounts[barangay] = (barangayCounts[barangay] || 0) + memberCount;
+              }
+            });
+          })
+        );
 
         const chartData = Object.entries(barangayCounts).map(([name, residents]) => ({
           name,
@@ -52,7 +52,6 @@ export default function BarChartComponent() {
         }));
 
         chartData.sort((a, b) => b.residents - a.residents);
-
         setData(chartData);
       } catch (error) {
         console.error('Error fetching barangay residents count:', error);

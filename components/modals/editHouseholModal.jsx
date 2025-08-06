@@ -6,13 +6,12 @@ import { db } from '@/firebase/config';
 import { toast } from 'react-toastify';
 import dynamic from 'next/dynamic';
 
-// Dynamically import MapPopup to avoid SSR issues
 const MapPopup = dynamic(() => import('@/components/mapPopUp'), { ssr: false });
 
 export default function EditHouseholdModal({ open, onClose, householdId, onUpdated }) {
   const [mapOpen, setMapOpen] = useState(false);
-  const [loading, setLoading] = useState(true); // for fetching data
-  const [submitting, setSubmitting] = useState(false); // for form submission
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     headFirstName: '',
     headMiddleName: '',
@@ -54,30 +53,30 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
         };
 
         const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-        for (const memberDoc of membersSnap.docs) {
-          const memberId = memberDoc.id;
-          const demoRef = doc(
-            db,
-            'households',
-            householdId,
-            'members',
-            memberId,
-            'demographicCharacteristics',
-            'main'
-          );
-          const demoSnap = await getDoc(demoRef);
 
+        const demographicPromises = membersSnap.docs.map(async (memberDoc) => {
+          const memberId = memberDoc.id;
+          const demoRef = doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main');
+          const demoSnap = await getDoc(demoRef);
+          return { demoSnap, memberId };
+        });
+
+        const resolvedDemos = await Promise.all(demographicPromises);
+
+        for (const { demoSnap } of resolvedDemos) {
           if (demoSnap.exists()) {
             const demoData = demoSnap.data();
             const relationship = demoData.relationshipToHead || '';
             if (relationship.toLowerCase() === 'head') {
-              updatedForm.headFirstName = demoData.firstName || '';
-              updatedForm.headMiddleName = demoData.middleName || '';
-              updatedForm.headLastName = demoData.lastName || '';
-              updatedForm.headSuffix = demoData.suffix || '';
-              updatedForm.headSex = demoData.sex || '';
-              updatedForm.headAge = demoData.age || '';
-              updatedForm.contactNumber = demoData.contactNumber || '';
+              Object.assign(updatedForm, {
+                headFirstName: demoData.firstName || '',
+                headMiddleName: demoData.middleName || '',
+                headLastName: demoData.lastName || '',
+                headSuffix: demoData.suffix || '',
+                headSex: demoData.sex || '',
+                headAge: demoData.age || '',
+                contactNumber: demoData.contactNumber || '',
+              });
               break;
             }
           }
@@ -118,57 +117,41 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
       });
 
       const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-      let headMemberId = null;
 
-      for (const memberDoc of membersSnap.docs) {
+      const demoFetchPromises = membersSnap.docs.map(async (memberDoc) => {
         const baseData = memberDoc.data();
         const memberId = memberDoc.id;
 
-        const demoRef = doc(
-          db,
-          'households',
-          householdId,
-          'members',
-          memberId,
-          'demographicCharacteristics',
-          'main'
-        );
+        const demoRef = doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main');
         const demoSnap = await getDoc(demoRef);
         const demoData = demoSnap.exists() ? demoSnap.data() : {};
         const relationship = demoData.relationshipToHead || baseData.relationshipToHead || '';
 
-        if (relationship.toLowerCase() === 'head') {
-          headMemberId = memberId;
-          break;
-        }
-      }
+        return { memberId, relationship: relationship.toLowerCase() };
+      });
 
-      if (headMemberId) {
-        const headDemoRef = doc(
-          db,
-          'households',
-          householdId,
-          'members',
-          headMemberId,
-          'demographicCharacteristics',
-          'main'
-        );
+      const resolvedMembers = await Promise.all(demoFetchPromises);
+      const headMember = resolvedMembers.find((m) => m.relationship === 'head');
 
-        await updateDoc(headDemoRef, {
-          contactNumber: contactNumber || '',
-          sex: headSex || '',
-          age: headAge || '',
-          updatedAt: new Date(),
-        });
+      if (headMember) {
+        const headDemoRef = doc(db, 'households', householdId, 'members', headMember.memberId, 'demographicCharacteristics', 'main');
+        const headMemberRef = doc(db, 'households', householdId, 'members', headMember.memberId);
 
-        const headMemberRef = doc(db, 'households', householdId, 'members', headMemberId);
-        await updateDoc(headMemberRef, {
-          firstName: headFirstName || '',
-          middleName: headMiddleName || '',
-          lastName: headLastName || '',
-          suffix: headSuffix || '',
-          updatedAt: new Date(),
-        });
+        await Promise.all([
+          updateDoc(headDemoRef, {
+            contactNumber: contactNumber || '',
+            sex: headSex || '',
+            age: headAge || '',
+            updatedAt: new Date(),
+          }),
+          updateDoc(headMemberRef, {
+            firstName: headFirstName || '',
+            middleName: headMiddleName || '',
+            lastName: headLastName || '',
+            suffix: headSuffix || '',
+            updatedAt: new Date(),
+          }),
+        ]);
       }
 
       toast.success('Household updated successfully');
@@ -192,6 +175,8 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
   };
 
   if (!open) return null;
+
+
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">

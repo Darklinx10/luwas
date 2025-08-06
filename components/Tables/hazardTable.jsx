@@ -1,7 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { FiSearch } from 'react-icons/fi';
+
+// Debounce hook
+function useDebounce(value, delay = 300) {
+  const [debounced, setDebounced] = useState(value);
+
+  useMemo(() => {
+    const handler = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debounced;
+}
 
 export default function HazardTable({
   data = [],
@@ -9,12 +21,18 @@ export default function HazardTable({
   loading = false,
 }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 300);
 
-  const filteredData = data.filter((h) =>
-    Object.values(h).some((val) =>
-      String(val).toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  );
+  // Efficient filtering
+  const filteredData = useMemo(() => {
+    if (!debouncedSearch.trim()) return data;
+
+    const search = debouncedSearch.toLowerCase();
+    return data.filter((h) => {
+      const haystack = `${h.name} ${h.barangay} ${h.contactnumber} ${h.susceptibility}`.toLowerCase();
+      return haystack.includes(search);
+    });
+  }, [data, debouncedSearch]);
 
   const handlePrint = () => window.print();
 
@@ -23,14 +41,7 @@ export default function HazardTable({
 
     const headers = 'Name,Barangay,Contact Number,Susceptibility,Latitude,Longitude';
     const rows = filteredData.map((h) =>
-      [
-        h.name,
-        h.barangay,
-        h.contactnumber,
-        h.susceptibility,
-        h.lat,
-        h.lng,
-      ].join(',')
+      [h.name, h.barangay, h.contactnumber, h.susceptibility, h.lat, h.lng].join(',')
     );
     const csv = [headers, ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -44,18 +55,15 @@ export default function HazardTable({
 
   return (
     <div className="p-4">
-      {/* ✅ Breadcrumb */}
       <div className="text-sm text-right text-gray-500 mb-2 print:hidden">
         Home / Reports / Hazards
       </div>
 
       <div id="print-section">
-        {/* ✅ Header */}
         <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg print:text-black print:bg-white print:text-center">
           {title}
         </div>
 
-        {/* ✅ Controls */}
         <div className="flex flex-wrap items-center justify-between gap-2 bg-white shadow border-t-0 px-4 py-3 print:hidden">
           <div className="relative w-full max-w-xs">
             <FiSearch className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
@@ -78,34 +86,33 @@ export default function HazardTable({
           </div>
         </div>
 
-        {/* ✅ Table */}
         <div className="overflow-x-auto max-h-[500px] overflow-y-auto shadow border-t-0 rounded-b-md bg-white p-4 scrollbar-thin">
           {loading || data.length === 0 ? (
             <div className="flex items-center justify-center py-10">
-            <div className="flex flex-col items-center">
-              <svg
-                className="animate-spin h-10 w-10 text-green-500 mb-3"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8z"
-                />
-              </svg>
-              <p className="text-gray-600 text-sm">Loading Hazards records...</p>
+              <div className="flex flex-col items-center">
+                <svg
+                  className="animate-spin h-10 w-10 text-green-500 mb-3"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8z"
+                  />
+                </svg>
+                <p className="text-gray-600 text-sm">Loading Hazards records...</p>
+              </div>
             </div>
-          </div>
           ) : filteredData.length === 0 ? (
             <p className="text-center text-gray-500 py-6">No matching hazard reports found.</p>
           ) : (
@@ -131,7 +138,6 @@ export default function HazardTable({
                 </tbody>
               </table>
 
-              {/* ✅ Footer */}
               <p className="text-sm text-gray-700 mt-4 print:hidden">
                 <strong>Total Records:</strong> {filteredData.length}
               </p>

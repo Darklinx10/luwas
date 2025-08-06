@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { subscribeToAuthChanges } from '@/lib/firebaseAuth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -8,7 +8,8 @@ import { db } from '@/firebase/config';
 
 export default function HomePage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+  const redirected = useRef(false);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -21,7 +22,11 @@ export default function HomePage() {
     }
 
     const unsubscribe = subscribeToAuthChanges(async (user) => {
+      if (redirected.current) return;
+
       if (user) {
+        redirected.current = true;
+
         try {
           const userDocRef = doc(db, 'users', user.uid);
           const userSnapshot = await getDoc(userDocRef);
@@ -30,38 +35,38 @@ export default function HomePage() {
             const userData = userSnapshot.data();
             const role = userData.role;
 
-            // Optional: Redirect based on role
             switch (role) {
               case 'SeniorAdmin':
                 router.replace('/maps');
                 break;
               case 'Secretary':
-                router.replace('/dashboard');
-                break;
               case 'OfficeStaff':
+              default:
                 router.replace('/dashboard');
                 break;
-              default:
-                router.replace('/dashboard'); // fallback
             }
           } else {
             console.error('User document not found');
-            window.location.replace('/login');
+            router.replace('/login');
           }
         } catch (error) {
           console.error('Error fetching user role:', error);
-          window.location.replace('/login');
+          router.replace('/login');
         }
       } else {
-        window.location.replace('/login');
+        // No user -> go to login (but only once)
+        if (!redirected.current) {
+          redirected.current = true;
+          router.replace('/login');
+        }
       }
-    });
 
-    const loadingTimeout = setTimeout(() => setLoading(false), 2000);
+      // Set auth check done after processing user
+      setAuthChecked(true);
+    });
 
     return () => {
       unsubscribe();
-      clearTimeout(loadingTimeout);
       if (typeof window !== 'undefined') {
         window.removeEventListener('popstate', handlePopState);
       }
@@ -70,7 +75,7 @@ export default function HomePage() {
 
   return (
     <div className="flex items-center justify-center h-screen">
-      {loading ? (
+      {!authChecked ? (
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
           <p className="text-gray-500 text-sm">Checking authentication...</p>

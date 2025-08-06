@@ -5,19 +5,17 @@ import { useRouter } from 'next/navigation';
 import { FiPlus, FiSearch, FiEdit, FiTrash2 } from 'react-icons/fi';
 import { FaArrowRight } from 'react-icons/fa';
 import { collection, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { onAuthStateChanged } from 'firebase/auth';
+import { db, auth } from '@/firebase/config';
 import dynamic from 'next/dynamic';
 import EditHouseholdModal from '@/components/modals/editHouseholModal';
 import { toast } from 'react-toastify';
-import  RoleGuard  from '@/components/roleGuard'
- 
-// Dynamically import map component to avoid SSR issues
+import RoleGuard from '@/components/roleGuard';
+
 const MapPopup = dynamic(() => import('@/components/mapPopUp'), { ssr: false });
 
 export default function HouseholdPage() {
   const router = useRouter();
-
-  // State management
   const [mapOpen, setMapOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [households, setHouseholds] = useState([]);
@@ -31,14 +29,42 @@ export default function HouseholdPage() {
   const [selectedHouseholdId, setSelectedHouseholdId] = useState(null);
   const [loadingMembers, setLoadingMembers] = useState({});
   const [profile, setProfile] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
 
+  const handleEditMember = (member) => {
+    setSelectedMember({ ...member });
+    setIsEditModalOpen(true);
+  };
 
-  // Redirect to add household form
+  const handleEditFieldChange = (e) => {
+    const { name, value } = e.target;
+    setSelectedMember((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const docRef = doc(db, 'householdMembers', selectedMember.id);
+      await updateDoc(docRef, {
+        firstName: selectedMember.firstName,
+        lastName: selectedMember.lastName,
+        age: Number(selectedMember.age),
+        nuclearRelation: selectedMember.nuclearRelation,
+      });
+
+      toast.success('Member updated!');
+      setIsEditModalOpen(false);
+      setSelectedMember(null);
+    } catch (error) {
+      console.error('Update failed', error);
+      toast.error('Failed to update member');
+    }
+  };
+
   const handleAddClick = () => {
     router.push('/household/addHouseholdForms');
   };
 
-  // Open map modal with given coordinates
   const openMapWithLocation = (lat, lng) => {
     if (lat && lng) {
       setSelectedLocation({ lat: parseFloat(lat), lng: parseFloat(lng) });
@@ -48,13 +74,28 @@ export default function HouseholdPage() {
     }
   };
 
+  const mapRelationToCategory = (relation) => {
+    if (!relation) return '';
+
+    const lower = relation.toLowerCase();
+
+    if (['head', 'family head'].includes(lower)) return 'Head';
+    if (['spouse', 'partner'].includes(lower)) return 'Spouse';
+    if (['son', 'daughter', 'child', 'nephew', 'niece'].includes(lower)) return 'Child';
+    if (['father', 'mother', 'father-in-law', 'mother-in-law', 'parent'].includes(lower)) return 'Parent';
+    if (['brother', 'sister', 'brother-in-law', 'sister-in-law', 'sibling'].includes(lower)) return 'Sibling';
+    if (['uncle', 'aunt', 'other relative', 'relative'].includes(lower)) return 'Relative';
+    if (['border', 'nonrelative', 'domestic helper', 'other'].includes(lower)) return 'Other';
+
+    return 'Other'; // fallback
+  };
+
   const toggleExpanded = async (householdId) => {
     setExpandedHouseholds((prev) => ({
       ...prev,
       [householdId]: !prev[householdId],
     }));
 
-    // Only fetch if not already fetched
     if (!membersData[householdId]) {
       setLoadingMembers((prev) => ({
         ...prev,
@@ -66,31 +107,30 @@ export default function HouseholdPage() {
           collection(db, 'households', householdId, 'members')
         );
 
-        const members = await Promise.all(
-          memberSnapshot.docs.map(async (docSnap) => {
-            const baseData = docSnap.data();
-            const memberId = docSnap.id;
+        const memberPromises = memberSnapshot.docs.map(async (docSnap) => {
+          const baseData = docSnap.data();
+          const memberId = docSnap.id;
 
-            // Fetch demographic data
-            const demoRef = doc(
-              db,
-              'households',
-              householdId,
-              'members',
-              memberId,
-              'demographicCharacteristics',
-              'main'
-            );
-            const demoSnap = await getDoc(demoRef);
-            const demoData = demoSnap.exists() ? demoSnap.data() : {};
+          const demoRef = doc(
+            db,
+            'households',
+            householdId,
+            'members',
+            memberId,
+            'demographicCharacteristics',
+            'main'
+          );
+          const demoSnap = await getDoc(demoRef);
+          const demoData = demoSnap.exists() ? demoSnap.data() : {};
 
-            return {
-              id: memberId,
-              ...baseData,
-              ...demoData,
-            };
-          })
-        );
+          return {
+            id: memberId,
+            ...baseData,
+            ...demoData,
+          };
+        });
+
+        const members = await Promise.all(memberPromises);
 
         setMembersData((prev) => ({
           ...prev,
@@ -107,79 +147,87 @@ export default function HouseholdPage() {
     }
   };
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setProfile(docSnap.data());
+        }
+      }
+    });
 
-  // Fetch all household data
+    return () => unsubscribe();
+  }, []);
+
   const fetchHouseholds = async () => {
     setLoading(true);
     try {
       const householdsSnapshot = await getDocs(collection(db, 'households'));
-      const householdList = [];
       let residentCounter = 0;
 
-      for (const hhDoc of householdsSnapshot.docs) {
+      const householdPromises = householdsSnapshot.docs.map(async (hhDoc) => {
         const householdId = hhDoc.id;
 
-        // Get geographic data
         const geoDocRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
         const geoSnap = await getDoc(geoDocRef);
         const geoData = geoSnap.exists() ? geoSnap.data() : {};
 
-        // Get household members
         const memberSnap = await getDocs(collection(db, 'households', householdId, 'members'));
         residentCounter += memberSnap.size;
 
         let headData = {};
-        for (const memberDoc of memberSnap.docs) {
-          const baseData = memberDoc.data();
-          const memberId = memberDoc.id;
 
-          const demoRef = doc(
-            db,
-            'households',
-            householdId,
-            'members',
-            memberId,
-            'demographicCharacteristics',
-            'main'
-          );
-          const demoSnap = await getDoc(demoRef);
-          const demoData = demoSnap.exists() ? demoSnap.data() : {};
+        const memberData = await Promise.all(
+          memberSnap.docs.map(async (memberDoc) => {
+            const baseData = memberDoc.data();
+            const memberId = memberDoc.id;
 
-          const relationship =
-            demoData.relationshipToHead || baseData.relationshipToHead || '';
+            const demoRef = doc(
+              db,
+              'households',
+              householdId,
+              'members',
+              memberId,
+              'demographicCharacteristics',
+              'main'
+            );
+            const demoSnap = await getDoc(demoRef);
+            const demoData = demoSnap.exists() ? demoSnap.data() : {};
 
-          // Identify head of household
-          if (relationship.toLowerCase() === 'head') {
-            headData = {
-              headFirstName: baseData.firstName || demoData.firstName || '',
-              headMiddleName: baseData.middleName || demoData.middleName || '',
-              headLastName: baseData.lastName || demoData.lastName || '',
-              headSuffix: baseData.suffix || demoData.suffix || '',
-              headSex:  demoData.sex || '',
-              headAge:  demoData.age || '',
-              contactNumber: demoData.contactNumber || '',
-            };
-            break;
-          }
-        }
+            const relationship =
+              demoData.relationshipToHead || baseData.relationshipToHead || '';
 
-        const merged = {
+            if (relationship.toLowerCase() === 'head') {
+              headData = {
+                headFirstName: baseData.firstName || demoData.firstName || '',
+                headMiddleName: baseData.middleName || demoData.middleName || '',
+                headLastName: baseData.lastName || demoData.lastName || '',
+                headSuffix: baseData.suffix || demoData.suffix || '',
+                headSex: demoData.sex || '',
+                headAge: demoData.age || '',
+                contactNumber: demoData.contactNumber || '',
+              };
+            }
+          })
+        );
+
+        return {
           householdId,
           ...geoData,
           ...headData,
         };
+      });
 
-        // Filter out incomplete records
-        if (
+      const householdList = (await Promise.all(householdPromises)).filter(
+        (merged) =>
           merged.headFirstName ||
           merged.headLastName ||
           merged.barangay ||
           merged.latitude ||
           merged.longitude
-        ) {
-          householdList.push(merged);
-        }
-      }
+      );
 
       setHouseholds(householdList);
       setTotalHouseholds(householdList.length);
@@ -194,7 +242,6 @@ export default function HouseholdPage() {
     fetchHouseholds();
   }, []);
 
-  // Filter by family head name
   const filteredHouseholds = households.filter((data) => {
     const fullName = [
       data.headFirstName || '',
@@ -207,6 +254,8 @@ export default function HouseholdPage() {
     return fullName.includes(searchTerm.toLowerCase());
   });
 
+
+
   return (
     <RoleGuard allowedRoles={['Secretary', 'OfficeStaff']}>
     <div className="p-4">
@@ -218,13 +267,14 @@ export default function HouseholdPage() {
         Household Information (2025)
       </div>
 
-      {/* Search and Add Button */}
-      <div className="flex items-center justify-between bg-white shadow border-t-0 px-4 py-3">
-        <div className="relative w-1/2 max-w-md">
+      {/* Search and Action Buttons */}
+      <div className="flex flex-wrap items-center justify-between bg-white shadow border-t-0 px-4 py-3 gap-2">
+        {/* Search Input */}
+        <div className="relative w-full sm:w-1/2 max-w-md">
           <FiSearch className="absolute top-2.5 left-3 text-gray-400" />
           <input
-            id='Search-input'
-            name='search'
+            id="Search-input"
+            name="search"
             type="text"
             placeholder="Search Family Head"
             value={searchTerm}
@@ -233,17 +283,18 @@ export default function HouseholdPage() {
           />
         </div>
 
-        {profile?.role === 'Secretary' && (
-          <button
-            onClick={() => router.push('/add-household')}
-            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            <FiPlus />
-            Add Household
-          </button>
-        )}
-
+          {profile?.role === 'Secretary' && (
+            <button
+              onClick={handleAddClick}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded"
+            >
+              <FiPlus />
+              Add Household
+            </button>
+          )}
+        
       </div>
+
 
       {/* Table Section */}
       <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
@@ -401,52 +452,195 @@ export default function HouseholdPage() {
                                 ).length === 0 ? (
                                 <p className="text-gray-500 mt-1">No members found...</p>
                               ) : (
-                                <div className="mt-2">
-                                  {Object.entries(
-                                    members
-                                      .filter(
-                                        (m) =>
-                                          (m.relationshipToHead || m.nuclearRelation || '').toLowerCase() !== 'head'
-                                      )
-                                      .reduce((acc, m) => {
-                                        const rawRelation = m.nuclearRelation || m.relationshipToHead || 'Unspecified';
-                                        const relationLabel = rawRelation.includes(' - ')
-                                          ? rawRelation.split(' - ')[1].trim()
-                                          : rawRelation.trim();
-
-                                        if (!acc[relationLabel]) acc[relationLabel] = [];
-                                        acc[relationLabel].push(m);
-                                        return acc;
-                                      }, {})
-                                  ).map(([relation, group]) => (
-                                    <div key={relation} className="mt-2">
-                                      <p className="font-semibold text-green-700">{relation}</p>
-                                      <ul className="list-disc list-inside ml-4">
-                                        {group.map((m) => {
-                                          const name = [m.firstName, m.lastName].filter(Boolean).join(' ');
-                                          const originalRelation = m.nuclearRelation || m.relationshipToHead || 'N/A';
-                                          const ageStr = m.age ? `${m.age} years old` : 'Age: N/A';
+                                <div className="mt-2 overflow-x-auto">
+                                  <table className="w-full text-center text-sm border border-collapse">
+                                    <thead>
+                                      <tr className="bg-gray-100 text-gray-600">
+                                        <th className="p-2 border">Name</th>
+                                        <th className="p-2 border">Relation</th>
+                                        <th className="p-2 border">Age</th>
+                                        <th className="p-2 border">Contact Number</th>
+                                        <th className="p-2 border text-center">Actions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {members
+                                        .filter(
+                                          (m) =>
+                                            (m.relationshipToHead || m.nuclearRelation || '').toLowerCase() !== 'head'
+                                        )
+                                        .map((m) => {
+                                          const name = [m.firstName,m.middleName, m.lastName].filter(Boolean).join(' ');
+                                          const rawRelation = m.nuclearRelation || m.relationshipToHead || 'Unspecified';
+                                          const relationLabel = rawRelation.includes(' - ')
+                                            ? rawRelation.split(' - ')[1].trim()
+                                            : rawRelation.trim();
+                                          const ageStr = m.age ? `${m.age} ` : 'N/A';
+                                          const contactNumber = m.contactNumber;
 
                                           return (
-                                            <li key={m.id}>
-                                              <span className="font-medium">{name}</span> — {originalRelation} — {ageStr}
-                                            </li>
+                                            <tr key={m.id} className="hover:bg-gray-100">
+                                              <td className="p-2 border">{name || 'Unnamed'}</td>
+                                              <td className="p-2 border">{relationLabel}</td>
+                                              <td className="p-2 border">{ageStr}</td>
+                                              <td className="p-2 border">{contactNumber}</td>
+                                              <td className="p-2 border text-center space-x-2">
+                                                <button
+                                                  onClick={() => handleEditMember(m)}
+                                                  className="text-blue-600 hover:text-blue-800"
+                                                  title="Edit"
+                                                >
+                                                  <FiEdit />
+                                                </button>
+                                                <button
+                                                  onClick={() => handleDeleteMember(m.id)}
+                                                  className="text-red-600 hover:text-red-800"
+                                                  title="Delete"
+                                                >
+                                                  <FiTrash2 />
+                                                </button>
+                                              </td>
+                                            </tr>
                                           );
                                         })}
-                                      </ul>
-                                    </div>
-                                  ))}
+                                    </tbody>
+                                  </table>
                                 </div>
                               )}
                             </td>
                           </tr>
                         )}
+
                       </React.Fragment>
                     );
                   })}
               </tbody>
             </table>
 
+             {isEditModalOpen && selectedMember && (
+                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
+                  <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 w-[90%] max-w-lg">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">Edit Member Information</h2>
+
+                    <div className="space-y-4">
+                      {/* First Name */}
+                      <div>
+                        <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                          First Name
+                        </label>
+                        <input
+                          id="firstName"
+                          name="firstName"
+                          value={selectedMember.firstName || ''}
+                          onChange={handleEditFieldChange}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+
+                      {/* Last Name */}
+                      <div>
+                        <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                          Last Name
+                        </label>
+                        <input
+                          id="lastName"
+                          name="lastName"
+                          value={selectedMember.lastName || ''}
+                          onChange={handleEditFieldChange}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="middleName" className="block text-sm font-medium text-gray-700 mb-1">
+                          Middle Name
+                        </label>
+                        <input
+                          type="text"
+                          name="middleName"
+                          value={selectedMember.middleName || ''}
+                          onChange={handleEditFieldChange}
+                          placeholder="Middle Name"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div> 
+
+
+                      {/* Age */}
+                      <div>
+                        <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1">
+                          Age
+                        </label>
+                        <input
+                          id="age"
+                          name="age"
+                          type="number"
+                          value={selectedMember.age || ''}
+                          readOnly
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+
+                      {/* Contact Number - NEW */}
+                      <div>
+                        <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                          Contact Number
+                        </label>
+                        <input
+                          id="contactNumber"
+                          name="contactNumber"
+                          type="tel"
+                          value={selectedMember.contactNumber || ''}
+                          onChange={handleEditFieldChange}
+                          placeholder="e.g. 0917XXXXXXX"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      {/* Relation to Head */}
+                      <div>
+                        <label htmlFor="nuclearRelation" className="block text-sm font-medium text-gray-700 mb-1">
+                          Relation to Head
+                        </label>
+                        <select
+                          name="nuclearRelation"
+                          value={mapRelationToCategory(selectedMember.nuclearRelation || selectedMember.relationshipToHead)}
+                          onChange={handleEditFieldChange}
+                          className="w-full border rounded px-3 py-2"
+                        >
+                          <option value="" disabled>Select relation</option>
+                          <option value="Head">Head</option>
+                          <option value="Spouse">Spouse</option>
+                          <option value="Partner">Partner</option>
+                          <option value="Child">Child</option>
+                          <option value="Parent">Parent</option>
+                          <option value="Sibling">Sibling</option>
+                          <option value="Relative">Relative</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="mt-6 flex justify-end gap-3">
+                      <button
+                        onClick={() => setIsEditModalOpen(false)}
+                        className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveEdit}
+                        className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-500 transition"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+                       
             {/* Totals */}
             <div className="flex justify-start items-center mt-4 text-sm text-gray-700 space-x-6">
               <div>

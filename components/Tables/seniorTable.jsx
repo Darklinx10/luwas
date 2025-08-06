@@ -18,53 +18,63 @@ export default function SeniorPage() {
       setLoading(true);
       try {
         const householdsSnap = await getDocs(collection(db, 'households'));
-        const allData = [];
 
-        for (const householdDoc of householdsSnap.docs) {
-          const householdId = householdDoc.id;
+        const allHouseholdData = await Promise.all(
+          householdsSnap.docs.map(async (householdDoc) => {
+            const householdId = householdDoc.id;
 
-          // Get barangay info
-          const geoSnap = await getDoc(
-            doc(db, 'households', householdId, 'geographicIdentification', 'main')
-          );
-          const geoData = geoSnap.exists() ? geoSnap.data() : {};
-          const barangay = geoData?.barangay || '—';
+            // Fetch geographicIdentification and members concurrently
+            const [geoSnap, membersSnap] = await Promise.all([
+              getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main')),
+              getDocs(collection(db, 'households', householdId, 'members')),
+            ]);
 
-          // Get members
-          const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
+            const geoData = geoSnap.exists() ? geoSnap.data() : {};
+            const barangay = geoData?.barangay || '—';
 
-          for (const memberDoc of membersSnap.docs) {
-            const memberId = memberDoc.id;
+            // Process members in parallel
+            const memberData = await Promise.all(
+              membersSnap.docs.map(async (memberDoc) => {
+                const memberId = memberDoc.id;
 
-            // Fetch demographic info
-            const demoSnap = await getDoc(
-              doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main')
+                const demoSnap = await getDoc(
+                  doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main')
+                );
+
+                if (!demoSnap.exists()) return null;
+
+                const demo = demoSnap.data();
+                const age = parseInt(demo.age);
+
+                if (!isNaN(age) && age >= 60) {
+                  const fullName = `${demo.firstName || ''} ${demo.middleName || ''} ${demo.lastName || ''} ${
+                    demo.suffix && demo.suffix.trim().toLowerCase() !== 'n/a' ? demo.suffix : ''
+                  }`.trim();
+
+                  return {
+                    id: memberId,
+                    name: fullName,
+                    age,
+                    sex: demo.sex || '—',
+                    barangay,
+                    contact: demo.contactNumber || '—',
+                    isHead: (demo.relationshipToHead || '').toLowerCase() === 'head',
+                    householdId,
+                  };
+                }
+
+                return null;
+              })
             );
-            const demo = demoSnap.exists() ? demoSnap.data() : null;
 
-            if (demo) {
-              const age = parseInt(demo.age);
-              if (!isNaN(age) && age >= 60) {
-                const fullName = `${demo.firstName || ''} ${demo.middleName || ''} ${demo.lastName || ''} ${
-                  demo.suffix && demo.suffix.trim().toLowerCase() !== 'n/a' ? demo.suffix : ''
-                }`.trim();
+            // Filter out nulls
+            return memberData.filter(Boolean);
+          })
+        );
 
-                allData.push({
-                  id: memberId,
-                  name: fullName,
-                  age,
-                  sex: demo.sex || '—',
-                  barangay,
-                  contact: demo.contactNumber || '—',
-                  isHead: (demo.relationshipToHead || '').toLowerCase() === 'head',
-                  householdId,
-                });
-              }
-            }
-          }
-        }
-
-        setSeniors(allData);
+        // Flatten and update state
+        const flatData = allHouseholdData.flat();
+        setSeniors(flatData);
       } catch (error) {
         console.error('Error fetching senior citizens:', error);
       } finally {
@@ -74,6 +84,7 @@ export default function SeniorPage() {
 
     fetchSeniors();
   }, []);
+
 
 
 

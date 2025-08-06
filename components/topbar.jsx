@@ -81,7 +81,6 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
   }, []);
 
   // Logout handler
-  
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -90,17 +89,15 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
       localStorage.removeItem("userProfile");
       toast.success("You have been logged out.");
 
-      // Delay 5 seconds (5000ms) before redirecting
+      // Delay 5 seconds (5000ms) before redirecting to home
       setTimeout(() => {
         router.push("/");
-      }, 50);
+      }, 5000);
     } catch (error) {
       console.error("Logout failed:", error);
       toast.error("Failed to log out.");
     }
   };
-
-
 
 
 
