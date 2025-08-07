@@ -7,6 +7,8 @@ import { FiMail } from "react-icons/fi";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/firebase/config";
 import Image from "next/image";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/firebase/config"; // Make sure db is imported too
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -27,21 +29,30 @@ export default function ForgotPasswordPage() {
 
     setLoading(true); // Start loading spinner
     try {
-      // Firebase function to send reset email
+      // 1. Check if user exists in Firestore
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        toast.error("Email not found in our records.");
+        return;
+      }
+
+      // 2. Send password reset email
       await sendPasswordResetEmail(auth, email);
       toast.success("Password reset email sent. Please check your inbox.");
-      router.push("/login"); // Redirect back to login page
+      router.push("/login");
     } catch (error) {
-      console.error("Reset error:", error); // Debug: log any error
+      console.error("Reset error:", error);
 
-      // Handle specific Firebase errors
       if (error.code === "auth/user-not-found") {
-        toast.error("Email not found.");
+        toast.error("Email not registered in authentication.");
       } else {
         toast.error("Failed to send reset email. Please try again.");
       }
     } finally {
-      setLoading(false); // Stop loading spinner
+      setLoading(false);
     }
   };
 

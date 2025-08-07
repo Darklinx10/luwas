@@ -2,7 +2,6 @@
 import { useEffect, useRef } from 'react';
 import * as esri from 'esri-leaflet';
 import L from 'leaflet';
-import { faultCategories } from '@/app/utils/faultcategories';
 import {normalizeSusceptibility} from '@/app/utils/susceptibility'
 
 
@@ -227,24 +226,49 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
       'Landslide': () =>
         createGeoJsonLayer({
           url: '/data/Clarin_Landslide.geojson',
-          popupLabel: 'Landslide Susceptibility',
-          styleFn: (f) => styleBySusceptibility(normalizeSusceptibility(f.properties?.Susciptibi)),
+          popupLabel: 'Landslide Risk Zones',
+          styleFn: (f) => styleBySusceptibility(normalizeSusceptibility(f.properties?.Risk)),
           infoText: `
-            <p class="mb-2">Areas susceptible to landslides based on slope, soil type, and land use.</p>
-            <p class="font-medium mb-1">Legend:</p>
+            <p class="mb-2">Mapped areas with varying levels of landslide risk based on terrain, soil composition, rainfall, and human activities.</p>
+            <p class="mb-2">These zones indicate where landslides are most likely to occur and may result in property damage, injury, or loss of life, especially during heavy rain or earthquakes.</p>
+            <p class="font-medium mb-1">Risk Levels:</p>
             <ul class="space-y-1">
               <li class="flex items-center gap-2">
-                <span class="w-4 h-4 bg-red-700 inline-block border"></span> High Susceptibility
+                <span class="w-4 h-4 bg-red-700 inline-block border"></span> High Risk – Immediate danger in extreme weather; evacuation may be required.
               </li>
               <li class="flex items-center gap-2">
-                <span class="w-4 h-4 bg-yellow-400 inline-block border"></span> Moderate Susceptibility
+                <span class="w-4 h-4 bg-purple-700 inline-block border"></span> Moderate Risk – Risk present; caution advised, especially in rainy seasons.
               </li>
               <li class="flex items-center gap-2">
-                <span class="w-4 h-4 bg-green-500 inline-block border"></span> Low Susceptibility
+                <span class="w-4 h-4 bg-yellow-500 inline-block border"></span> Low Risk – Least likely to experience landslides, but not entirely free from risk.
               </li>
             </ul>
           `
         }),
+
+
+        'Storm Surge': () =>
+          createGeoJsonLayer({
+            url: '/data/Clarin_StormSurge_converted.geojson',
+            popupLabel: 'Storm Surge Inundation',
+            styleFn: stormSurgeStyle,
+            infoText: `
+              <p class="mb-2">Projected inundation areas due to storm surges during typhoons or extreme weather events.</p>
+              <p class="font-medium mb-1">Legend:</p>
+              <ul class="space-y-1">
+                <li class="flex items-center gap-2">
+                  <span class="w-4 h-4 bg-red-500 inline-block border"></span> Greater than 4.0m
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-4 h-4 bg-orange-500 inline-block border"></span> 1.0m to 4.0m
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-4 h-4 bg-yellow-300 inline-block border"></span> Up to 1.0m
+                </li>
+              </ul>
+            `
+          }),
+
 
         'Active Faults': () =>
           createGeoJsonLayer({
@@ -252,17 +276,24 @@ export default function HazardLayers({ activeHazard, map, setLoading }) {
             popupLabel: 'Active Fault Line',
             styleFn: activeFaultStyle,
             infoText: `
-              <p class="mb-2">Mapped locations of active fault lines that may produce ground rupture during seismic events.</p>
-              <p class="font-medium mb-1">Legend:</p>
+              <p class="mb-2">This layer shows active fault lines categorized by their associated risk levels. These areas may pose varying degrees of danger during seismic activity, particularly due to potential ground rupture.</p>
+              <p class="font-medium mb-1">Risk Legend:</p>
               <ul class="space-y-1">
                 <li class="flex items-center gap-2">
-                  <span class="w-4 h-1.5 bg-pink-600 inline-block border"></span> Active Fault Trace
+                  <span class="w-4 h-1.5 bg-[#b91c1c] inline-block border"></span> High Risk
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-4 h-1.5 bg-[#f97316] inline-block border"></span> Moderate Risk
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-4 h-1.5 bg-[#facc15] inline-block border"></span> Low Risk
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="w-4 h-1.5 bg-[#ccc] inline-block border border-dashed"></span> Unclassified / Default
                 </li>
               </ul>
             `
           })
-
-
     };
 
     // Dynamic map layers using ESRI

@@ -14,7 +14,8 @@ import { useAuth } from '@/context/authContext'
 
 export default function Sidebar({ sidebarOpen, userRole }) {
   const pathname = usePathname().toLowerCase(); // Get current path in lowercase
-const { user, profile } = useAuth(); // profile.role should contain the role
+  console.log('Current pathname:', pathname);
+  const { user, profile } = useAuth(); // profile.role should contain the role
 
   // Navigation items definition
   const navItems = [

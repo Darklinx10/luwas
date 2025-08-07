@@ -20,15 +20,24 @@ import * as turf from '@turf/turf';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { db, auth } from '@/firebase/config';
 import AccidentMapForm from '@/components/accidentMapForm';
 import HazardLayers from '@/components/hazards/hazardLayers';
 import { formatSusceptibility } from '@/app/utils/susceptibility';
+import { onAuthStateChanged } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import { FiX } from 'react-icons/fi';
+
+
+
 
 // ✅ Heatmap Component
 function AccidentHeatmap({ points }) {
   const map = useMap();
+  
+
+    
 
   useEffect(() => {
     if (!map || !points.length) return;
@@ -93,7 +102,8 @@ const defaultPosition = [9.941975, 124.033194]; // Default map center
 
 
 
-export default function MapPage() {
+
+export default function OSMMapPage() {
   const [activeMap, setActiveMap] = useState('Household Map');
   const [activeHazard, setActiveHazard] = useState('');
   const [householdMarkers, setHouseholdMarkers] = useState([]);
@@ -105,7 +115,44 @@ export default function MapPage() {
   const isAccidentMap = activeMap === 'Accident Map';
   const [affectedHouseholds, setAffectedHouseholds] = useState([]);
   const [hazardGeoJSON, setHazardGeoJSON] = useState({});
-  
+  const [profile, setProfile] = useState(null);
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedHousehold, setSelectedHousehold] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setUser(user);
+
+      if (user) {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setProfile(docSnap.data());
+        } else {
+          setProfile(null); // Prevents hanging if user doc doesn't exist
+        }
+      } else {
+        setProfile(null); // User signed out
+      }
+
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const isSeniorAdmin = profile?.role === 'SeniorAdmin';
+
+  useEffect(() => {
+    if (profile === null) return; // Still loading
+    if (!profile || !profile.role) {
+      router.push('/unauthorized'); // No profile or role found
+    }
+  }, [profile]);
+
+
 
 
 
@@ -181,35 +228,50 @@ export default function MapPage() {
       try {
         const snapshot = await getDocs(collection(db, 'households'));
 
-        // Prepare all subcollection fetch promises
         const promises = snapshot.docs.map(async (doc) => {
           const geoSnap = await getDocs(
             collection(db, 'households', doc.id, 'geographicIdentification')
           );
 
-          return geoSnap.docs.map((geoDoc) => {
-            const data = geoDoc.data();
-            const lat = Number(data.latitude);
-            const lng = Number(data.longitude);
+          return Promise.all(
+            geoSnap.docs.map(async (geoDoc) => {
+              const data = geoDoc.data();
+              const lat = Number(data.latitude);
+              const lng = Number(data.longitude);
 
-            if (!isNaN(lat) && !isNaN(lng)) {
-              return {
-                id: `${doc.id}_${geoDoc.id}`,
-                name: `${data.headFirstName || ''} ${data.headLastName || ''}`.trim(),
-                lat,
-                lng,
-                barangay: data.barangay || 'N/A',
-                contactNumber: data.contactNumber || 'N/A',
-              };
-            }
+              const headFullName = `${data.headFirstName || ''} ${data.headLastName || ''}`.trim();
 
-            return null;
-          });
+              if (!isNaN(lat) && !isNaN(lng)) {
+                // Fetch members under this household
+                const membersSnap = await getDocs(
+                  collection(db, 'households', doc.id, 'members')
+                );
+
+                const memberNames = membersSnap.docs
+                  .map(memberDoc => {
+                    const member = memberDoc.data();
+                    const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+                    return fullName;
+                  })
+                  .filter(fullName => fullName && fullName !== headFullName); // Exclude the head
+
+                return {
+                  id: `${doc.id}_${geoDoc.id}`,
+                  name: headFullName,
+                  lat,
+                  lng,
+                  barangay: data.barangay || 'N/A',
+                  contactNumber: data.contactNumber || 'N/A',
+                  members: memberNames,
+                };
+              }
+
+              return null;
+            })
+          );
         });
 
         const results = await Promise.all(promises);
-
-        // Flatten and filter out nulls
         const locations = results.flat().filter(Boolean);
 
         setHouseholdMarkers(locations);
@@ -220,6 +282,8 @@ export default function MapPage() {
 
     fetchHouseholds();
   }, []);
+
+
 
 
   useEffect(() => {
@@ -289,42 +353,75 @@ export default function MapPage() {
     .map(c => {
       const intensity = Math.min(c.count / MAX_ACCIDENTS, 1); // normalize 0–1
       return [c.lat, c.lng, intensity];
-    });
-
+    }); 
+    
+    
+  if (profile === null) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="flex flex-col items-center">
+          <svg
+            className="animate-spin h-10 w-10 text-green-600 mb-3"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8z"
+            />
+          </svg>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
-      <div className="mb-4 flex gap-3 z-30 relative ">
-        {['Household Map', 'Accident Map'].map((option) => (
-          <button
-            key={option}
-            onClick={() => {
-              setActiveMap(option);
-              setActiveHazard('');
-              setAddingAccident(false);
-            }}
-            className={`px-4 py-2 rounded cursor-pointer ${
-              activeMap === option
-                ? 'bg-green-600 text-white font-bold'
-                : 'bg-gray-300 text-gray-800 hover:bg-green-300'
-            }`}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
-
+      {profile?.role !== 'SeniorAdmin' && (
+        <div className="mb-4 flex gap-3 z-30 relative">
+          {['Household Map', 'Accident Map'].map((option) => (
+            <button
+              key={option}
+              onClick={() => {
+                setActiveMap(option);
+                setActiveHazard('');
+                setAddingAccident(false);
+              }}
+              className={`px-4 py-2 rounded cursor-pointer ${
+                activeMap === option
+                  ? 'bg-green-600 text-white font-bold'
+                  : 'bg-gray-300 text-gray-800 hover:bg-green-300'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
+      
       <MapContainer
+        key={profile?.role} 
         center={defaultPosition}
         zoom={13}
         scrollWheelZoom
         style={{
-          height: '750px',
+          height: profile?.role === 'SeniorAdmin' ? '810px' : '750px',
           width: '100%',
           cursor: 'pointer',
-          borderRadius: '8px'
+          borderRadius: '8px',
         }}
       >
+
         <LayersControl position="topright">
           <BaseLayer checked name="OpenStreetMap">
             <TileLayer
@@ -340,7 +437,7 @@ export default function MapPage() {
           </BaseLayer>
         </LayersControl>
 
-        {clarinBoundary && (
+        {clarinBoundary && profile?.role !== 'SeniorAdmin' && (
           <GeoJSON
             data={clarinBoundary}
             style={{
@@ -353,7 +450,7 @@ export default function MapPage() {
         )}
 
 
-        {isHouseholdMap && (
+        {isHouseholdMap && !isSeniorAdmin && (
           <div className="leaflet-top leaflet-left ml-10">
             <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2">
               <div className="flex items-center gap-2 mb-1">
@@ -403,7 +500,7 @@ export default function MapPage() {
           </div>
         )}
 
-        {isAccidentMap && (
+        {isAccidentMap && !isSeniorAdmin && (
           <div className="leaflet-top leaflet-left ml-10">
             <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2">
               <button
@@ -416,7 +513,7 @@ export default function MapPage() {
           </div>
         )}
 
-        {isHouseholdMap &&
+        {isHouseholdMap && !isSeniorAdmin &&
         householdMarkers.map((marker) => {
           const isAffected = affectedHouseholds.some(h => h.id === marker.id);
           const iconToUse = isAffected ? affectedIcon : houseIcon;
@@ -429,6 +526,10 @@ export default function MapPage() {
               eventHandlers={{
                 mouseover: (e) => e.target.openPopup(),
                 mouseout: (e) => e.target.closePopup(),
+                click: () => {
+                  setSelectedHousehold(marker); // pass the marker data
+                  setIsModalOpen(true);         // open modal
+                }
               }}
             >
               <Popup>
@@ -443,9 +544,9 @@ export default function MapPage() {
         })}
 
 
-        {isAccidentMap && addingAccident && <AccidentMapForm onSubmit={handleAccidentSubmit} />}
+        {isAccidentMap && addingAccident && !isSeniorAdmin && <AccidentMapForm onSubmit={handleAccidentSubmit} />}
 
-        {isAccidentMap &&
+        {isAccidentMap && !isSeniorAdmin &&
           accidents.map((acc, idx) => (
             <Marker
               key={acc.id || idx}
@@ -465,11 +566,11 @@ export default function MapPage() {
             </Marker>
           ))}
 
-        {isHouseholdMap && activeHazard && (
+        {isHouseholdMap && activeHazard && !isSeniorAdmin && (
           <MapWithHazards activeHazard={activeHazard} setLoading={setLoading} />
         )}
 
-        {isAccidentMap && (
+        {isAccidentMap && !isSeniorAdmin &&(
           <>
             {/* Accident Heatmap */}
             <AccidentHeatmap points={accidentHeatPoints} />
@@ -523,7 +624,7 @@ export default function MapPage() {
           </>
         )}
 
-        {isHouseholdMap && affectedHouseholds.length > 0 && (
+        {isHouseholdMap && affectedHouseholds.length > 0 && !isSeniorAdmin && (
           <div className="absolute bottom-4 left-4 z-[1000] p-4 bg-white  rounded shadow max-h-[300px] overflow-auto w-[90vw] max-w-sm sm:max-w-md text-sm">
             <h3 className="font-semibold mb-2 text-lg">
               Affected Households ({affectedHouseholds.length})
@@ -548,6 +649,40 @@ export default function MapPage() {
           </div>
         )}
       </MapContainer>
+
+      {isModalOpen && selectedHousehold && !isSeniorAdmin && (
+        <div className="fixed inset-0 flex items-center justify-center z-10000">
+          <div className="bg-white p-4 rounded shadow-lg w-80 relative border border-gray-200">
+            {/* Close icon button */}
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-2 right-2 text-gray-600 hover:text-red-600"
+            >
+              <FiX className="text-xl" />
+            </button>
+
+            <p className="mb-1 font-semibold text-center">
+              {selectedHousehold.name || 'Unnamed Household'}'s Residence
+            </p>
+            <p className="mb-2 text-sm text-center text-gray-700">
+              Contact Number: {selectedHousehold.contactNumber || 'N/A'}
+            </p>
+
+            <div className="text-sm text-gray-800 ml-9">
+              <strong>Members:</strong>
+              <ul className="list-disc list-inside ml-4 mt-1">
+                {selectedHousehold.members?.length > 0 ? (
+                  selectedHousehold.members.map((member, index) => (
+                    <li key={index}>{member}</li>
+                  ))
+                ) : (
+                  <li>No members listed</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { FiSearch } from 'react-icons/fi';
 // Debounce hook
 function useDebounce(value, delay = 300) {
   const [debounced, setDebounced] = useState(value);
+  
 
   useMemo(() => {
     const handler = setTimeout(() => setDebounced(value), delay);
@@ -22,6 +23,9 @@ export default function HazardTable({
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
+  const [setIsLoading] = useState(false);
+
+  
 
   // Efficient filtering
   const filteredData = useMemo(() => {
@@ -77,17 +81,34 @@ export default function HazardTable({
           </div>
 
           <div className="flex gap-2">
-            <button onClick={handlePrint} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            <button
+              onClick={() => {
+                setIsLoading(true);
+                handlePrint();
+                setTimeout(() => setIsLoading(false), 1000); // optional delay
+              }}
+              disabled={loading}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Print
             </button>
-            <button onClick={handleDownloadCSV} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+
+            <button
+              onClick={async () => {
+                setIsLoading(true);
+                handleDownloadCSV();
+                setIsLoading(false);
+              }}
+              disabled={loading}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Download CSV
             </button>
           </div>
         </div>
 
         <div className="overflow-x-auto max-h-[500px] overflow-y-auto shadow border-t-0 rounded-b-md bg-white p-4 scrollbar-thin">
-          {loading || data.length === 0 ? (
+          {loading ? (
             <div className="flex items-center justify-center py-10">
               <div className="flex flex-col items-center">
                 <svg
@@ -110,8 +131,12 @@ export default function HazardTable({
                     d="M4 12a8 8 0 018-8v8z"
                   />
                 </svg>
-                <p className="text-gray-600 text-sm">Loading Hazards records...</p>
+                <p className="text-gray-600 text-sm">Loading Hazard records...</p>
               </div>
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex items-center justify-center py-10">
+              <p className="text-gray-500 text-sm">No hazard records found.</p>
             </div>
           ) : filteredData.length === 0 ? (
             <p className="text-center text-gray-500 py-6">No matching hazard reports found.</p>

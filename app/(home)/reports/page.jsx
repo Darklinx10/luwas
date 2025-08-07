@@ -28,9 +28,9 @@ const geoJsonFileMap = {
   'Rain Induced Landslide': '/data/Clarin_RIL_converted.geojson',
   'Liquefaction': '/data/Clarin_Liquefaction_converted.geojson',
   'Earthquake Induced Landslide': '/data/Clarin_EIL_converted.geojson',
-  'Active Faults': '/data/Clarin_AF_converted.geojson',
+  'Active Faults': '/data/FaultLine.geojson',
   'Ground Shaking': '/data/Clarin_GS_converted.geojson',
-  'Landslide': '/data/Clarin_Landslide_converted.geojson',
+  'Landslide': '/data/Clarin_Landslide.geojson',
 };
 
 const reportData = {};
@@ -92,6 +92,7 @@ function ReportsPageContent() {
               affected.push({
                 ...h,
                 susceptibility: feature.properties?.Susciptibi || 'Unknown',
+                risk: feature.properties?.Risk || 'Unknown',
               });
               break;
             }

@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import { FiSearch, FiTrash2 } from 'react-icons/fi';
+import { FiSearch, FiTrash,FiPlus } from 'react-icons/fi';
 import RoleGuard from '@/components/roleGuard';
 import { toast } from 'react-toastify';
 
@@ -12,6 +12,7 @@ export default function HazardsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Fetch hazard layers from Firestore
   const fetchHazards = async () => {
     setLoading(true);
     try {
@@ -29,6 +30,7 @@ export default function HazardsPage() {
     }
   };
 
+  // Delete hazard by ID
   const handleDelete = async (id) => {
     const confirmDelete = confirm('Are you sure you want to delete this hazard layer?');
     if (!confirmDelete) return;
@@ -43,10 +45,41 @@ export default function HazardsPage() {
     }
   };
 
+  // Handle file upload
+  const handleHazardUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      try {
+        const geojson = JSON.parse(event.target.result);
+
+        // Extract basic metadata
+        const type = geojson.type || 'GeoJSON';
+        const description = geojson?.features?.[0]?.properties?.description || 'Imported hazard layer';
+
+        // Save metadata to Firestore
+        await addDoc(collection(db, 'hazards'), {
+          type,
+          description,
+          createdAt: serverTimestamp(),
+        });
+
+        toast.success('Hazard layer added.');
+        fetchHazards();
+      } catch (error) {
+        console.error('Invalid GeoJSON file', error);
+        toast.error('Invalid GeoJSON file.');
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
   const filteredHazards = hazards.filter((hazard) =>
-    `${hazard.type} ${hazard.description}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
+    `${hazard.type} ${hazard.description}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   useEffect(() => {
@@ -64,8 +97,9 @@ export default function HazardsPage() {
           <span>Hazard Layers</span>
         </div>
 
-        {/* Search bar */}
+        {/* Top bar with search and add button */}
         <div className="flex items-center justify-between bg-white shadow px-4 py-3">
+          {/* Search input */}
           <div className="relative w-full max-w-md">
             <FiSearch className="absolute top-2.5 left-3 text-gray-400" />
             <input
@@ -76,6 +110,25 @@ export default function HazardsPage() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
+
+          {/* Add Hazard Layer button */}
+          <div className="ml-4">
+            <button
+              onClick={() => document.getElementById('hazard-file-upload').click()}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+            >
+              <FiPlus />
+              Add Hazard Layer
+            </button>
+            <input
+              type="file"
+              accept=".geojson,application/geo+json"
+              id="hazard-file-upload"
+              className="hidden"
+              onChange={handleHazardUpload}
+            />
+          </div>
+
         </div>
 
         {/* Table */}
@@ -101,7 +154,7 @@ export default function HazardsPage() {
                     <td className="p-2 border">{hazard.description || 'N/A'}</td>
                     <td className="p-2 border">
                       {hazard.createdAt
-                        ? new Date(hazard.createdAt).toLocaleString()
+                        ? new Date(hazard.createdAt.seconds * 1000).toLocaleString()
                         : 'N/A'}
                     </td>
                     <td className="p-2 border">

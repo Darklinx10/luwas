@@ -1,15 +1,11 @@
-
-
-  
-
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase/config";
 import Image from 'next/image';
 
@@ -21,7 +17,24 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPageLoader, setShowPageLoader] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
+  
+  
+  // Prefill on component mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("savedEmail");
+    const savedPassword = localStorage.getItem("savedPassword");
+    const savedRememberMe = localStorage.getItem("rememberMe") === "true";
+
+    if (savedEmail && savedPassword && savedRememberMe) {
+      setEmail(savedEmail);
+      setPassword(savedPassword);
+      setRememberMe(true);
+    }
+  }, []);
+  
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -44,23 +57,26 @@ export default function LoginPage() {
         profile = docSnap.data();
         toast.success("Logged in successfully.");
       } else {
-        // Auto-create default profile
-        profile = {
-          uid: user.uid,
-          email: user.email || '',
-          displayName: user.displayName || '',
-          photoURL: user.photoURL || '',
-          role: "SeniorUser",
-          createdAt: new Date(),
-        };
-
-        await setDoc(docRef, profile);
-        toast.warn("Logged in, but user profile not found. A new profile has been created.");
+        toast.error("User profile not found. Please contact your administrator.");
+        setLoading(false);
+        return;
       }
 
       // Save to localStorage
       localStorage.setItem("userProfile", JSON.stringify(profile));
       setShowPageLoader(true);
+
+      // ✅ Remember Me logic
+      if (rememberMe) {
+        localStorage.setItem("savedEmail", email);
+        localStorage.setItem("savedPassword", password); // ✅ Add this line
+        localStorage.setItem("rememberMe", "true");
+      } else {
+        localStorage.removeItem("savedEmail");
+        localStorage.removeItem("savedPassword"); // ✅ Add this line
+        localStorage.removeItem("rememberMe");
+      }
+
 
       // Role-based redirect
       setTimeout(() => {
@@ -71,11 +87,7 @@ export default function LoginPage() {
             router.push("/maps");
             break;
           case "Secretary":
-            router.push("/dashboard");
-            break;
           case "OfficeStaff":
-            router.push("/dashboard");
-            break;
           default:
             router.push("/dashboard");
         }
@@ -99,6 +111,7 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
 
   // Full-page loader UI
   if (showPageLoader) {
@@ -197,10 +210,24 @@ export default function LoginPage() {
 
             {/* Options */}
             <div className="flex items-center justify-between mb-6 text-sm">
-              <label htmlFor="rememberMe" className="text-sm font-normal italic flex items-center text-gray-400/90">
-                <input type="checkbox" id="rememberMe" name="rememberMe" className="mr-2 accent-blue-600" />
+              <label
+                htmlFor="rememberMe"
+                className="text-sm font-normal italic flex items-center text-gray-400/90 cursor-pointer"
+                role="checkbox"
+                aria-checked={rememberMe}
+                aria-label="Remember me"
+              >
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  name="rememberMe"
+                  className="mr-2 accent-blue-600"
+                  checked={rememberMe}
+                  onChange={() => setRememberMe(!rememberMe)}
+                />
                 Remember me
               </label>
+
               <a href="/forgotpass" className="text-[#0BAD4A] hover:underline text-sm">Forgot password?</a>
             </div>
 

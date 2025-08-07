@@ -243,10 +243,27 @@ export default function PWDPage() {
           </div>
 
           <div className="flex gap-2">
-            <button onClick={handlePrint} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer">
+            <button
+              onClick={() => {
+                setLoading(true);
+                handlePrint();
+                setTimeout(() => setLoading(false), 1000); // optional delay
+              }}
+              disabled={loading}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Print
             </button>
-            <button onClick={handleDownloadCSV} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer">
+
+            <button
+              onClick={async () => {
+                setLoading(true);
+                handleDownloadCSV();
+                setLoading(false);
+              }}
+              disabled={loading}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Download CSV
             </button>
           </div>
