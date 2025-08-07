@@ -20,7 +20,7 @@ import * as turf from '@turf/turf';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '@/firebase/config';
 import AccidentMapForm from '@/components/accidentMapForm';
 import HazardLayers from '@/components/hazards/hazardLayers';
@@ -120,6 +120,57 @@ export default function OSMMapPage() {
   const [user, setUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedHousehold, setSelectedHousehold] = useState(null);
+  const [defaultCenter, setDefaultCenter] = useState(defaultPosition);
+  const [settingDefault, setSettingDefault] = useState(false);
+
+  function MapClickHandler() {
+    const map = useMap();
+
+    useEffect(() => {
+      if (!settingDefault) return;
+
+      const onClick = async (e) => {
+        const { lat, lng } = e.latlng;
+
+        setDefaultCenter([lat, lng]);
+        setSettingDefault(false);
+
+        try {
+          const docRef = doc(db, 'settings', 'mapCenter');
+          await setDoc(docRef, { lat, lng });
+          alert(`✅ New default center saved!\nLat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`);
+        } catch (error) {
+          console.error('Error saving default center:', error);
+          alert('❌ Failed to save new default center.');
+        }
+      };
+
+      map.on('click', onClick);
+      return () => map.off('click', onClick);
+    }, [settingDefault]);
+
+    return null;
+  }
+
+  useEffect(() => {
+    const fetchDefaultCenter = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'mapCenter');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.lat && data.lng) {
+            setDefaultCenter([data.lat, data.lng]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching default center:', error);
+      }
+    };
+
+    fetchDefaultCenter();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -283,6 +334,9 @@ export default function OSMMapPage() {
     fetchHouseholds();
   }, []);
 
+  
+
+
 
 
 
@@ -411,7 +465,7 @@ export default function OSMMapPage() {
       
       <MapContainer
         key={profile?.role} 
-        center={defaultPosition}
+        center={defaultCenter}
         zoom={13}
         scrollWheelZoom
         style={{
@@ -448,6 +502,24 @@ export default function OSMMapPage() {
                 }}
           />
         )}
+
+        {isSeniorAdmin && (
+          <div className="leaflet-top leaflet-left ml-10">
+            <div className="leaflet-control leaflet-bar bg-white shadow rounded p-2">
+              <button
+                onClick={() => {
+                  setSettingDefault(true);
+                  alert('Click on the map to set a new default center.');
+                }}
+                className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 w-full cursor-pointer"
+              >
+                Set New Default Center
+              </button>
+            </div>
+          </div>
+        )}
+
+
 
 
         {isHouseholdMap && !isSeniorAdmin && (
@@ -648,6 +720,8 @@ export default function OSMMapPage() {
             </ul>
           </div>
         )}
+        {isSeniorAdmin && <MapClickHandler />}
+
       </MapContainer>
 
       {isModalOpen && selectedHousehold && !isSeniorAdmin && (

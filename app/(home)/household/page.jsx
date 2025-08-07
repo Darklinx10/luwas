@@ -33,9 +33,9 @@ export default function HouseholdPage() {
   const [selectedMember, setSelectedMember] = useState(null);
 
   const handleEditMember = (member, householdId) => {
-  setSelectedMember({ ...member, householdId });
-  setIsEditModalOpen(true);
-};
+    setSelectedMember({ ...member, householdId });
+    setIsEditModalOpen(true);
+  };
 
   const handleDeleteMember = async (memberId) => {
     const confirmed = confirm('Are you sure you want to delete this member?');
@@ -74,16 +74,35 @@ export default function HouseholdPage() {
 
   const handleSaveEdit = async () => {
     try {
+      const { householdId, id, firstName, lastName, middleName, contactNumber, nuclearRelation } = selectedMember;
+
       // Firestore reference to the member document
-      const memberRef = doc(db, 'households', selectedMember.householdId, 'members', selectedMember.id);
+      const memberRef = doc(db, 'households', householdId, 'members', id);
 
       await updateDoc(memberRef, {
-        firstName: selectedMember.firstName,
-        lastName: selectedMember.lastName,
-        middleName: selectedMember.middleName,
-        contactNumber: selectedMember.contactNumber,
-        nuclearRelation: selectedMember.nuclearRelation,
+        firstName,
+        lastName,
+        middleName,
+        contactNumber,
+        nuclearRelation,
       });
+
+      // Update local state to reflect changes in the UI
+      setMembersData((prev) => ({
+        ...prev,
+        [householdId]: prev[householdId].map((member) =>
+          member.id === id
+            ? {
+                ...member,
+                firstName,
+                lastName,
+                middleName,
+                contactNumber,
+                nuclearRelation,
+              }
+            : member
+        ),
+      }));
 
       toast.success('Member updated!');
       setIsEditModalOpen(false);
@@ -93,6 +112,7 @@ export default function HouseholdPage() {
       toast.error('Failed to update member');
     }
   };
+
 
   const handleAddClick = () => {
     router.push('/household/addHouseholdForms');

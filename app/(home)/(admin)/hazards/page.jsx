@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs, deleteDoc, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import { FiSearch, FiTrash,FiPlus } from 'react-icons/fi';
+import { FiSearch, FiTrash2 ,FiPlus } from 'react-icons/fi';
 import RoleGuard from '@/components/roleGuard';
 import { toast } from 'react-toastify';
 
