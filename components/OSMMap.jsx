@@ -27,7 +27,9 @@ import HazardLayers from '@/components/hazards/hazardLayers';
 import { formatSusceptibility } from '@/app/utils/susceptibility';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { FiX } from 'react-icons/fi';
+import { FiX, FiUploadCloud } from 'react-icons/fi';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 
 
@@ -96,6 +98,15 @@ const affectedIcon = new L.Icon({
   popupAnchor: [0, -32]
 });
 
+const plusMarkerIcon = L.divIcon({
+  className: 'custom-plus-icon',
+  html: '<div style="color: red; font-size: 24px;">➕</div>',
+  iconSize: [24, 24],
+  iconAnchor: [12, 24],
+});
+
+
+
 
 const { BaseLayer } = LayersControl;
 const defaultPosition = [9.941975, 124.033194]; // Default map center
@@ -122,35 +133,95 @@ export default function OSMMapPage() {
   const [selectedHousehold, setSelectedHousehold] = useState(null);
   const [defaultCenter, setDefaultCenter] = useState(defaultPosition);
   const [settingDefault, setSettingDefault] = useState(false);
+  const [plusMarkers, setPlusMarkers] = useState([]);
+  const [boundaryGeoJSON, setBoundaryGeoJSON] = useState(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const geojson = JSON.parse(event.target.result);
+        setBoundaryGeoJSON(geojson);
+        setIsUploadModalOpen(false);
+      } catch (error) {
+        alert("Invalid GeoJSON file!");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+
+  // function MapClickHandler() {
+  //   const map = useMap();
+
+  //   useEffect(() => {
+  //     const onClick = (e) => {
+  //       const { lat, lng } = e.latlng;
+
+  //       if (settingDefault) {
+  //         setDefaultCenter([lat, lng]);
+  //         setSettingDefault(false);
+
+  //         alert(`✅ New default center set!\nLat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`);
+  //       } else {
+  //         // Add plus marker at clicked location
+  //         setPlusMarkers((prev) => [...prev, { lat, lng }]);
+  //       }
+  //     };
+
+  //     map.on('click', onClick);
+  //     return () => map.off('click', onClick);
+  //   }, [map, settingDefault]);
+
+  //   return null;
+  // }
+
+  
 
   function MapClickHandler() {
     const map = useMap();
 
     useEffect(() => {
-      if (!settingDefault) return;
-
       const onClick = async (e) => {
+        if (!settingDefault) return;
+
         const { lat, lng } = e.latlng;
 
+        // Show marker
+        setPlusMarkers([{ lat, lng }]);
         setDefaultCenter([lat, lng]);
-        setSettingDefault(false);
+        map.setView([lat, lng], map.getZoom());
 
+        // Save to Firestore
         try {
-          const docRef = doc(db, 'settings', 'mapCenter');
-          await setDoc(docRef, { lat, lng });
-          alert(`✅ New default center saved!\nLat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`);
-        } catch (error) {
-          console.error('Error saving default center:', error);
-          alert('❌ Failed to save new default center.');
+          await setDoc(doc(db, 'settings', 'mapCenter'), {
+            lat,
+            lng
+          });
+
+          toast.success('New default center added successfully!', {
+            position: 'top-right',
+            autoClose: 2000,
+          });
+        } catch (err) {
+          console.error('Error saving default center:', err);
+          toast.error('Failed to save new default center.');
         }
+
+        setSettingDefault(false); // Exit mode
       };
 
       map.on('click', onClick);
       return () => map.off('click', onClick);
-    }, [settingDefault]);
+    }, [map, settingDefault]);
 
     return null;
   }
+
 
   useEffect(() => {
     const fetchDefaultCenter = async () => {
@@ -434,10 +505,12 @@ export default function OSMMapPage() {
               d="M4 12a8 8 0 018-8v8z"
             />
           </svg>
+          <p className="text-gray-700 font-medium">Loading maps...</p>
         </div>
       </div>
     );
   }
+
 
   return (
     <div className="relative">
@@ -462,7 +535,21 @@ export default function OSMMapPage() {
           ))}
         </div>
       )}
-      
+
+      {/* Map Controls */}
+      {isSeniorAdmin && (
+        <div className="leaflet-top leaflet-left ml-60">
+          <div className="leaflet-control leaflet-bar bg-white shadow rounded p-2 space-y-2">
+            <button
+              className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 w-full cursor-pointer"
+              onClick={() => setIsUploadModalOpen(true)}
+            >
+              Set New Boundary
+            </button>
+          </div>
+        </div>
+      )}
+        
       <MapContainer
         key={profile?.role} 
         center={defaultCenter}
@@ -475,6 +562,8 @@ export default function OSMMapPage() {
           borderRadius: '8px',
         }}
       >
+
+        
 
         <LayersControl position="topright">
           <BaseLayer checked name="OpenStreetMap">
@@ -503,9 +592,34 @@ export default function OSMMapPage() {
           />
         )}
 
+        {/* Render uploaded GeoJSON
+        {boundaryGeoJSON && (
+          <GeoJSON
+            data={boundaryGeoJSON}
+            style={{
+                  color: 'black',        
+                  weight: 1,             
+                  fillOpacity: 0,
+                  dashArray: '2 4',        
+                }}
+          />
+        )} */}
+        
+        {isSeniorAdmin && <MapClickHandler />}
+
+        {/* Render plus markers */}
+        {plusMarkers.map((marker, index) => (
+          <Marker
+            key={index}
+            position={[marker.lat, marker.lng]}
+            icon={plusMarkerIcon}
+          />
+        ))}
+
         {isSeniorAdmin && (
           <div className="leaflet-top leaflet-left ml-10">
-            <div className="leaflet-control leaflet-bar bg-white shadow rounded p-2">
+            <div className="leaflet-control leaflet-bar bg-white shadow rounded p-2 space-y-2">
+              {/* Set New Default Center */}
               <button
                 onClick={() => {
                   setSettingDefault(true);
@@ -518,6 +632,7 @@ export default function OSMMapPage() {
             </div>
           </div>
         )}
+
 
 
 
@@ -720,7 +835,7 @@ export default function OSMMapPage() {
             </ul>
           </div>
         )}
-        {isSeniorAdmin && <MapClickHandler />}
+        
 
       </MapContainer>
 
@@ -753,6 +868,44 @@ export default function OSMMapPage() {
                   <li>No members listed</li>
                 )}
               </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Modal */}
+      {isUploadModalOpen && isSeniorAdmin && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[99999] flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-[90%] max-w-md">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">
+              Upload GeoJSON Boundary
+            </h2>
+
+            {/* Upload Area */}
+            <label
+              htmlFor="geojsonUpload"
+              className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all"
+            >
+              <FiUploadCloud className="text-5xl text-green-500 mb-3" />
+              <p className="text-gray-700 font-medium">Click to upload</p>
+              <p className="text-xs text-gray-500 mt-1">Only .geojson files are allowed</p>
+              <input
+                id="geojsonUpload"
+                type="file"
+                accept=".geojson,application/geo+json"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
+
+            {/* Buttons */}
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow"
+                onClick={() => setIsUploadModalOpen(false)}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

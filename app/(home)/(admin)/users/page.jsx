@@ -10,19 +10,10 @@ import {
   addDoc,
 } from 'firebase/firestore';
 import { db, auth } from '@/firebase/config';
-import {
-  FiSearch,
-  FiPlus,
-  FiEdit,
-  FiTrash2,
-  FiX,
-} from 'react-icons/fi';
+import { FiSearch, FiPlus, FiEdit, FiTrash2, FiX } from 'react-icons/fi';
 import RoleGuard from '@/components/roleGuard';
 import { toast } from 'react-toastify';
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-} from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 const UserManagementPage = () => {
   const [users, setUsers] = useState([]);
@@ -40,29 +31,35 @@ const UserManagementPage = () => {
     barangay: '',
     role: 'Secretary',
   });
-  const [loading, setLoading] = useState(false);
+
+  const [loading, setLoading] = useState(false); // for fetching users & editing
+  const [saving, setSaving] = useState(false); // for saving user in modal
+  const [loadingAddModal, setLoadingAddModal] = useState(false); // for "Add User" button
 
   const fetchUsers = async () => {
     try {
+      setLoading(true);
       const querySnapshot = await getDocs(collection(db, 'users'));
       const usersData = querySnapshot.docs
-        .map((doc) => {
-          const data = doc.data();
+        .map((docSnap) => {
+          const data = docSnap.data();
           const fullName = [data.firstName, data.middleName, data.lastName]
             .filter(Boolean)
             .join(' ');
           return {
-            id: doc.id,
+            id: docSnap.id,
             ...data,
             fullName,
           };
         })
-        .filter((user) => ['Secretary', 'Office Staff'].includes(user.role));
+        .filter((user) => ['Secretary', 'OfficeStaff'].includes(user.role));
 
       setUsers(usersData);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to fetch users.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,8 +73,7 @@ const UserManagementPage = () => {
   };
 
   const handleDelete = async (userId) => {
-    const confirmed = confirm('Are you sure you want to delete this user?');
-    if (!confirmed) return;
+    if (!confirm('Are you sure you want to delete this user?')) return;
 
     try {
       await deleteDoc(doc(db, 'users', userId));
@@ -93,9 +89,8 @@ const UserManagementPage = () => {
     if (!selectedUser?.id) return;
 
     try {
-      setLoading(true);
+      setSaving(true);
       const userRef = doc(db, 'users', selectedUser.id);
-      // Remove fields that shouldn't be updated or are derived
       const { fullName, id, ...dataToUpdate } = selectedUser;
       await updateDoc(userRef, dataToUpdate);
       toast.success('User updated successfully.');
@@ -105,45 +100,70 @@ const UserManagementPage = () => {
       console.error('Error updating user:', error);
       toast.error('Failed to update user.');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const handleAddUser = async () => {
-    if (!newUser.firstName || !newUser.lastName || !newUser.email || !newUser.password) {
+    const { firstName, lastName, email, password, contactNumber, role, middleName, barangay } = newUser;
+
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) {
       toast.error('First name, last name, email, and password are required.');
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      toast.error('Please enter a valid email.');
+      return;
+    }
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters long.');
+      return;
+    }
+    if (contactNumber && !/^0\d{10}$/.test(contactNumber)) {
+      toast.error('Contact number must be 11 digits and start with 0.');
       return;
     }
 
     try {
-      setLoading(true);
+      setSaving(true);
 
-      // Get admin credentials from environment variables
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-      const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+      const res = await fetch('/api/createUser', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          displayName: `${firstName.trim()} ${lastName.trim()}`,
+          role,
+        }),
+      });
 
-      // Create new user account
-      const userCredential = await createUserWithEmailAndPassword(auth, newUser.email, newUser.password);
-      const { uid } = userCredential.user;
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast.error(errorData.error || 'Failed to create account.');
+        return;
+      }
 
+      const data = await res.json();
+      const uid = data.uid;
+
+      // Add user info to Firestore as well
       const userToAdd = {
         uid,
-        firstName: newUser.firstName,
-        middleName: newUser.middleName,
-        lastName: newUser.lastName,
-        email: newUser.email,
-        contactNumber: newUser.contactNumber,
-        barangay: newUser.barangay,
-        role: newUser.role,
+        firstName: firstName.trim(),
+        middleName: middleName.trim() || '',
+        lastName: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        contactNumber: contactNumber || '',
+        barangay: barangay || '',
+        role,
         createdAt: new Date().toISOString(),
       };
 
       await addDoc(collection(db, 'users'), userToAdd);
 
-      // Re-sign in as admin to keep admin session
-      await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-
       toast.success('User account created successfully.');
+
       setShowAddModal(false);
       setNewUser({
         firstName: '',
@@ -155,18 +175,17 @@ const UserManagementPage = () => {
         barangay: '',
         role: 'Secretary',
       });
+
+      // Refresh user list
       fetchUsers();
     } catch (error) {
       console.error('Error creating account:', error);
-      if (error.code === 'auth/email-already-in-use') {
-        toast.error('Email already in use.');
-      } else {
-        toast.error('Failed to create account.');
-      }
+      toast.error('Failed to create account.');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
 
   const filteredUsers = users.filter((user) =>
     `${user.fullName} ${user.email}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -196,18 +215,50 @@ const UserManagementPage = () => {
           </div>
 
           <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded"
+            onClick={() => {
+              setLoadingAddModal(true);
+              setShowAddModal(true);
+              setTimeout(() => setLoadingAddModal(false), 800);
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded text-white bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loadingAddModal}
           >
-            <FiPlus />
-            Add User
+            {loadingAddModal ? (
+              <span className="flex items-center gap-2">
+                <svg
+                  className="animate-spin h-4 w-4 text-white"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                  />
+                </svg>
+                Loading...
+              </span>
+            ) : (
+              <>
+                <FiPlus />
+                Add User
+              </>
+            )}
           </button>
         </div>
 
         <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
           {filteredUsers.length === 0 ? (
             <p className="text-center text-gray-500 py-6">
-              No users found.
+              {loading ? 'Loading users...' : 'No users found.'}
             </p>
           ) : (
             <table className="w-full text-sm text-center">
@@ -233,14 +284,14 @@ const UserManagementPage = () => {
                       <div className="flex justify-center items-center gap-2">
                         <button
                           onClick={() => handleEdit(user)}
-                          className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                          className="text-blue-600 hover:text-blue-800"
                           title="Edit"
                         >
                           <FiEdit size={16} />
                         </button>
                         <button
                           onClick={() => handleDelete(user.id)}
-                          className="text-red-600 hover:text-red-800 cursor-pointer"
+                          className="text-red-600 hover:text-red-800"
                           title="Delete"
                         >
                           <FiTrash2 size={16} />
@@ -257,10 +308,10 @@ const UserManagementPage = () => {
         {showModal && selectedUser && (
           <UserModal
             user={selectedUser}
+            setUser={setSelectedUser}
             onClose={() => setShowModal(false)}
             onSave={handleSaveEdit}
-            loading={loading}
-            setUser={setSelectedUser}
+            saving={saving}
             mode="edit"
           />
         )}
@@ -268,10 +319,10 @@ const UserManagementPage = () => {
         {showAddModal && (
           <UserModal
             user={newUser}
+            setUser={setNewUser}
             onClose={() => setShowAddModal(false)}
             onSave={handleAddUser}
-            loading={loading}
-            setUser={setNewUser}
+            saving={saving}
             mode="add"
           />
         )}
@@ -280,7 +331,7 @@ const UserManagementPage = () => {
   );
 };
 
-const UserModal = ({ user, setUser, onClose, onSave, loading, mode }) => {
+const UserModal = ({ user, setUser, onClose, onSave, saving, mode }) => {
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl relative">
@@ -304,7 +355,6 @@ const UserModal = ({ user, setUser, onClose, onSave, loading, mode }) => {
             autoComplete="given-name"
             placeholder="Enter first name"
           />
-
           <Input
             label="Middle Name"
             id="middleName"
@@ -321,13 +371,11 @@ const UserModal = ({ user, setUser, onClose, onSave, loading, mode }) => {
             autoComplete="family-name"
             placeholder="Enter last name"
           />
-
           <Input
             label="Contact Number"
             id="contactNumber"
             value={user.contactNumber}
             onChange={(v) => {
-              // Allow only digits, max 11 chars, and must start with 0 if not empty
               if ((v === '' || /^0\d{0,10}$/.test(v)) && v.length <= 11) {
                 setUser((p) => ({ ...p, contactNumber: v }));
               }
@@ -336,7 +384,6 @@ const UserModal = ({ user, setUser, onClose, onSave, loading, mode }) => {
             autoComplete="tel"
             placeholder="Enter contact number"
           />
-
           <Input
             label="Barangay"
             id="barangay"
@@ -345,7 +392,6 @@ const UserModal = ({ user, setUser, onClose, onSave, loading, mode }) => {
             autoComplete="address-level3"
             placeholder="Enter barangay"
           />
-
           <Input
             label="Email"
             id="email"
@@ -368,7 +414,6 @@ const UserModal = ({ user, setUser, onClose, onSave, loading, mode }) => {
                 autoComplete="new-password"
                 placeholder="Enter password"
               />
-
               <div>
                 <label htmlFor="role" className="block text-sm font-medium">
                   Role
@@ -376,13 +421,11 @@ const UserModal = ({ user, setUser, onClose, onSave, loading, mode }) => {
                 <select
                   id="role"
                   value={user.role}
-                  onChange={(e) =>
-                    setUser((p) => ({ ...p, role: e.target.value }))
-                  }
+                  onChange={(e) => setUser((p) => ({ ...p, role: e.target.value }))}
                   className="w-full border rounded px-3 py-2"
                 >
                   <option value="Secretary">Secretary</option>
-                  <option value="Office Staff">Office Staff</option>
+                  <option value="OfficeStaff">Office Staff</option>
                 </select>
               </div>
             </>
@@ -391,20 +434,20 @@ const UserModal = ({ user, setUser, onClose, onSave, loading, mode }) => {
           <div className="flex justify-end gap-2 pt-4">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 cursor-pointer"
+              className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
             >
               Cancel
             </button>
             <button
               onClick={onSave}
-              disabled={loading}
-              className={`px-4 py-2 text-white rounded flex items-center justify-center gap-2 transition ${
-                loading
+              disabled={saving}
+              className={`px-4 py-2 text-white rounded flex items-center gap-2 ${
+                saving
                   ? 'bg-green-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700 cursor-pointer'
+                  : 'bg-green-600 hover:bg-green-700'
               }`}
             >
-              {loading ? (
+              {saving ? (
                 <>
                   <svg
                     className="animate-spin h-5 w-5 text-white"
@@ -438,16 +481,7 @@ const UserModal = ({ user, setUser, onClose, onSave, loading, mode }) => {
   );
 };
 
-const Input = ({
-  label,
-  id,
-  value,
-  onChange,
-  type = 'text',
-  autoComplete,
-  placeholder,
-  disabled = false,
-}) => (
+const Input = ({ label, id, value, onChange, type = 'text', autoComplete, placeholder, disabled = false }) => (
   <div>
     <label htmlFor={id} className="block text-sm font-medium">
       {label}

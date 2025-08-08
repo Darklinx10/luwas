@@ -19,6 +19,7 @@
     "eslint-config-next": "15.3.4",
     "esri-leaflet": "^3.0.17",
     "firebase": "^11.10.0",
+    "firebase-admin": "^13.4.0",
     "framer-motion": "^12.23.6",
     "geolib": "^3.3.4",
     "html2pdf.js": "^0.10.3",

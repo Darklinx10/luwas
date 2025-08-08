@@ -47,13 +47,13 @@ export default function Sidebar({ sidebarOpen, userRole }) {
       isActive: pathname.startsWith("/hazards"),
       allowedRoles: ["SeniorAdmin"],
     },
-    {
-      href: "/boundaries",
-      label: "Boundaries",
-      icon: <MdOutlineMap className="text-2xl" />,
-      isActive: pathname.startsWith("/boundaries"),
-      allowedRoles: ["SeniorAdmin"],
-    },
+    // {
+    //   href: "/boundaries",
+    //   label: "Boundaries",
+    //   icon: <MdOutlineMap className="text-2xl" />,
+    //   isActive: pathname.startsWith("/boundaries"),
+    //   allowedRoles: ["SeniorAdmin"],
+    // },
     {
       href: "/users",
       label: "User Management",

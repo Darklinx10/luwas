@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPageLoader, setShowPageLoader] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [redirectMessage, setRedirectMessage] = useState("Redirecting...");
 
   
   
@@ -69,27 +70,24 @@ export default function LoginPage() {
       // ✅ Remember Me logic
       if (rememberMe) {
         localStorage.setItem("savedEmail", email);
-        localStorage.setItem("savedPassword", password); // ✅ Add this line
+        localStorage.setItem("savedPassword", password);
         localStorage.setItem("rememberMe", "true");
       } else {
         localStorage.removeItem("savedEmail");
-        localStorage.removeItem("savedPassword"); // ✅ Add this line
+        localStorage.removeItem("savedPassword");
         localStorage.removeItem("rememberMe");
       }
-
 
       // Role-based redirect
       setTimeout(() => {
         const role = profile.role;
 
-        switch (role) {
-          case "SeniorAdmin":
-            router.push("/maps");
-            break;
-          case "Secretary":
-          case "OfficeStaff":
-          default:
-            router.push("/dashboard");
+        if (role === "SeniorAdmin") {
+          setRedirectMessage("Redirecting to Maps...");
+          router.push("/maps");
+        } else {
+          setRedirectMessage("Redirecting to Dashboard...");
+          router.push("/dashboard");
         }
       }, 1000);
 
@@ -111,7 +109,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
 
   // Full-page loader UI
   if (showPageLoader) {
@@ -138,7 +135,7 @@ export default function LoginPage() {
               d="M4 12a8 8 0 018-8v8z"
             />
           </svg>
-          <p className="text-gray-600 text-sm">Redirecting to Dashboard...</p>
+          <p className="text-gray-600 text-sm">{redirectMessage}</p>
         </div>
       </div>
     );
