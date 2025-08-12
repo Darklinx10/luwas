@@ -24,8 +24,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
   const [userRole, setUserRole] = useState('');
   const { setUser, setRole } = useAuth();
   const logoutTimeoutRef = useRef(null);
-
-
+ 
 
 
   // Fetch current user data from Firestore
@@ -39,7 +38,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
           const data = docSnap.data();
           const fullName = `${data.firstName || ''} ${data.middleName || ''} ${data.lastName || ''}`.trim();
           setUserName(fullName);
-          setUserPhoto(data.photoURL || null);
+          setUserPhoto(data.profilePhoto || null);
           setUserRole(data.role || ''); // ✅ Add this
         }
       } catch (error) {

@@ -31,6 +31,7 @@ export default function HouseholdPage() {
   const [profile, setProfile] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [updating, setUpdating] = useState(false);
 
   const handleEditMember = (member, householdId) => {
     setSelectedMember({ ...member, householdId });
@@ -74,20 +75,26 @@ export default function HouseholdPage() {
 
   const handleSaveEdit = async () => {
     try {
+      setUpdating(true);
       const { householdId, id, firstName, lastName, middleName, contactNumber, nuclearRelation } = selectedMember;
 
-      // Firestore reference to the member document
       const memberRef = doc(db, 'households', householdId, 'members', id);
 
-      await updateDoc(memberRef, {
+      // Prepare the update object
+      const updateData = {
         firstName,
         lastName,
         middleName,
         contactNumber,
-        nuclearRelation,
-      });
+      };
 
-      // Update local state to reflect changes in the UI
+      // Only add nuclearRelation if it's defined (not undefined)
+      if (nuclearRelation !== undefined) {
+        updateData.nuclearRelation = nuclearRelation;
+      }
+
+      await updateDoc(memberRef, updateData);
+
       setMembersData((prev) => ({
         ...prev,
         [householdId]: prev[householdId].map((member) =>
@@ -110,8 +117,11 @@ export default function HouseholdPage() {
     } catch (error) {
       console.error('Update failed', error);
       toast.error('Failed to update member');
+    } finally {
+      setUpdating(false);
     }
   };
+
 
 
   const handleAddClick = () => {
@@ -320,7 +330,25 @@ export default function HouseholdPage() {
     fetchHouseholds();
   }, []);
 
-  const filteredHouseholds = households.filter((data) => {
+  const filteredByRoleAndBarangay = React.useMemo(() => {
+    if (!profile) return households;
+
+    if (profile.role === 'Secretary') {
+      // Show only households with the same barangay as the secretary's barangay
+      return households.filter(
+        (hh) => (hh.barangay || '').toLowerCase() === profile.barangay.toLowerCase()
+      );
+    } else if (profile.role === 'OfficeStaff') {
+      // OfficeStaff sees all households, no filter
+      return households;
+    } else {
+      // Other roles can have custom logic or default to all
+      return households;
+    }
+  }, [households, profile]);
+
+
+  const filteredHouseholds = filteredByRoleAndBarangay.filter((data) => {
     const fullName = [
       data.headFirstName || '',
       data.headMiddleName || '',
@@ -407,7 +435,6 @@ export default function HouseholdPage() {
 
           </div>
 
-          
           <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
             {loading ? (
               <div className="flex items-center justify-center py-10">
@@ -425,9 +452,9 @@ export default function HouseholdPage() {
                 </div>
               </div>
             ) : households.length === 0 ? (
-              <p className="text-center text-gray-500 py-6">No household records found.</p>
-            ) : filteredHouseholds.length === 0 ? (
               <p className="text-center text-gray-500 py-6">No results matched your search.</p>
+            ) : filteredHouseholds.length === 0 ? (
+              <p className="text-center text-gray-500 py-6">No household records found.</p>
             ) : (
               <>
                 <table className="w-full text-sm text-center print:text-xs print:border print:border-gray-400">
@@ -578,12 +605,13 @@ export default function HouseholdPage() {
                                                   <td className="p-2 border">{contactNumber}</td>
                                                   <td className="p-2 border text-center space-x-2">
                                                     <button
-                                                      onClick={() => handleEditMember(m)}
+                                                      onClick={() => handleEditMember(m, data.householdId)}
                                                       className="text-blue-600 hover:text-blue-800"
                                                       title="Edit"
                                                     >
                                                       <FiEdit />
                                                     </button>
+
                                                     <button
                                                       onClick={() => handleDeleteMember(m.id)}
                                                       className="text-red-600 hover:text-red-800"
@@ -721,11 +749,37 @@ export default function HouseholdPage() {
                           >
                             Cancel
                           </button>
+
                           <button
                             onClick={handleSaveEdit}
-                            className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-500 transition"
+                            disabled={updating}
+                            className={`px-4 py-2 rounded-lg text-white transition flex justify-center items-center gap-2 ${
+                              updating ? 'bg-green-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500'
+                            }`}
                           >
-                            Save
+                            {updating ? (
+                              <>
+                                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                    fill="none"
+                                  />
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                                  />
+                                </svg>
+                                Updating...
+                              </>
+                            ) : (
+                              'Save'
+                            )}
                           </button>
                         </div>
                       </div>

@@ -32,15 +32,13 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 
-
-
-// ✅ Heatmap Component
+// =============================
+// HEATMAP COMPONENT
+// Handles rendering of accident heatmap points
+// =============================
 function AccidentHeatmap({ points }) {
   const map = useMap();
   
-
-    
-
   useEffect(() => {
     if (!map || !points.length) return;
 
@@ -63,13 +61,20 @@ function AccidentHeatmap({ points }) {
   return null;
 }
 
-// ✅ Move MapWithHazards OUTSIDE of MapPage
+// =============================
+// MAP WITH HAZARDS COMPONENT
+// Displays hazard layers based on active hazard type
+// =============================
 function MapWithHazards({ activeHazard, setLoading }) {
   const map = useMap();
   return <HazardLayers activeHazard={activeHazard} map={map} setLoading={setLoading} />;
 }
 
-// Override Leaflet default icon configuration
+
+// =============================
+// LEAFLET ICON OVERRIDES
+// Sets custom marker icons for households, accidents, affected areas, and plus marker
+// =============================
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x.src,
@@ -106,14 +111,14 @@ const plusMarkerIcon = L.divIcon({
 });
 
 
-
-
 const { BaseLayer } = LayersControl;
 const defaultPosition = [9.941975, 124.033194]; // Default map center
 
 
-
-
+// =============================
+// MAIN MAP PAGE COMPONENT
+// Handles households, accidents, hazard overlays, and admin tools
+// =============================
 export default function OSMMapPage() {
   const [activeMap, setActiveMap] = useState('Household Map');
   const [activeHazard, setActiveHazard] = useState('');
@@ -154,34 +159,9 @@ export default function OSMMapPage() {
     reader.readAsText(file);
   };
 
-
-  // function MapClickHandler() {
-  //   const map = useMap();
-
-  //   useEffect(() => {
-  //     const onClick = (e) => {
-  //       const { lat, lng } = e.latlng;
-
-  //       if (settingDefault) {
-  //         setDefaultCenter([lat, lng]);
-  //         setSettingDefault(false);
-
-  //         alert(`✅ New default center set!\nLat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`);
-  //       } else {
-  //         // Add plus marker at clicked location
-  //         setPlusMarkers((prev) => [...prev, { lat, lng }]);
-  //       }
-  //     };
-
-  //     map.on('click', onClick);
-  //     return () => map.off('click', onClick);
-  //   }, [map, settingDefault]);
-
-  //   return null;
-  // }
-
-  
-
+  // =============================
+  // MAP CLICK HANDLER FOR SETTING DEFAULT CENTER
+  // =============================
   function MapClickHandler() {
     const map = useMap();
 
@@ -222,7 +202,9 @@ export default function OSMMapPage() {
     return null;
   }
 
-
+  // =============================
+  // FETCH DEFAULT MAP CENTER FROM FIRESTORE
+  // =============================
   useEffect(() => {
     const fetchDefaultCenter = async () => {
       try {
@@ -243,6 +225,9 @@ export default function OSMMapPage() {
     fetchDefaultCenter();
   }, []);
 
+  // =============================
+  // AUTH STATE LISTENER + PROFILE FETCH
+  // =============================
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
@@ -267,6 +252,9 @@ export default function OSMMapPage() {
 
   const isSeniorAdmin = profile?.role === 'SeniorAdmin';
 
+  // =============================
+  // REDIRECT IF NO PROFILE OR ROLE
+  // =============================
   useEffect(() => {
     if (profile === null) return; // Still loading
     if (!profile || !profile.role) {
@@ -274,10 +262,9 @@ export default function OSMMapPage() {
     }
   }, [profile]);
 
-
-
-
-
+  // =============================
+  // 🌍 FETCH CLARIN BOUNDARY GEOJSON
+  // =============================
   useEffect(() => {
     fetch('/data/Clarin_Boundary.geojson')
       .then((res) => res.json())
@@ -285,6 +272,9 @@ export default function OSMMapPage() {
       .catch((err) => console.error('Failed to load GeoJSON:', err));
   }, []);
 
+  // =============================
+  // HAZARD LAYER → UPDATE AFFECTED HOUSEHOLDS
+  // =============================
   useEffect(() => {
     window.setHazardGeoJSON = (geojson) => {
       if (!geojson || !geojson.features) return;
@@ -302,7 +292,9 @@ export default function OSMMapPage() {
     };
   }, [householdMarkers]);
 
-
+  // =============================
+  // DETERMINE SUSCEPTIBILITY FOR AFFECTED HOUSEHOLDS
+  // =============================
   useEffect(() => {
     if (!hazardGeoJSON || householdMarkers.length === 0) return;
 
@@ -335,7 +327,9 @@ export default function OSMMapPage() {
   }, [hazardGeoJSON, householdMarkers]);
 
 
-
+  // =============================
+  // 🧹 CLEAR DATA IF HAZARD CLEARED
+  // =============================
   useEffect(() => {
     if (!activeHazard) {
       setHazardGeoJSON(null);
@@ -344,7 +338,9 @@ export default function OSMMapPage() {
   }, [activeHazard]);
 
 
-
+  // =============================
+  // FETCH HOUSEHOLD LOCATIONS
+  // =============================
   useEffect(() => {
     const fetchHouseholds = async () => {
       try {
@@ -406,11 +402,9 @@ export default function OSMMapPage() {
   }, []);
 
   
-
-
-
-
-
+  // =============================
+  // FETCH ACCIDENT LOCATIONS
+  // =============================
   useEffect(() => {
     const fetchAccidents = async () => {
       const snapshot = await getDocs(collection(db, 'accidents'));
@@ -426,7 +420,9 @@ export default function OSMMapPage() {
     setAddingAccident(false);
   };
 
-  // ✅ Group nearby accidents (within 50m) and show heatmap only for groups with ≥3
+  // =============================
+  // GROUP NEARBY ACCIDENTS FOR HEATMAP
+  // =============================
   function groupNearbyAccidents(accidents, radius = 50) {
     const clusters = [];
 
@@ -434,7 +430,7 @@ export default function OSMMapPage() {
       const { position } = acc;
       if (!position) return;
 
-      // ✅ Handle both [lat, lng] and { lat: ..., lng: ... }
+      // Handle both [lat, lng] and { lat: ..., lng: ... }
       const [lat, lng] = Array.isArray(position)
         ? position
         : [position.lat, position.lng];
@@ -480,7 +476,9 @@ export default function OSMMapPage() {
       return [c.lat, c.lng, intensity];
     }); 
     
-    
+  // =============================
+  // LOADING SCREEN WHILE FETCHING PROFILE
+  // =============================
   if (profile === null) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -580,7 +578,7 @@ export default function OSMMapPage() {
           </BaseLayer>
         </LayersControl>
 
-        {clarinBoundary && profile?.role !== 'SeniorAdmin' && (
+        {/* {clarinBoundary && profile?.role !== 'SeniorAdmin' && (
           <GeoJSON
             data={clarinBoundary}
             style={{
@@ -590,9 +588,9 @@ export default function OSMMapPage() {
                   dashArray: '2 4',        
                 }}
           />
-        )}
+        )} */}
 
-        {/* Render uploaded GeoJSON
+        {/* Render uploaded GeoJSON */}
         {boundaryGeoJSON && (
           <GeoJSON
             data={boundaryGeoJSON}
@@ -603,7 +601,7 @@ export default function OSMMapPage() {
                   dashArray: '2 4',        
                 }}
           />
-        )} */}
+        )}
         
         {isSeniorAdmin && <MapClickHandler />}
 

@@ -20,8 +20,6 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [redirectMessage, setRedirectMessage] = useState("Redirecting...");
 
-  
-  
   // Prefill on component mount
   useEffect(() => {
     const savedEmail = localStorage.getItem("savedEmail");
@@ -163,7 +161,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit}>
             {/* Email */}
             <div className="mb-4">
-              <label htmlFor="email" className="block text-sm text-gray-700 mb-1">Email</label>
+              <label htmlFor="email" className="block text-sm text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
               <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
                 <FiMail className="text-gray-500 mr-2" />
                 <input
@@ -181,7 +179,7 @@ export default function LoginPage() {
 
             {/* Password */}
             <div className="mb-4">
-              <label htmlFor="password" className="block text-sm text-gray-700 mb-1">Password</label>
+              <label htmlFor="password" className="block text-sm text-gray-700 mb-1">Password <span className="text-red-500">*</span></label>
               <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
                 <FiLock className="text-gray-500 mr-2" />
                 <input

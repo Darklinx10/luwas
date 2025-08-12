@@ -256,7 +256,7 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
               { id: 'nuclearBelonging', label: 'In which Nuclear Family Belong?' },
             ].map(({ id, label, type = 'text', ...props }) => (
               <label key={id} htmlFor={`${id}-${index}`} className="flex flex-col">
-                {label}
+                {label} 
                 <input
                   id={`${id}-${index}`}
                   name={id}

@@ -8,6 +8,8 @@ import { FiSearch, FiTrash2, FiPlus, FiUploadCloud } from 'react-icons/fi';
 import RoleGuard from '@/components/roleGuard';
 import { toast } from 'react-toastify';
 import dynamic from 'next/dynamic';
+
+//Dynamically import Leaflet map components (client-side only)
 const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
 const GeoJSON = dynamic(() => import('react-leaflet').then(mod => mod.GeoJSON), { ssr: false });
@@ -15,6 +17,7 @@ const GeoJSON = dynamic(() => import('react-leaflet').then(mod => mod.GeoJSON), 
 
 
 export default function HazardsPage() {
+  // Hazard list state
   const [hazards, setHazards] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,13 +27,27 @@ export default function HazardsPage() {
   const [hazardType, setHazardType] = useState('');
   const [description, setDescription] = useState('');
   const [geojsonFile, setGeojsonFile] = useState(null);
+  // Preview modal state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedHazard, setSelectedHazard] = useState(null);
 
-  const handlePreview = (hazard) => {
-    setSelectedHazard(hazard);
-    setIsPreviewOpen(true);
+  // Preview selected hazard's GeoJSON on map
+  const handlePreview = async (hazard) => {
+    try {
+      const response = await fetch(hazard.fileUrl);
+      const geojsonData = await response.json();
+
+      setSelectedHazard({
+        ...hazard,
+        geojson: geojsonData,
+      });
+      setIsPreviewOpen(true);
+    } catch (error) {
+      console.error('Error loading GeoJSON:', error);
+      toast.error('Failed to load GeoJSON preview.');
+    }
   };
+
 
 
   // Fetch hazards
@@ -95,11 +112,12 @@ export default function HazardsPage() {
       toast.error('Failed to add hazard.');
     }
   };
-
+  //Search Filter
   const filteredHazards = hazards.filter((hazard) =>
     `${hazard.type} ${hazard.description}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  //Fetch hazards on first render
   useEffect(() => {
     fetchHazards();
   }, []);
@@ -254,6 +272,7 @@ export default function HazardsPage() {
                 >
                   Cancel
                 </button>
+
                 <button
                   className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                   onClick={handleSaveHazard}

@@ -8,20 +8,27 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'react-toastify';
-import RoleGuard from '@/components/roleGuard'; // ✅ RoleGuard import
+import RoleGuard from '@/components/roleGuard';
+
+// List of fallback/default avatar images
+const DEFAULT_AVATARS = [
+  'https://cdn-icons-png.flaticon.com/512/706/706799.png',
+  'https://cdn-icons-png.flaticon.com/512/13482/13482227.png',
+];
 
 export default function EditProfilePage() {
   return (
+    // Restrict access to specific roles before rendering the profile edit form
     <RoleGuard allowedRoles={['SeniorAdmin', 'OfficeStaff', 'Secretary']}>
       <EditProfileContent />
     </RoleGuard>
   );
 }
 
-// Separated profile editing logic to this component
 function EditProfileContent() {
   const router = useRouter();
-
+  
+  // Form state for editable fields
   const [form, setForm] = useState({
     firstName: '',
     middleName: '',
@@ -32,19 +39,27 @@ function EditProfileContent() {
     email: '',
   });
 
+  // Holds the new uploaded file (if any)
   const [photo, setPhoto] = useState(null);
+  // Stores the image preview (URL or base64)
   const [photoPreview, setPhotoPreview] = useState('');
+  // Authenticated user's UID
   const [uid, setUid] = useState(null);
+  // Loading state for submit button
   const [loading, setLoading] = useState(false);
 
+  // Runs on component mount - checks authentication and loads profile data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Save UID for later use in Firestore/Storage operations
         setUid(user.uid);
         try {
+          // Get the user's Firestore document
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const data = userDoc.data();
+            // Populate form fields with existing data
             setForm({
               firstName: data.firstName || '',
               middleName: data.middleName || '',
@@ -54,6 +69,7 @@ function EditProfileContent() {
               contactNumber: data.contactNumber || '',
               email: data.email || '',
             });
+            // Set profile photo if it exists
             if (data.profilePhoto) {
               setPhotoPreview(data.profilePhoto);
             }
@@ -63,18 +79,21 @@ function EditProfileContent() {
           toast.error('Failed to load profile.');
         }
       } else {
+        // Redirect to home if no user is logged in
         router.push('/');
       }
     });
-
+    // Cleanup listener on unmount
     return () => unsubscribe();
   }, [router]);
 
+  // Handles text input changes for all form fields
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Handles profile photo upload (preview + store in state)
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -87,6 +106,7 @@ function EditProfileContent() {
     }
   };
 
+  // Handles form submission to update profile in Firestore
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!uid) return;
@@ -95,12 +115,14 @@ function EditProfileContent() {
     try {
       let profilePhotoUrl = photoPreview;
 
+      // If a new photo file is uploaded, upload it to Firebase Storage
       if (photo) {
         const storageRef = ref(storage, `profile_photos/${uid}`);
         await uploadBytes(storageRef, photo);
         profilePhotoUrl = await getDownloadURL(storageRef);
       }
 
+      // Update user document with new form data + profile photo URL
       await updateDoc(doc(db, 'users', uid), {
         ...form,
         profilePhoto: profilePhotoUrl,
@@ -114,6 +136,13 @@ function EditProfileContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Allows user to choose a predefined avatar instead of uploading a photo
+  const handleAvatarClick = (avatarUrl) => {
+    setPhoto(null); // Clear uploaded photo
+    setPhotoPreview(avatarUrl);
+    toast.info('Default avatar selected.');
   };
 
   return (
@@ -147,6 +176,21 @@ function EditProfileContent() {
           />
           Change Photo
         </label>
+
+        {/* Default Avatar Options */}
+        <div className="flex gap-4 mt-4">
+          {DEFAULT_AVATARS.map((avatar, index) => (
+            <img
+              key={index}
+              src={avatar}
+              alt={`Avatar ${index + 1}`}
+              className={`w-16 h-16 rounded-full cursor-pointer border hover:ring-2 hover:ring-blue-400 ${
+                photoPreview === avatar ? 'ring-2 ring-green-500' : ''
+              }`}
+              onClick={() => handleAvatarClick(avatar)}
+            />
+          ))}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">

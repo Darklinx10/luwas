@@ -97,7 +97,7 @@ export default function ForgotPasswordPage() {
             <div className="mb-6">
               {/* Email input label and field */}
               <label htmlFor="email" className="block text-sm text-gray-700 mb-1">
-                Enter your email to reset password
+                Enter your email to reset password <span className="text-red-500">*</span>
               </label>
               <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
                 <FiMail className="text-gray-500 mr-2" />

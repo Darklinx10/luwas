@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '@/firebase/config';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
@@ -14,47 +14,71 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
+  const loadUserData = async (firebaseUser) => {
+    if (!firebaseUser) {
+      setUser(null);
+      setRole(null);
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
 
-      if (firebaseUser) {
-        try {
-          const docRef = doc(db, 'users', firebaseUser.uid);
-          let docSnap = await getDoc(docRef);
+    try {
+      // 🔹 Force refresh claims so they’re never stale
+      const tokenResult = await getIdTokenResult(firebaseUser, true);
+      const claimRole = tokenResult.claims.role || null;
+      setRole(claimRole);
 
-          // Try up to 3 times to get the doc (helps with new writes not showing instantly)
-          let retries = 2;
-          while (!docSnap.exists() && retries > 0) {
-            await new Promise(res => setTimeout(res, 300)); // wait 300ms
-            docSnap = await getDoc(docRef);
-            retries--;
-          }
-
-          if (docSnap.exists()) {
-            const userData = docSnap.data();
-            setRole(userData.role);
-            setProfile(userData); // ✅ fix: now profile will be usable
-          } else {
-            console.warn('User profile not found after retries');
-            setRole('Guest');
-            setProfile(null); // or handle as needed
-          }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-          setRole(null);
-        }
+      // 🔹 Get Firestore profile (with retry for new writes)
+      const docRef = doc(db, 'users', firebaseUser.uid);
+      let docSnap = await getDoc(docRef);
+      let retries = 2;
+      while (!docSnap.exists() && retries > 0) {
+        await new Promise(res => setTimeout(res, 300));
+        docSnap = await getDoc(docRef);
+        retries--;
       }
 
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        setProfile(userData);
+        if (!claimRole) {
+          // If role not in claims, fall back to Firestore
+          setRole(userData.role || null);
+        }
+      } else {
+        console.warn('User profile not found after retries');
+        setProfile(null);
+      }
 
-      setLoading(false);
+      setUser(firebaseUser);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      setRole(null);
+      setProfile(null);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setLoading(true);
+      loadUserData(firebaseUser);
     });
-
     return () => unsubscribe();
   }, []);
 
+  // 🔹 Public method to manually refresh
+  const refreshUserData = async () => {
+    if (auth.currentUser) {
+      setLoading(true);
+      await loadUserData(auth.currentUser);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ profile , setProfile, user, setUser, role, setRole, loading }}>
+    <AuthContext.Provider value={{ profile, setProfile, user, setUser, role, setRole, loading, refreshUserData }}>
       {children}
     </AuthContext.Provider>
   );

@@ -47,13 +47,6 @@ export default function Sidebar({ sidebarOpen, userRole }) {
       isActive: pathname.startsWith("/hazards"),
       allowedRoles: ["SeniorAdmin"],
     },
-    // {
-    //   href: "/boundaries",
-    //   label: "Boundaries",
-    //   icon: <MdOutlineMap className="text-2xl" />,
-    //   isActive: pathname.startsWith("/boundaries"),
-    //   allowedRoles: ["SeniorAdmin"],
-    // },
     {
       href: "/users",
       label: "User Management",
@@ -110,10 +103,35 @@ export default function Sidebar({ sidebarOpen, userRole }) {
             </Link>
           ))}
 
-        {!userRole && (
-          <p className="text-sm text-red-500 mt-4">No role provided. Sidebar hidden.</p>
-        )}
-
+        {!profile ? (
+          <div className="flex justify-center mt-4">
+            <div className="flex items-center gap-2 text-sm text-green-500">
+              <svg
+                className="animate-spin h-4 w-4 text-green-500"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                />
+              </svg>
+              Loading Sidebar...
+            </div>
+          </div>
+        ) : !userRole ? (
+          <p className="text-sm text-red-500 mt-4 text-center">No role provided. Sidebar hidden.</p>
+        ) : null}
       </nav>
     </aside>
   );
