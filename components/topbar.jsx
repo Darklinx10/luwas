@@ -23,10 +23,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
   const [showModal, setShowModal] = useState(false);
   const [userRole, setUserRole] = useState('');
   const { setUser, setRole } = useAuth();
-  const logoutTimeoutRef = useRef(null);
- 
-
-
+  
   // Fetch current user data from Firestore
   const fetchUserData = async () => {
     const user = auth.currentUser;
@@ -82,37 +79,32 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
   }, []);
 
   // Logout handler
+  // Inside your Topbar component
+
+  // Logout handler (manual & automatic)
   const handleLogout = async () => {
     try {
-      // Sign out from Firebase auth
+      // Sign out from Firebase
       await signOut(auth);
-
+  
       // Clear local state and storage
       setUser(null);
       setRole(null);
       localStorage.removeItem("userProfile");
-
+  
       // Show success toast
       toast.success("You have been logged out.");
-
-      // Redirect to home after 5 seconds
-      logoutTimeoutRef.current = setTimeout(() => {
-        router.push("/");
-      }, 5000);
+  
+      // Redirect immediately
+      router.push("/");
     } catch (error) {
       console.error("Logout failed:", error);
       toast.error("Failed to log out.");
     }
   };
-
-  // Optional: Clear timeout if component unmounts
-  useEffect(() => {
-    return () => {
-      if (logoutTimeoutRef.current) {
-        clearTimeout(logoutTimeoutRef.current);
-      }
-    };
-  }, []);
+  
+  
+  
 
 
 

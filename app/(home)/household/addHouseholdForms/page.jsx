@@ -17,8 +17,8 @@ import { useAuth } from '@/context/authContext';
 
 // Components
 import FormSectionSidebar from '@/components/formSectionSidebar';
-import GeographicIdentification from '@/components/Forms/geographic-information';
-import DemographicCharacteristics from '@/components/Forms/demographic-characteristics';
+import GeographicIdentification from '@/components/Forms/GeographicIdentification/geographic-information';
+import DemographicCharacteristics from '@/components/Forms/DemographicCharacteristics/demographic-characteristics';
 import Migration from '@/components/Forms/migration';
 import Education from '@/components/Forms/education';
 import Community from '@/components/Forms/community';

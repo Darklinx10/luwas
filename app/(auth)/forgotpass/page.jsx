@@ -9,10 +9,11 @@ import { auth } from "@/firebase/config";
 import Image from "next/image";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/firebase/config"; // Make sure db is imported too
+import RequiredField from "@/components/Required";
+
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
-
   // State for email input
   const [email, setEmail] = useState(""); // Holds the user's email
   const [loading, setLoading] = useState(false); // Tracks loading state
@@ -87,7 +88,7 @@ export default function ForgotPasswordPage() {
         </h2>
 
         {/* Forgot Password form container */}
-        <div className="bg-white border border-gray-300 p-8 rounded-2xl shadow-md w-[342px] h-[340px] mt-4">
+        <div className="bg-white border border-gray-300 p-8 rounded-2xl shadow-md w-[342px] mt-4">
           <h2 className="text-xl font-bold text-gray-700 mb-6 text-center">
             Forgot Password
           </h2>
@@ -95,23 +96,26 @@ export default function ForgotPasswordPage() {
           {/* Form starts here */}
           <form onSubmit={handleResetPassword}>
             <div className="mb-6">
-              {/* Email input label and field */}
-              <label htmlFor="email" className="block text-sm text-gray-700 mb-1">
-                Enter your email to reset password <span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
-                <FiMail className="text-gray-500 mr-2" />
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)} // Update email state
-                  placeholder="you@example.com"
-                  className="w-full outline-none text-sm"
-                  required
-                  autoComplete="email"
-                />
-              </div>
+              <RequiredField
+                htmlFor="email"
+                label="Enter your email to reset password"
+                required
+                showError={!email.trim() && !loading}
+              >
+                <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
+                  <FiMail className="text-gray-500 mr-2" />
+                  <input
+                    type="email"
+                    id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full outline-none text-sm"
+                    required
+                    autoComplete="email"
+                  />
+                </div>
+              </RequiredField>
 
               {/* Link back to login */}
               <p className="text-sm text-center text-gray-600 mt-4">
@@ -127,11 +131,13 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 className="w-[200px] bg-[#0BAD4A] hover:bg-[#0a9c43] text-white font-medium py-2 rounded-lg transition flex justify-center items-center"
-                disabled={loading} // Disable button during loading
+                disabled={loading}
               >
                 {loading ? (
-                  // Show loading spinner if loading
-                  <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    viewBox="0 0 24 24"
+                  >
                     <circle
                       className="opacity-25"
                       cx="12"
@@ -148,7 +154,7 @@ export default function ForgotPasswordPage() {
                     />
                   </svg>
                 ) : (
-                  "Send Reset Email" 
+                  "Send Reset Email"
                 )}
               </button>
             </div>

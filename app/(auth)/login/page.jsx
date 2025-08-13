@@ -8,6 +8,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase/config";
 import Image from 'next/image';
+import RequiredField from "@/components/Required";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -156,51 +157,64 @@ export default function LoginPage() {
         </h2>
 
         {/* Login form */}
-        <div className="bg-white border border-gray-300 p-8 rounded-2xl shadow-md w-[342px] h-[400px] mt-4">
+        <div className="bg-white border border-gray-300 p-8 rounded-2xl shadow-md w-[342px] mt-4">
           <h2 className="text-xl font-bold text-gray-700 mb-6 text-center">Login</h2>
           <form onSubmit={handleSubmit}>
+            
             {/* Email */}
             <div className="mb-4">
-              <label htmlFor="email" className="block text-sm text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
-                <FiMail className="text-gray-500 mr-2" />
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full outline-none text-sm"
-                  required
-                  autoComplete="email"
-                />
-              </div>
+              <RequiredField
+                htmlFor="email"
+                label="Email"
+                required
+                showError={!email.trim() && loading === false}
+              >
+                <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
+                  <FiMail className="text-gray-500 mr-2" />
+                  <input
+                    type="email"
+                    id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full outline-none text-sm"
+                    required
+                    autoComplete="email"
+                  />
+                </div>
+              </RequiredField>
             </div>
 
             {/* Password */}
             <div className="mb-4">
-              <label htmlFor="password" className="block text-sm text-gray-700 mb-1">Password <span className="text-red-500">*</span></label>
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
-                <FiLock className="text-gray-500 mr-2" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full outline-none text-sm"
-                  required
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="ml-2 text-gray-500 focus:outline-none"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <FiEye /> : <FiEyeOff />}
-                </button>
-              </div>
+              <RequiredField
+                htmlFor="password"
+                label="Password"
+                required
+                showError={!password.trim() && loading === false}
+              >
+                <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
+                  <FiLock className="text-gray-500 mr-2" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full outline-none text-sm"
+                    required
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="ml-2 text-gray-500 focus:outline-none"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <FiEye /> : <FiEyeOff />}
+                  </button>
+                </div>
+              </RequiredField>
             </div>
 
             {/* Options */}
@@ -208,9 +222,6 @@ export default function LoginPage() {
               <label
                 htmlFor="rememberMe"
                 className="text-sm font-normal italic flex items-center text-gray-400/90 cursor-pointer"
-                role="checkbox"
-                aria-checked={rememberMe}
-                aria-label="Remember me"
               >
                 <input
                   type="checkbox"
@@ -223,7 +234,9 @@ export default function LoginPage() {
                 Remember me
               </label>
 
-              <a href="/forgotpass" className="text-[#0BAD4A] hover:underline text-sm">Forgot password?</a>
+              <a href="/forgotpass" className="text-[#0BAD4A] hover:underline text-sm">
+                Forgot password?
+              </a>
             </div>
 
             {/* Button */}
@@ -235,10 +248,24 @@ export default function LoginPage() {
               >
                 {loading ? (
                   <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                    />
                   </svg>
-                ) : "Login"}
+                ) : (
+                  "Login"
+                )}
               </button>
             </div>
           </form>
