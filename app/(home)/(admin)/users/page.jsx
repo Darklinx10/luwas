@@ -1,3 +1,92 @@
+// 'use client';
+
+// import { useState } from 'react';
+// import RoleGuard from '@/components/roleGuard';
+// import { FiSearch, FiPlus } from 'react-icons/fi';
+// import UserTable from '@/components/Users/UserTable';
+// import UserModal from '@/components/Users/UserModal';
+// import useUsers from '@/lib/userServices';
+
+// const UserManagementPage = () => {
+//   const [searchTerm, setSearchTerm] = useState('');
+//   const [showModal, setShowModal] = useState(false);
+//   const [showAddModal, setShowAddModal] = useState(false);
+//   const [selectedUser, setSelectedUser] = useState(null);
+//   const { users, loading, fetchUsers, handleDelete, handleSaveEdit, handleAddUser, saving, newUser, setNewUser } = useUsers();
+
+//   const filteredUsers = users.filter(user =>
+//     `${user.fullName} ${user.email}`.toLowerCase().includes(searchTerm.toLowerCase())
+//   );
+
+//   return (
+//     <RoleGuard allowedRoles={['SeniorAdmin']}>
+//       <div className="p-4">
+//         <div className="text-sm text-right text-gray-500 mb-2">Home / User Management</div>
+
+//         <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg flex justify-between items-center">
+//           <span>User Accounts Management</span>
+//         </div>
+
+//         <div className="flex items-center justify-between bg-white shadow px-4 py-3">
+//           <div className="relative w-full max-w-md">
+//             <FiSearch className="absolute top-2.5 left-3 text-gray-400" />
+//             <input
+//               type="text"
+//               value={searchTerm}
+//               onChange={(e) => setSearchTerm(e.target.value)}
+//               placeholder="Search by name or email"
+//               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+//             />
+//           </div>
+
+//           <button
+//             onClick={() => setShowAddModal(true)}
+//             className="flex items-center gap-2 px-4 py-2 rounded text-white bg-green-600 hover:bg-green-500"
+//           >
+//             <FiPlus />
+//             Add User
+//           </button>
+//         </div>
+
+//         <UserTable
+//           users={filteredUsers}
+//           loading={loading}
+//           onEdit={(user) => { setSelectedUser(user); setShowModal(true); }}
+//           onDelete={handleDelete}
+//         />
+
+//         {showModal && selectedUser && (
+//           <UserModal
+//             user={selectedUser}
+//             setUser={setSelectedUser}
+//             onClose={() => setShowModal(false)}
+//             onSave={handleSaveEdit}
+//             saving={saving}
+//             mode="edit"
+//           />
+//         )}
+
+//         {showAddModal && (
+//           <UserModal
+//             user={newUser}
+//             setUser={setNewUser}
+//             onClose={() => setShowAddModal(false)}
+//             onSave={handleAddUser}
+//             saving={saving}
+//             mode="add"
+//           />
+//         )}
+//       </div>
+//     </RoleGuard>
+//   );
+// };
+
+// export default UserManagementPage;
+
+
+
+
+
 'use client';
 
 import { useEffect, useState } from 'react';

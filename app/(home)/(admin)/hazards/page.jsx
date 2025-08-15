@@ -1,78 +1,43 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { collection, getDocs, deleteDoc, doc, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useEffect, useState, useRef } from 'react';
+import { collection, getDocs, deleteDoc, doc, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/firebase/config';
 import { FiSearch, FiTrash2, FiPlus, FiUploadCloud } from 'react-icons/fi';
 import RoleGuard from '@/components/roleGuard';
 import { toast } from 'react-toastify';
 import dynamic from 'next/dynamic';
 
-//Dynamically import Leaflet map components (client-side only)
-const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
-const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
-const GeoJSON = dynamic(() => import('react-leaflet').then(mod => mod.GeoJSON), { ssr: false });
-
-
-
+const MapPopup = dynamic(() => import('@/components/householdComp/mapPopUP'), { ssr: false });
 export default function HazardsPage() {
-  // Hazard list state
   const [hazards, setHazards] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hazardType, setHazardType] = useState('');
   const [description, setDescription] = useState('');
   const [geojsonFile, setGeojsonFile] = useState(null);
-  // Preview modal state
+
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedHazard, setSelectedHazard] = useState(null);
+  const [loadingUpload, setLoadingUpload] = useState(false);
 
-  // Preview selected hazard's GeoJSON on map
-  const handlePreview = async (hazard) => {
-    try {
-      const response = await fetch(hazard.fileUrl);
-      const geojsonData = await response.json();
+  const mapRef = useRef(null);
 
-      setSelectedHazard({
-        ...hazard,
-        geojson: geojsonData,
-      });
-      setIsPreviewOpen(true);
-    } catch (error) {
-      console.error('Error loading GeoJSON:', error);
-      toast.error('Failed to load GeoJSON preview.');
-    }
-  };
-
-
-
-  // Fetch hazards
-  const fetchHazards = async () => {
-    setLoading(true);
-    try {
-      const querySnapshot = await getDocs(collection(db, 'hazards'));
-      const data = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setHazards(data);
-    } catch (error) {
-      console.error('Error fetching hazards:', error);
-      toast.error('Failed to load hazard layers.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  
   // Delete hazard
-  const handleDelete = async (id) => {
+  const handleDeleteHazard = async (hazard) => {
     if (!confirm('Delete this hazard layer?')) return;
+  
     try {
-      await deleteDoc(doc(db, 'hazards', id));
+      // Delete hazardInfo
+      await deleteDoc(doc(db, 'hazards', hazard.type, 'hazardInfo', hazard.id));
+  
+      // Delete the raw GeoJSON file
+      await deleteDoc(doc(db, 'hazards', hazard.type, 'hazardFiles', hazard.fileId));
+  
       toast.success('Hazard layer deleted.');
       fetchHazards();
     } catch (error) {
@@ -80,44 +45,138 @@ export default function HazardsPage() {
       toast.error('Failed to delete hazard.');
     }
   };
+  
 
-  // Save new hazard
-  const handleSaveHazard = async () => {
+  // Preview hazard GeoJSON
+  // Preview hazard GeoJSON
+const handlePreview = async (hazard) => {
+  try {
+    // hazard.type = "Tsunami", hazard.fileId = id of hazardFiles doc
+    const fileSnap = await getDoc(doc(db, 'hazards', hazard.type, 'hazardFiles', hazard.fileId));
+    if (!fileSnap.exists()) throw new Error('Hazard file not found');
+
+    const geojsonData = JSON.parse(fileSnap.data().geojsonString);
+
+    setSelectedHazard({ ...hazard, geojson: geojsonData });
+    setIsPreviewOpen(true);
+
+  } catch (error) {
+    console.error('Error loading GeoJSON:', error);
+    toast.error('Failed to load GeoJSON preview.');
+  }
+};
+
+
+  // Save hazard: upload GeoJSON to Storage and store metadata in Firestore
+  const handleUploadAndSave = async () => {
     if (!hazardType || !description || !geojsonFile) {
-      toast.error('Please fill all fields and upload a file.');
+      toast.error('Please fill all fields and select a GeoJSON file.');
       return;
     }
+  
+    setLoadingUpload(true);
     try {
-      // Upload GeoJSON to Firebase Storage
-      const fileRef = ref(storage, `hazards/${Date.now()}-${geojsonFile.name}`);
-      await uploadBytes(fileRef, geojsonFile);
-      const downloadURL = await getDownloadURL(fileRef);
-
-      // Save metadata in Firestore
-      await addDoc(collection(db, 'hazards'), {
-        type: hazardType,
-        description,
-        fileUrl: downloadURL,
-        createdAt: serverTimestamp(),
-      });
-
-      toast.success('Hazard layer added.');
-      setIsModalOpen(false);
+      // 1️⃣ Read GeoJSON content
+      const content = await geojsonFile.text();
+      const geojson = JSON.parse(content);
+  
+      if (!geojson.type || (geojson.type !== 'FeatureCollection' && geojson.type !== 'Feature')) {
+        throw new Error('Invalid GeoJSON structure');
+      }
+  
+      // 2️⃣ Upload to Firebase Storage
+      const safeFileName = geojsonFile.name.replace(/\s+/g, '_');
+      const storageRef = ref(storage, `hazards/${hazardType}/${Date.now()}-${safeFileName}`);
+      const blob = new Blob([JSON.stringify(geojson)], { type: 'application/geo+json' });
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+  
+      // 3️⃣ Save raw GeoJSON in hazardFiles collection (Firestore)
+      const hazardFileRef = await addDoc(
+        collection(db, 'hazards', hazardType, 'hazardFiles'),
+        {
+          geojsonString: JSON.stringify(geojson),
+          fileUrl: downloadURL,
+          createdAt: serverTimestamp(),
+        }
+      );
+  
+      // 4️⃣ Save hazard info referencing the file
+      await addDoc(
+        collection(db, 'hazards', hazardType, 'hazardInfo'),
+        {
+          fileId: hazardFileRef.id,
+          type: hazardType,
+          description,
+          createdAt: serverTimestamp(),
+        }
+      );
+  
+      toast.success('Hazard uploaded and saved successfully!');
       setHazardType('');
       setDescription('');
       setGeojsonFile(null);
-      fetchHazards();
+      setIsModalOpen(false);
+  
+      fetchHazards(); // Refresh list
+  
     } catch (error) {
       console.error(error);
-      toast.error('Failed to add hazard.');
+      toast.error(`Failed to upload and save hazard: ${error.message}`);
+    } finally {
+      setLoadingUpload(false);
     }
   };
-  //Search Filter
+  
+  // Fetch all hazards (by type)
+  const fetchHazards = async () => {
+    setLoading(true);
+    try {
+      const hazardTypesSnap = await getDocs(collection(db, 'hazards'));
+      const hazardsData = [];
+  
+      for (const typeDoc of hazardTypesSnap.docs) {
+        const hazardType = typeDoc.id;
+  
+        const infoSnap = await getDocs(collection(db, 'hazards', hazardType, 'hazardInfo'));
+        for (const infoDoc of infoSnap.docs) {
+          const infoData = infoDoc.data();
+  
+          // Fetch the corresponding hazard file
+          const fileSnap = await getDoc(doc(db, 'hazards', hazardType, 'hazardFiles', infoData.fileId));
+          const fileData = fileSnap.exists() ? fileSnap.data() : { fileUrl: null };
+  
+          hazardsData.push({
+            id: infoDoc.id,
+            type: infoData.type,
+            description: infoData.description,
+            createdAt: infoData.createdAt,
+            fileId: infoData.fileId,
+            fileUrl: fileData.fileUrl,
+          });
+        }
+      }
+  
+      setHazards(hazardsData);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load hazard layers.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  
+  
+  
+  
+  
+
+  // Filtered hazards based on search
   const filteredHazards = hazards.filter((hazard) =>
     `${hazard.type} ${hazard.description}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  //Fetch hazards on first render
   useEffect(() => {
     fetchHazards();
   }, []);
@@ -125,9 +184,7 @@ export default function HazardsPage() {
   return (
     <RoleGuard allowedRoles={['SeniorAdmin']}>
       <div className="p-4">
-        <div className="text-sm text-right text-gray-500 mb-2">
-          Home / Hazard Management
-        </div>
+        <div className="text-sm text-right text-gray-500 mb-2">Home / Hazard Management</div>
 
         <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg flex justify-between items-center">
           <span>Hazard Layers</span>
@@ -148,11 +205,7 @@ export default function HazardsPage() {
 
           <div className="ml-4">
             <button
-              onClick={() => {
-                setLoading(true);
-                setIsModalOpen(true);
-                setTimeout(() => setLoading(false), 1000);
-              }}
+              onClick={() => setIsModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2 rounded text-white bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
@@ -179,7 +232,7 @@ export default function HazardsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredHazards.map((hazard) => (
+              {filteredHazards.map((hazard) => (
                   <tr key={hazard.id} className="hover:bg-gray-50">
                     <td className="p-2 border">{hazard.type}</td>
                     <td className="p-2 border">{hazard.description}</td>
@@ -198,7 +251,7 @@ export default function HazardsPage() {
                     </td>
                     <td className="p-2 border">
                       <button
-                        onClick={() => handleDelete(hazard.id)}
+                        onClick={() => handleDeleteHazard(hazard)}
                         className="text-red-600 hover:text-red-800 cursor-pointer"
                       >
                         <FiTrash2 size={16} />
@@ -208,7 +261,6 @@ export default function HazardsPage() {
                 ))}
               </tbody>
             </table>
-
           )}
         </div>
 
@@ -226,14 +278,14 @@ export default function HazardsPage() {
                 className="w-full border rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="">Select type</option>
-                <option value="Flood">Active Faults</option>
+                <option value="Active Faults">Active Faults</option>
                 <option value="Landslide">Landslide</option>
-                <option value="Earthquake">Earthquake Induced Landslide</option>
+                <option value="Earthquake Induced Landslide">Earthquake Induced Landslide</option>
                 <option value="Storm Surge">Storm Surge</option>
-                <option value="Other">Tsunami</option>
-                <option value="Other">Rain Induced Landslide</option>
-                <option value="Other">Ground Shaking</option>
-                <option value="Other">Liquefaction</option>
+                <option value="Tsunami">Tsunami</option>
+                <option value="Rain Induced Landslide">Rain Induced Landslide</option>
+                <option value="Ground Shaking">Ground Shaking</option>
+                <option value="Liquefaction">Liquefaction</option>
                 <option value="Other">Other</option>
               </select>
 
@@ -275,15 +327,17 @@ export default function HazardsPage() {
 
                 <button
                   className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                  onClick={handleSaveHazard}
+                  onClick={handleUploadAndSave}
+                  disabled={loadingUpload}
                 >
-                  Save
+                  {loadingUpload ? 'Uploading...' : 'Save'}
                 </button>
               </div>
             </div>
           </div>
         )}
 
+        {/* Preview Modal */}
         {isPreviewOpen && selectedHazard && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
             <div className="bg-white rounded-lg shadow-lg w-[90%] max-w-4xl p-4">
@@ -297,21 +351,191 @@ export default function HazardsPage() {
                 </button>
               </div>
               <div className="h-[500px] w-full">
-                <MapContainer center={[12.8797, 121.7740]} zoom={6} className="h-full w-full">
+                <MapContainer
+                  center={[12.8797, 121.774]}
+                  zoom={6}
+                  className="h-full w-full"
+                  whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
+                >
                   <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution="&copy; OpenStreetMap contributors"
                   />
-                  {selectedHazard.geojson && (
-                    <GeoJSON data={selectedHazard.geojson} />
-                  )}
+                  {selectedHazard.geojson && <GeoJSON data={selectedHazard.geojson} />}
                 </MapContainer>
               </div>
             </div>
           </div>
         )}
-
       </div>
     </RoleGuard>
   );
 }
+
+// 'use client';
+
+// import { useEffect, useState } from 'react';
+// import { FiSearch, FiPlus } from 'react-icons/fi';
+// import RoleGuard from '@/components/roleGuard';
+// import { toast } from 'react-toastify';
+
+// // Services
+// import { fetchHazards, deleteHazard, addHazard } from '@/lib/hazardsServices';
+
+// // Components
+// import HazardTable from '@/components/hazards/HazardTable';
+// import HazardModal from '@/components/hazards/HazardModal';
+// import HazardPreview from '@/components/hazards/HazardPreview';
+
+// export default function HazardsPage() {
+//   const [hazards, setHazards] = useState([]);
+//   const [searchTerm, setSearchTerm] = useState('');
+//   const [loading, setLoading] = useState(false);
+
+//   // Modal states
+//   const [isModalOpen, setIsModalOpen] = useState(false);
+//   const [hazardType, setHazardType] = useState('');
+//   const [description, setDescription] = useState('');
+//   const [geojsonFile, setGeojsonFile] = useState(null);
+
+//   // Preview states
+//   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+//   const [selectedHazard, setSelectedHazard] = useState(null);
+
+//   // Fetch hazard list
+//   const loadHazards = async () => {
+//     setLoading(true);
+//     try {
+//       const data = await fetchHazards();
+//       setHazards(data);
+//     } catch (err) {
+//       toast.error('Failed to load hazards.');
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   // Handle delete
+//   const handleDelete = async (id) => {
+//     if (!confirm('Delete this hazard layer?')) return;
+//     try {
+//       await deleteHazard(id);
+//       toast.success('Hazard layer deleted.');
+//       loadHazards();
+//     } catch {
+//       toast.error('Failed to delete hazard.');
+//     }
+//   };
+
+//   // Handle add new hazard
+//   const handleSaveHazard = async () => {
+//     if (!hazardType || !description || !geojsonFile) {
+//       toast.error('Please fill all fields.');
+//       return;
+//     }
+//     try {
+//       await addHazard(hazardType, description, geojsonFile);
+//       toast.success('Hazard layer added.');
+//       setIsModalOpen(false);
+//       setHazardType('');
+//       setDescription('');
+//       setGeojsonFile(null);
+//       loadHazards();
+//     } catch {
+//       toast.error('Failed to add hazard.');
+//     }
+//   };
+
+//   // Handle preview
+//   const handlePreview = async (hazard) => {
+//     try {
+//       const response = await fetch(hazard.fileUrl);
+//       const geojsonData = await response.json();
+//       setSelectedHazard({ ...hazard, geojson: geojsonData });
+//       setIsPreviewOpen(true);
+//     } catch {
+//       toast.error('Failed to load preview.');
+//     }
+//   };
+
+//   // Filtered hazards
+//   const filteredHazards = hazards.filter((hazard) =>
+//     `${hazard.type} ${hazard.description}`.toLowerCase().includes(searchTerm.toLowerCase())
+//   );
+
+//   useEffect(() => {
+//     loadHazards();
+//   }, []);
+
+//   return (
+//     <RoleGuard allowedRoles={['SeniorAdmin']}>
+//       <div className="p-4">
+//         <div className="text-sm text-right text-gray-500 mb-2">Home / Hazard Management</div>
+
+//         {/* Header */}
+//         <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg flex justify-between items-center">
+//           <span>Hazard Layers</span>
+//         </div>
+
+//         {/* Search + Add */}
+//         <div className="flex items-center justify-between bg-white shadow px-4 py-3">
+//           <div className="relative w-full max-w-md">
+//             <FiSearch className="absolute top-2.5 left-3 text-gray-400" />
+//             <input
+//               type="text"
+//               placeholder="Search by type or description"
+//               value={searchTerm}
+//               onChange={(e) => setSearchTerm(e.target.value)}
+//               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+//             />
+//           </div>
+//           <div className="ml-4">
+//             <button
+//               onClick={() => setIsModalOpen(true)}
+//               className="flex items-center gap-2 px-4 py-2 rounded text-white bg-green-600 hover:bg-green-500"
+//             >
+//               <FiPlus /> Add Hazard Layer
+//             </button>
+//           </div>
+//         </div>
+
+//         {/* Hazard Table */}
+//         <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
+//           {loading ? (
+//             <p className="text-center text-gray-500 py-6">Loading...</p>
+//           ) : filteredHazards.length === 0 ? (
+//             <p className="text-center text-gray-500 py-6">No hazard layers found.</p>
+//           ) : (
+//             <HazardTable
+//               hazards={filteredHazards}
+//               onPreview={handlePreview}
+//               onDelete={handleDelete}
+//             />
+//           )}
+//         </div>
+
+//         {/* Add Modal */}
+//         {isModalOpen && (
+//           <HazardModal
+//             hazardType={hazardType}
+//             setHazardType={setHazardType}
+//             description={description}
+//             setDescription={setDescription}
+//             geojsonFile={geojsonFile}
+//             setGeojsonFile={setGeojsonFile}
+//             onClose={() => setIsModalOpen(false)}
+//             onSave={handleSaveHazard}
+//           />
+//         )}
+
+//         {/* Preview Modal */}
+//         {isPreviewOpen && selectedHazard && (
+//           <HazardPreview
+//             hazard={selectedHazard}
+//             onClose={() => setIsPreviewOpen(false)}
+//           />
+//         )}
+//       </div>
+//     </RoleGuard>
+//   );
+// }

@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { doc, getDoc, updateDoc, getDocs, collection } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import { toast } from 'react-toastify';
+import { collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
+import { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 
-const MapPopup = dynamic(() => import('@/components/mapPopUp'), { ssr: false });
+const MapPopup = dynamic(() => import('@/components/householdComp/mapPopUP'), { ssr: false });
 
 export default function EditHouseholdModal({ open, onClose, householdId, onUpdated }) {
   const [mapOpen, setMapOpen] = useState(false);
@@ -50,6 +50,7 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
           barangay: geoData.barangay || '',
           latitude: geoData.latitude || '',
           longitude: geoData.longitude || '',
+
         };
 
         const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
@@ -63,16 +64,20 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
 
         const resolvedDemos = await Promise.all(demographicPromises);
 
-        for (const { demoSnap } of resolvedDemos) {
+        for (const { demoSnap, memberId } of resolvedDemos) {
+          const memberRef = doc(db, 'households', householdId, 'members', memberId);
+          const memberSnap = await getDoc(memberRef);
+          const baseData = memberSnap.exists() ? memberSnap.data() : {};
+
           if (demoSnap.exists()) {
             const demoData = demoSnap.data();
-            const relationship = demoData.relationshipToHead || '';
+            const relationship = demoData.relationshipToHead || baseData.relationshipToHead || '';
             if (relationship.toLowerCase() === 'head') {
               Object.assign(updatedForm, {
-                headFirstName: demoData.firstName || '',
-                headMiddleName: demoData.middleName || '',
-                headLastName: demoData.lastName || '',
-                headSuffix: demoData.suffix || '',
+                headFirstName: baseData.firstName || demoData.firstName || '',
+                headMiddleName: baseData.middleName || demoData.middleName || '',
+                headLastName: baseData.lastName || demoData.lastName || '',
+                headSuffix: baseData.suffix || demoData.suffix || '',
                 headSex: demoData.sex || '',
                 headAge: demoData.age || '',
                 contactNumber: demoData.contactNumber || '',
@@ -81,6 +86,7 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
             }
           }
         }
+
 
         setForm((prev) => ({ ...prev, ...updatedForm }));
       } catch (err) {
@@ -97,7 +103,7 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-
+  
     try {
       const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
       const {
@@ -110,53 +116,66 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
         contactNumber,
         ...geoFields
       } = form;
-
+  
+      // Update geographic info
       await updateDoc(geoRef, {
         ...geoFields,
         updatedAt: new Date(),
       });
-
+  
+      // Find the head member
       const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-
-      const demoFetchPromises = membersSnap.docs.map(async (memberDoc) => {
-        const baseData = memberDoc.data();
+      let headMemberId = null;
+  
+      for (const memberDoc of membersSnap.docs) {
         const memberId = memberDoc.id;
-
         const demoRef = doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main');
         const demoSnap = await getDoc(demoRef);
-        const demoData = demoSnap.exists() ? demoSnap.data() : {};
-        const relationship = demoData.relationshipToHead || baseData.relationshipToHead || '';
-
-        return { memberId, relationship: relationship.toLowerCase() };
-      });
-
-      const resolvedMembers = await Promise.all(demoFetchPromises);
-      const headMember = resolvedMembers.find((m) => m.relationship === 'head');
-
-      if (headMember) {
-        const headDemoRef = doc(db, 'households', householdId, 'members', headMember.memberId, 'demographicCharacteristics', 'main');
-        const headMemberRef = doc(db, 'households', householdId, 'members', headMember.memberId);
-
-        await Promise.all([
-          updateDoc(headDemoRef, {
-            contactNumber: contactNumber || '',
-            sex: headSex || '',
-            age: headAge || '',
-            updatedAt: new Date(),
-          }),
-          updateDoc(headMemberRef, {
-            firstName: headFirstName || '',
-            middleName: headMiddleName || '',
-            lastName: headLastName || '',
-            suffix: headSuffix || '',
-            updatedAt: new Date(),
-          }),
-        ]);
+        const relationship = demoSnap.exists() ? demoSnap.data().relationshipToHead || '' : '';
+        if (relationship.toLowerCase() === 'head') {
+          headMemberId = memberId;
+          const headDemoRef = demoRef;
+          const headMemberRef = doc(db, 'households', householdId, 'members', memberId);
+  
+          await Promise.all([
+            updateDoc(headDemoRef, {
+              contactNumber: contactNumber || '',
+              sex: headSex || '',
+              age: headAge || '',
+              updatedAt: new Date(),
+            }),
+            updateDoc(headMemberRef, {
+              firstName: headFirstName || '',
+              middleName: headMiddleName || '',
+              lastName: headLastName || '',
+              suffix: headSuffix || '',
+              updatedAt: new Date(),
+            }),
+          ]);
+          break;
+        }
       }
-
+  
       toast.success('Household updated successfully');
       onClose();
-      if (typeof onUpdated === 'function') await onUpdated();
+  
+      // Pass updated household to parent for immediate table refresh
+      const updatedHousehold = {
+        householdId,
+        headFirstName,
+        headMiddleName,
+        headLastName,
+        headSuffix,
+        headSex,
+        headAge,
+        contactNumber,
+        barangay: geoFields.barangay || '',
+        latitude: geoFields.latitude || '',
+        longitude: geoFields.longitude || '',
+      };
+  
+      if (typeof onUpdated === 'function') onUpdated(updatedHousehold);
+  
     } catch (err) {
       console.error('Error updating household:', err);
       toast.error('Error updating household');
@@ -164,6 +183,7 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
       setSubmitting(false);
     }
   };
+  
 
   const handleSaveLocation = (position) => {
     setForm((prev) => ({

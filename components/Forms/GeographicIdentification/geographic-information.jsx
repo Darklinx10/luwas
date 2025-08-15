@@ -1,19 +1,19 @@
 
 'use client';
 
-import React, { useState } from 'react';
-import { db } from '@/firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
-import { toast } from 'react-toastify';
-import { getAuth } from 'firebase/auth';
-import dynamic from 'next/dynamic';
 import { geoData } from '@/app/utils/geoData';
-import LocationFields from './LocationFields';
-import HouseholdHeadFields from './HouseholdHeadFields';
+import { db } from '@/firebase/config';
+import { getAuth } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import dynamic from 'next/dynamic';
+import { useState } from 'react';
+import { toast } from 'react-toastify';
 import AddressFields from './AddressFields';
+import HouseholdHeadFields from './HouseholdHeadFields';
+import LocationFields from './LocationFields';
 import MapCoordinates from './MapCoordinates';
 
-const MapPopup = dynamic(() => import('@/components/mapPopUp'), { ssr: false });
+const MapPopup = dynamic(() => import('@/components/householdComp/mapPopUP'), { ssr: false });
 // Initial form state
 const initialForm = {
   region: '',

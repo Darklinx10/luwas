@@ -1,14 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
-import { toast } from 'react-toastify';
-import { doc, getDocs, getDoc, updateDoc, deleteDoc, collection } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import { FiEdit, FiTrash2, FiSearch, FiX } from 'react-icons/fi';
+import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
+import dynamic from 'next/dynamic';
+import { useEffect, useState } from 'react';
+import { FiEdit, FiSearch, FiTrash2, FiX } from 'react-icons/fi';
+import { toast } from 'react-toastify';
 
 // Dynamically import MapPopup to avoid SSR issues
-const MapPopup = dynamic(() => import('@/components/mapPopUp'), { ssr: false });
+const MapPopup = dynamic(() => import('@/components/householdComp/mapPopUP'), { ssr: false });
 
 export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
   // State variables

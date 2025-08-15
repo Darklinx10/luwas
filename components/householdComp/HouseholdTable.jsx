@@ -1,19 +1,3 @@
-
-// // src/app/households/page.jsx
-// "use client";
-
-// import RoleGuard from '@/components/roleGuard';
-// import  HouseholdTable  from '@/components/householdComp/HouseholdTable';
-
-
-// export default function HouseholdPage() {
-//   return (
-//     <RoleGuard allowedRoles={['SeniorAdmin', 'OfficeStaff']}>
-//       <HouseholdTable />
-//     </RoleGuard>
-//   );
-// }
-
 'use client';
 
 import EditHouseholdModal from '@/components/householdComp/editHouseholModal';
@@ -30,7 +14,7 @@ import { toast } from 'react-toastify';
 
 const MapPopup = dynamic(() => import('@/components/householdComp/mapPopUP'), { ssr: false });
 
-export default function HouseholdPage() {
+export default function HouseholdTable() {
   const router = useRouter();
   const [mapOpen, setMapOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);

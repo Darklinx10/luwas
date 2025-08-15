@@ -21,7 +21,8 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
-import { db, auth } from '@/firebase/config';
+import { db, auth, storage } from '@/firebase/config';
+import { ref, uploadBytes, getBytes, deleteObject, getDownloadURL } from "firebase/storage";
 import AccidentMapForm from '@/components/accidentMapForm';
 import HazardLayers from '@/components/hazards/hazardLayers';
 import { formatSusceptibility } from '@/app/utils/susceptibility';
@@ -30,6 +31,7 @@ import { useRouter } from 'next/navigation';
 import { FiX, FiUploadCloud } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+
 
 
 // =============================
@@ -139,25 +141,102 @@ export default function OSMMapPage() {
   const [defaultCenter, setDefaultCenter] = useState(defaultPosition);
   const [settingDefault, setSettingDefault] = useState(false);
   const [plusMarkers, setPlusMarkers] = useState([]);
+  const [geojsonFile, setGeojsonFile] = useState(null); // the raw File
   const [boundaryGeoJSON, setBoundaryGeoJSON] = useState(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const mapRef = useRef(null);
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
+  // --- Fetch GeoJSON from Firestore on load ---
+  useEffect(() => {
+    const fetchBoundary = async () => {
       try {
-        const geojson = JSON.parse(event.target.result);
-        setBoundaryGeoJSON(geojson);
-        setIsUploadModalOpen(false);
-      } catch (error) {
-        alert("Invalid GeoJSON file!");
+        const docRef = doc(db, 'settings', 'boundaryFile');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const geojsonString = docSnap.data().data;
+          const data = JSON.parse(geojsonString); // Parse string to object
+          setBoundaryGeoJSON(data);
+
+          // Zoom map to boundary
+          if (mapRef.current && data) {
+            const leafletGeoJSON = L.geoJSON(data);
+            mapRef.current.fitBounds(leafletGeoJSON.getBounds());
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch GeoJSON from Firestore:', err);
       }
     };
-    reader.readAsText(file);
+    fetchBoundary();
+  }, []);
+
+  // --- Handle GeoJSON upload ---
+  const handleFileUpload = async () => {
+    if (!geojsonFile) {
+      toast.error('Please select a GeoJSON file');
+      return;
+    }
+    setLoading(true);
+  
+    // ✅ Check file extension
+    if (!geojsonFile.name.endsWith('.geojson')) {
+      toast.error('Please upload a valid .geojson file');
+      return;
+    }
+  
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const geojson = JSON.parse(event.target.result);
+  
+        if (!geojson.type || (geojson.type !== 'FeatureCollection' && geojson.type !== 'Feature')) {
+          throw new Error('Invalid GeoJSON structure');
+        }
+  
+        // Update map
+        setBoundaryGeoJSON(geojson);
+        if (mapRef.current) {
+          const leafletGeoJSON = L.geoJSON(geojson);
+          mapRef.current.fitBounds(leafletGeoJSON.getBounds());
+        }
+  
+        // Upload to Firebase Storage
+        const storageRef = ref(storage, `boundary/${geojsonFile.name}`);
+        const blob = new Blob([JSON.stringify(geojson)], { type: 'application/geo+json' });
+        await uploadBytes(storageRef, blob);
+        const downloadURL = await getDownloadURL(storageRef);
+  
+        // Save metadata + GeoJSON string to Firestore
+        await setDoc(doc(db, 'settings', 'boundaryFile'), {
+          name: geojsonFile.name,
+          data: JSON.stringify(geojson), // store as string
+          url: downloadURL,
+          uploadedAt: new Date(),
+        });
+  
+        toast.success('GeoJSON uploaded and map updated!');
+        setIsUploadModalOpen(false);
+        setGeojsonFile(null); // reset file input
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to upload GeoJSON');
+      } finally {
+        // ✅ Stop loading only after everything is done
+        setLoading(false);
+      }
+    };
+  
+    reader.readAsText(geojsonFile);
+    
   };
+  
+
+
+  
+
+  
+  
 
   // =============================
   // MAP CLICK HANDLER FOR SETTING DEFAULT CENTER
@@ -265,12 +344,12 @@ export default function OSMMapPage() {
   // =============================
   // 🌍 FETCH CLARIN BOUNDARY GEOJSON
   // =============================
-  useEffect(() => {
-    fetch('/data/Clarin_Boundary.geojson')
-      .then((res) => res.json())
-      .then((data) => setClarinBoundary(data))
-      .catch((err) => console.error('Failed to load GeoJSON:', err));
-  }, []);
+  // useEffect(() => {
+  //   fetch('/data/Clarin_Boundary.geojson')
+  //     .then((res) => res.json())
+  //     .then((data) => setClarinBoundary(data))
+  //     .catch((err) => console.error('Failed to load GeoJSON:', err));
+  // }, []);
 
   // =============================
   // HAZARD LAYER → UPDATE AFFECTED HOUSEHOLDS
@@ -559,6 +638,7 @@ export default function OSMMapPage() {
           cursor: 'pointer',
           borderRadius: '8px',
         }}
+        whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
       >
 
         
@@ -593,15 +673,22 @@ export default function OSMMapPage() {
         {/* Render uploaded GeoJSON */}
         {boundaryGeoJSON && (
           <GeoJSON
+            key={JSON.stringify(boundaryGeoJSON)}
             data={boundaryGeoJSON}
             style={{
-                  color: 'black',        
-                  weight: 1,             
-                  fillOpacity: 0,
-                  dashArray: '2 4',        
-                }}
+              color: 'black',
+              weight: 1,
+              fillOpacity: 0,
+              dashArray: '2 4'
+            }}
+            onEachFeature={(feature, layer) => {
+              if (feature.properties?.name) {
+                layer.bindPopup(feature.properties.name);
+              }
+            }}
           />
         )}
+
         
         {isSeniorAdmin && <MapClickHandler />}
 
@@ -874,39 +961,54 @@ export default function OSMMapPage() {
       {/* Upload Modal */}
       {isUploadModalOpen && isSeniorAdmin && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[99999] flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-[90%] max-w-md">
-            <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">
-              Upload GeoJSON Boundary
-            </h2>
+  <div className="bg-white rounded-2xl shadow-2xl p-6 w-[90%] max-w-md relative">
+    <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">
+      Upload GeoJSON Boundary
+    </h2>
 
-            {/* Upload Area */}
-            <label
-              htmlFor="geojsonUpload"
-              className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all"
-            >
-              <FiUploadCloud className="text-5xl text-green-500 mb-3" />
-              <p className="text-gray-700 font-medium">Click to upload</p>
-              <p className="text-xs text-gray-500 mt-1">Only .geojson files are allowed</p>
-              <input
-                id="geojsonUpload"
-                type="file"
-                accept=".geojson,application/geo+json"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
+    {/* Upload Area */}
+    <label
+      htmlFor="geojsonUpload"
+      className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all"
+    >
+      <FiUploadCloud className="text-5xl text-green-500 mb-3" />
+      <p className="text-gray-700 font-medium">
+        {geojsonFile ? geojsonFile.name : 'Click to upload GeoJSON file'}
+      </p>
+      <input
+        id="geojsonUpload"
+        type="file"
+        accept=".geojson,application/geo+json"
+        onChange={(e) => setGeojsonFile(e.target.files[0])}
+        className="hidden"
+      />
+    </label>
 
-            {/* Buttons */}
-            <div className="flex justify-end gap-2 mt-6">
-              <button
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow"
-                onClick={() => setIsUploadModalOpen(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+    {/* Buttons */}
+    <div className="flex justify-end gap-2 mt-6">
+      <button
+        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow"
+        onClick={() => setIsUploadModalOpen(false)}
+      >
+        Cancel
+      </button>
+      <button
+        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+        onClick={handleFileUpload}
+      >
+        Save
+      </button>
+    </div>
+
+    {/* Loading Spinner */}
+    {loading && (
+      <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-2xl z-50">
+        <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )}
+  </div>
+</div>
+
       )}
     </div>
   );

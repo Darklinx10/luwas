@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FaUserCircle } from 'react-icons/fa';
 import { auth, db, storage } from '@/firebase/config';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { toast } from 'react-toastify';
 import RoleGuard from '@/components/roleGuard';
 
@@ -106,7 +106,7 @@ function EditProfileContent() {
     }
   };
 
-  // Handles form submission to update profile in Firestore
+  // // Handles form submission to update profile in Firestore
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!uid) return;
@@ -137,6 +137,87 @@ function EditProfileContent() {
       setLoading(false);
     }
   };
+  // const MAX_FILE_SIZE_MB = 2;
+  // const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png'];
+
+  // async function handleSubmit(e) {
+  //   e.preventDefault();
+  //   setLoading(true);
+
+  //   try {
+  //     let profilePhotoUrl = form.profilePhoto || null;
+  //     const uidToUse = uid;
+
+  //     // If a file is selected
+  //     if (photo && !DEFAULT_AVATARS.includes(photo)) {
+  //       // Validate file type
+  //       if (!ALLOWED_FILE_TYPES.includes(photo.type)) {
+  //         alert('Invalid file type. Only JPEG and PNG are allowed.');
+  //         setLoading(false);
+  //         return;
+  //       }
+
+  //       // Validate file size
+  //       if (photo.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+  //         alert(`File size must be under ${MAX_FILE_SIZE_MB}MB`);
+  //         setLoading(false);
+  //         return;
+  //       }
+
+  //       // Check if user already has a stored profile picture (delete it first)
+  //       const userDoc = await getDoc(doc(db, 'users', uidToUse ));
+  //       if (userDoc.exists()) {
+  //         const oldPhotoUrl = userDoc.data().profilePhoto;
+  //         if (oldPhotoUrl && !DEFAULT_AVATARS.includes(oldPhotoUrl)) {
+  //           try {
+  //             const oldRef = ref(storage, oldPhotoUrl);
+  //             await deleteObject(oldRef);
+  //           } catch (err) {
+  //             console.warn('Failed to delete old profile photo:', err);
+  //           }
+  //         }
+  //       }
+
+  //       // Upload with unique filename
+  //       const fileName = `profile_photos/${uidToUse }-${Date.now()}`;
+  //       const storageRef = ref(storage, fileName);
+  //       await uploadBytes(storageRef, photo);
+  //       profilePhotoUrl = await getDownloadURL(storageRef);
+  //     }
+
+  //     // If a default avatar is selected
+  //     if (DEFAULT_AVATARS.includes(form.profilePhoto)) {
+  //       profilePhotoUrl = form.profilePhoto;
+  //     }
+
+  //     // Update Firestore
+  //     await updateDoc(doc(db, 'users', uidToUse), {
+  //       ...form,
+  //       profilePhoto: profilePhotoUrl,
+  //     });
+
+  //     // If doc exists, update; else, create new
+  //     const userDocRef = doc(db, "users", uidToUse);
+  //     const docSnap = await getDoc(userDocRef);
+
+  //     if (docSnap.exists()) {
+  //       await updateDoc(userDocRef, userData);
+  //     } else {
+  //       await setDoc(userDocRef, userData);
+  //     }
+
+  //     alert('Profile updated successfully!');
+  //     setPhotoPreview(profilePhotoUrl);
+  //     setEditingUser(null);
+  //     setModalOpen(false);
+  //     fetchUsers();
+  //   } catch (err) {
+  //     console.error('Error updating profile:', err);
+  //     alert('Failed to update profile. Please try again.');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }
 
   // Allows user to choose a predefined avatar instead of uploading a photo
   const handleAvatarClick = (avatarUrl) => {

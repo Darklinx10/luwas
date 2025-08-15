@@ -1,5 +1,5 @@
 // src/app/page.jsx
-"use client"; // Marks this as a client component in Next.js 13+ (required for client-side behavior)
+"use client";
 
 // Dynamically import the OSMMap component, disabling server-side rendering for it
 import dynamic from 'next/dynamic';

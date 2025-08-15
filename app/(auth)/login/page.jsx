@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase/config";
 import Image from 'next/image';
 import RequiredField from "@/components/Required";
@@ -35,6 +35,8 @@ export default function LoginPage() {
   }, []);
   
   
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -54,12 +56,21 @@ export default function LoginPage() {
       let profile;
 
       if (docSnap.exists()) {
+        // Profile already exists
         profile = docSnap.data();
         toast.success("Logged in successfully.");
       } else {
-        toast.error("User profile not found. Please contact your administrator.");
-        setLoading(false);
-        return;
+        // ✅ Automatically create profile if not found
+        profile = {
+          uid,
+          email: user.email,
+          displayName: user.displayName || "",
+          role: "SeniorAdmin", // Default role, you can change this
+          createdAt: new Date().toISOString(),
+        };
+
+        await setDoc(docRef, profile);
+        toast.success("Profile created and logged in successfully.");
       }
 
       // Save to localStorage
@@ -109,6 +120,7 @@ export default function LoginPage() {
     }
   };
 
+
   // Full-page loader UI
   if (showPageLoader) {
     return (
@@ -146,8 +158,8 @@ export default function LoginPage() {
 
         {/* Logos */}
         <div className="flex justify-center gap-4 ml-6 mb-6">
-          <Image src="/clarinLogo.png" alt="Clarin Municipality Logo" width={90} height={90} className="rounded-full" priority />
-          <Image src="/mdrrmcLogo.png" alt="MDRRMC Logo" width={150} height={150} className="object-contain" priority />
+          <Image src="/clarinLogo.png" alt="Clarin Municipality Logo" width={90} height={90} style={{ height: "auto" }} className="rounded-full" priority />
+          <Image src="/mdrrmcLogo.png" alt="MDRRMC Logo" width={150} height={150} style={{ height: "auto" }} className="object-contain" priority />
         </div>
 
         {/* Title */}
