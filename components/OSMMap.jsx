@@ -24,7 +24,7 @@ import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth, storage } from '@/firebase/config';
 import { ref, uploadBytes, getBytes, deleteObject, getDownloadURL } from "firebase/storage";
 import AccidentMapForm from '@/components/accidentMapForm';
-import HazardLayers from '@/components/hazards/hazardLayers';
+import dynamic from 'next/dynamic';
 import { formatSusceptibility } from '@/app/utils/susceptibility';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -32,7 +32,10 @@ import { FiX, FiUploadCloud } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-
+const HazardLayers = dynamic(
+  () => import('@/components/hazards/hazardLayers'),
+  { ssr: false }
+);
 
 // =============================
 // HEATMAP COMPONENT

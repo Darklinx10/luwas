@@ -8,8 +8,6 @@ import { FiSearch, FiTrash2, FiPlus, FiUploadCloud } from 'react-icons/fi';
 import RoleGuard from '@/components/roleGuard';
 import { toast } from 'react-toastify';
 import dynamic from 'next/dynamic';
-import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 
 
 
@@ -23,7 +21,7 @@ export default function HazardsPage() {
   const [hazards, setHazards] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
-
+  const [infoText, setInfoText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hazardType, setHazardType] = useState('');
   const [description, setDescription] = useState('');
@@ -126,6 +124,7 @@ const handlePreview = async (hazard) => {
       toast.success('Hazard uploaded and saved successfully!');
       setHazardType('');
       setDescription('');
+      setInfoText('');
       setGeojsonFile(null);
       setIsModalOpen(false);
   
@@ -181,6 +180,7 @@ const handlePreview = async (hazard) => {
                 id: infoDoc.id,
                 type: infoData.type || hazardType,
                 description: infoData.description || "",
+                infoText: infoData.infoText || "",
                 createdAt: infoData.createdAt || null,
                 fileId: infoData.fileId || null,
                 fileUrl,
@@ -333,6 +333,15 @@ const handlePreview = async (hazard) => {
                 className="w-full border rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
                 placeholder="Enter hazard description..."
               />
+              {/* Info Text */}
+              <label className="block text-sm font-medium mb-1">Info Text (HTML)</label>
+              <textarea
+                value={infoText}
+                onChange={(e) => setInfoText(e.target.value)}
+                className="w-full border rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                placeholder="Enter info text with HTML content..."
+                rows={6}
+              />
 
               {/* Upload */}
               <label
@@ -397,171 +406,3 @@ const handlePreview = async (hazard) => {
     </RoleGuard>
   );
 }
-
-// 'use client';
-
-// import { useEffect, useState } from 'react';
-// import { FiSearch, FiPlus } from 'react-icons/fi';
-// import RoleGuard from '@/components/roleGuard';
-// import { toast } from 'react-toastify';
-
-// // Services
-// import { fetchHazards, deleteHazard, addHazard } from '@/lib/hazardsServices';
-
-// // Components
-// import HazardTable from '@/components/hazards/HazardTable';
-// import HazardModal from '@/components/hazards/HazardModal';
-// import HazardPreview from '@/components/hazards/HazardPreview';
-
-// export default function HazardsPage() {
-//   const [hazards, setHazards] = useState([]);
-//   const [searchTerm, setSearchTerm] = useState('');
-//   const [loading, setLoading] = useState(false);
-
-//   // Modal states
-//   const [isModalOpen, setIsModalOpen] = useState(false);
-//   const [hazardType, setHazardType] = useState('');
-//   const [description, setDescription] = useState('');
-//   const [geojsonFile, setGeojsonFile] = useState(null);
-
-//   // Preview states
-//   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-//   const [selectedHazard, setSelectedHazard] = useState(null);
-
-//   // Fetch hazard list
-//   const loadHazards = async () => {
-//     setLoading(true);
-//     try {
-//       const data = await fetchHazards();
-//       setHazards(data);
-//     } catch (err) {
-//       toast.error('Failed to load hazards.');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   // Handle delete
-//   const handleDelete = async (id) => {
-//     if (!confirm('Delete this hazard layer?')) return;
-//     try {
-//       await deleteHazard(id);
-//       toast.success('Hazard layer deleted.');
-//       loadHazards();
-//     } catch {
-//       toast.error('Failed to delete hazard.');
-//     }
-//   };
-
-//   // Handle add new hazard
-//   const handleSaveHazard = async () => {
-//     if (!hazardType || !description || !geojsonFile) {
-//       toast.error('Please fill all fields.');
-//       return;
-//     }
-//     try {
-//       await addHazard(hazardType, description, geojsonFile);
-//       toast.success('Hazard layer added.');
-//       setIsModalOpen(false);
-//       setHazardType('');
-//       setDescription('');
-//       setGeojsonFile(null);
-//       loadHazards();
-//     } catch {
-//       toast.error('Failed to add hazard.');
-//     }
-//   };
-
-//   // Handle preview
-//   const handlePreview = async (hazard) => {
-//     try {
-//       const response = await fetch(hazard.fileUrl);
-//       const geojsonData = await response.json();
-//       setSelectedHazard({ ...hazard, geojson: geojsonData });
-//       setIsPreviewOpen(true);
-//     } catch {
-//       toast.error('Failed to load preview.');
-//     }
-//   };
-
-//   // Filtered hazards
-//   const filteredHazards = hazards.filter((hazard) =>
-//     `${hazard.type} ${hazard.description}`.toLowerCase().includes(searchTerm.toLowerCase())
-//   );
-
-//   useEffect(() => {
-//     loadHazards();
-//   }, []);
-
-//   return (
-//     <RoleGuard allowedRoles={['SeniorAdmin']}>
-//       <div className="p-4">
-//         <div className="text-sm text-right text-gray-500 mb-2">Home / Hazard Management</div>
-
-//         {/* Header */}
-//         <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg flex justify-between items-center">
-//           <span>Hazard Layers</span>
-//         </div>
-
-//         {/* Search + Add */}
-//         <div className="flex items-center justify-between bg-white shadow px-4 py-3">
-//           <div className="relative w-full max-w-md">
-//             <FiSearch className="absolute top-2.5 left-3 text-gray-400" />
-//             <input
-//               type="text"
-//               placeholder="Search by type or description"
-//               value={searchTerm}
-//               onChange={(e) => setSearchTerm(e.target.value)}
-//               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-//             />
-//           </div>
-//           <div className="ml-4">
-//             <button
-//               onClick={() => setIsModalOpen(true)}
-//               className="flex items-center gap-2 px-4 py-2 rounded text-white bg-green-600 hover:bg-green-500"
-//             >
-//               <FiPlus /> Add Hazard Layer
-//             </button>
-//           </div>
-//         </div>
-
-//         {/* Hazard Table */}
-//         <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
-//           {loading ? (
-//             <p className="text-center text-gray-500 py-6">Loading...</p>
-//           ) : filteredHazards.length === 0 ? (
-//             <p className="text-center text-gray-500 py-6">No hazard layers found.</p>
-//           ) : (
-//             <HazardTable
-//               hazards={filteredHazards}
-//               onPreview={handlePreview}
-//               onDelete={handleDelete}
-//             />
-//           )}
-//         </div>
-
-//         {/* Add Modal */}
-//         {isModalOpen && (
-//           <HazardModal
-//             hazardType={hazardType}
-//             setHazardType={setHazardType}
-//             description={description}
-//             setDescription={setDescription}
-//             geojsonFile={geojsonFile}
-//             setGeojsonFile={setGeojsonFile}
-//             onClose={() => setIsModalOpen(false)}
-//             onSave={handleSaveHazard}
-//           />
-//         )}
-
-//         {/* Preview Modal */}
-//         {isPreviewOpen && selectedHazard && (
-//           <HazardPreview
-//             hazard={selectedHazard}
-//             onClose={() => setIsPreviewOpen(false)}
-//           />
-//         )}
-//       </div>
-//     </RoleGuard>
-//   );
-// }

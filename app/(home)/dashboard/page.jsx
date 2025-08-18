@@ -131,31 +131,47 @@ function DashboardPage() {
           })
         );
         
-        //Reminder! Change it later, Dont Hard Code it.
-        const hazardsCount = 8; // static or fetched if implemented
+        // ✅ Calculate total hazards dynamically
+      const hazardTypes = [
+        "Active Faults",
+        "Earthquake Induced Landslide",
+        "Landslide",
+        "Liquefaction",
+        "Rain Induced Landslide",
+        "Storm Surge",
+        "Tsunami",
+      ];
 
-        setStats({
-          residents: residentCount,
-          householdHeads,
-          householdMembers,
-          households: actualHouseholds,
-          families: actualHouseholds,
-          pwd: pwdCount,
-          seniors: seniorCount,
-          ageCount,
-          hazards: hazardsCount,
-          accidents: accidentsSnap.size,
-          growthRate: '0%',
-        });
-      } catch (err) {
-        console.error('🔥 Error fetching dashboard stats:', err);
-      } finally {
-        setLoading(false);
-      }
-    });
+      let totalHazards = 0;
+      await Promise.all(
+        hazardTypes.map(async (hazardType) => {
+          const snap = await getDocs(collection(db, 'hazards', hazardType, 'hazardInfo'));
+          totalHazards += snap.size;
+        })
+      );
 
-    return () => unsubscribe();
-  }, [router]);
+      setStats({
+        residents: residentCount,
+        householdHeads,
+        householdMembers,
+        households: actualHouseholds,
+        families: actualHouseholds,
+        pwd: pwdCount,
+        seniors: seniorCount,
+        ageCount,
+        hazards: totalHazards, // dynamically set
+        accidents: accidentsSnap.size,
+        growthRate: '0%',
+      });
+    } catch (err) {
+      console.error('🔥 Error fetching dashboard stats:', err);
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  return () => unsubscribe();
+}, [router]);
 
   return (
     <div className="space-y-6">
