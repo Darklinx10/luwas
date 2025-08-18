@@ -243,44 +243,43 @@ export default function OSMMapPage() {
   // =============================
   function MapClickHandler() {
     const map = useMap();
-
+  
     useEffect(() => {
       const onClick = async (e) => {
         if (!settingDefault) return;
-
+  
         const { lat, lng } = e.latlng;
-
-        // Show marker
+  
+        // Show marker + update center state
         setPlusMarkers([{ lat, lng }]);
         setDefaultCenter([lat, lng]);
         map.setView([lat, lng], map.getZoom());
-
-        // Save to Firestore
+  
         try {
-          await setDoc(doc(db, 'settings', 'mapCenter'), {
-            lat,
-            lng
-          });
-
-          toast.success('New default center added successfully!', {
-            position: 'top-right',
+          await setDoc(doc(db, "settings", "mapCenter"), { lat, lng });
+  
+          toast.success("New default center added successfully!", {
+            position: "top-right",
             autoClose: 2000,
           });
+  
+          // ✅ Instead of reloading the page, just re-fetch Firestore data
+          fetchMapCenter?.(); // optional: refetch in parent if you have this function
         } catch (err) {
-          console.error('Error saving default center:', err);
-          toast.error('Failed to save new default center.');
+          console.error("Error saving default center:", err);
+          toast.error("Failed to save new default center.");
         }
-
-        setSettingDefault(false); // Exit mode
+  
+        setSettingDefault(false);
       };
-
-      map.on('click', onClick);
-      return () => map.off('click', onClick);
+  
+      map.on("click", onClick);
+      return () => map.off("click", onClick);
     }, [map, settingDefault]);
-
+  
     return null;
   }
-
+  
   // =============================
   // FETCH DEFAULT MAP CENTER FROM FIRESTORE
   // =============================

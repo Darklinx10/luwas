@@ -1,15 +1,24 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { collection, getDocs, deleteDoc, doc, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, addDoc, serverTimestamp, getDoc, query, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/firebase/config';
 import { FiSearch, FiTrash2, FiPlus, FiUploadCloud } from 'react-icons/fi';
 import RoleGuard from '@/components/roleGuard';
 import { toast } from 'react-toastify';
 import dynamic from 'next/dynamic';
+import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
-const MapPopup = dynamic(() => import('@/components/householdComp/mapPopUP'), { ssr: false });
+
+
+const HazardMapPreview = dynamic(
+  () => import('@/components/hazardMapPreview'),
+  { ssr: false } // important: disable server-side rendering
+);
+
+
 export default function HazardsPage() {
   const [hazards, setHazards] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,7 +56,7 @@ export default function HazardsPage() {
   };
   
 
-  // Preview hazard GeoJSON
+
   // Preview hazard GeoJSON
 const handlePreview = async (hazard) => {
   try {
@@ -91,17 +100,18 @@ const handlePreview = async (hazard) => {
       await uploadBytes(storageRef, blob);
       const downloadURL = await getDownloadURL(storageRef);
   
-      // 3️⃣ Save raw GeoJSON in hazardFiles collection (Firestore)
+      // 3️⃣ Save raw GeoJSON + metadata in hazardFiles (Firestore)
       const hazardFileRef = await addDoc(
         collection(db, 'hazards', hazardType, 'hazardFiles'),
         {
+          name: geojsonFile.name,
           geojsonString: JSON.stringify(geojson),
           fileUrl: downloadURL,
           createdAt: serverTimestamp(),
         }
       );
   
-      // 4️⃣ Save hazard info referencing the file
+      // 4️⃣ Save hazard info referencing the uploaded file
       await addDoc(
         collection(db, 'hazards', hazardType, 'hazardInfo'),
         {
@@ -112,13 +122,14 @@ const handlePreview = async (hazard) => {
         }
       );
   
+      // 5️⃣ UI Updates
       toast.success('Hazard uploaded and saved successfully!');
       setHazardType('');
       setDescription('');
       setGeojsonFile(null);
       setIsModalOpen(false);
   
-      fetchHazards(); // Refresh list
+      fetchHazards(); // Refresh list after upload
   
     } catch (error) {
       console.error(error);
@@ -128,39 +139,65 @@ const handlePreview = async (hazard) => {
     }
   };
   
+  
   // Fetch all hazards (by type)
   const fetchHazards = async () => {
     setLoading(true);
     try {
-      const hazardTypesSnap = await getDocs(collection(db, 'hazards'));
-      const hazardsData = [];
+      const hazardTypes = [
+        "Active Faults",
+        "Landslide",
+        "Earthquake Induced Landslide",
+        "Storm Surge",
+        "Tsunami",
+        "Rain Induced Landslide",
+        "Ground Shaking",
+        "Liquefaction",
+      ];
   
-      for (const typeDoc of hazardTypesSnap.docs) {
-        const hazardType = typeDoc.id;
+      // Fetch all hazard types concurrently
+      const hazardsByType = await Promise.all(
+        hazardTypes.map(async (hazardType) => {
+          const infoSnap = await getDocs(
+            collection(db, "hazards", hazardType, "hazardInfo")
+          );
   
-        const infoSnap = await getDocs(collection(db, 'hazards', hazardType, 'hazardInfo'));
-        for (const infoDoc of infoSnap.docs) {
-          const infoData = infoDoc.data();
+          // Fetch files for each hazard info concurrently
+          const hazardsData = await Promise.all(
+            infoSnap.docs.map(async (infoDoc) => {
+              const infoData = infoDoc.data();
+              let fileUrl = null;
   
-          // Fetch the corresponding hazard file
-          const fileSnap = await getDoc(doc(db, 'hazards', hazardType, 'hazardFiles', infoData.fileId));
-          const fileData = fileSnap.exists() ? fileSnap.data() : { fileUrl: null };
+              if (infoData.fileId) {
+                const fileSnap = await getDoc(
+                  doc(db, "hazards", hazardType, "hazardFiles", infoData.fileId)
+                );
+                if (fileSnap.exists()) {
+                  fileUrl = fileSnap.data().fileUrl || null;
+                }
+              }
   
-          hazardsData.push({
-            id: infoDoc.id,
-            type: infoData.type,
-            description: infoData.description,
-            createdAt: infoData.createdAt,
-            fileId: infoData.fileId,
-            fileUrl: fileData.fileUrl,
-          });
-        }
-      }
+              return {
+                id: infoDoc.id,
+                type: infoData.type || hazardType,
+                description: infoData.description || "",
+                createdAt: infoData.createdAt || null,
+                fileId: infoData.fileId || null,
+                fileUrl,
+              };
+            })
+          );
   
-      setHazards(hazardsData);
+          return hazardsData;
+        })
+      );
+  
+      // Flatten array of arrays into a single array
+      setHazards(hazardsByType.flat());
+  
     } catch (error) {
       console.error(error);
-      toast.error('Failed to load hazard layers.');
+      toast.error("Failed to load hazard layers.");
     } finally {
       setLoading(false);
     }
@@ -168,18 +205,17 @@ const handlePreview = async (hazard) => {
   
   
   
-  
-  
-  
-
-  // Filtered hazards based on search
+  // 🔍 Filtered hazards based on search
   const filteredHazards = hazards.filter((hazard) =>
-    `${hazard.type} ${hazard.description}`.toLowerCase().includes(searchTerm.toLowerCase())
+    `${hazard.type} ${hazard.description}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
   );
-
+  
   useEffect(() => {
     fetchHazards();
   }, []);
+  
 
   return (
     <RoleGuard allowedRoles={['SeniorAdmin']}>
@@ -351,22 +387,12 @@ const handlePreview = async (hazard) => {
                 </button>
               </div>
               <div className="h-[500px] w-full">
-                <MapContainer
-                  center={[12.8797, 121.774]}
-                  zoom={6}
-                  className="h-full w-full"
-                  whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
-                >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution="&copy; OpenStreetMap contributors"
-                  />
-                  {selectedHazard.geojson && <GeoJSON data={selectedHazard.geojson} />}
-                </MapContainer>
+              <HazardMapPreview geojson={selectedHazard.geojson} />
               </div>
             </div>
           </div>
         )}
+
       </div>
     </RoleGuard>
   );
