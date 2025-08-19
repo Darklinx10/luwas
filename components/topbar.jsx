@@ -78,8 +78,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
-  // Logout handler
-  // Inside your Topbar component
+ 
 
   // Logout handler (manual & automatic)
   const handleLogout = async () => {
@@ -95,18 +94,13 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
       // Show success toast
       toast.success("You have been logged out.");
   
-      // Redirect immediately
-      router.push("/");
+      // Redirect to main page (page.js)
+      router.push("/"); // <-- this points to app/page.js
     } catch (error) {
       console.error("Logout failed:", error);
       toast.error("Failed to log out.");
     }
   };
-  
-  
-  
-
-
 
   return (
     <div className="flex items-center justify-between px-6 h-15 border-b border-gray-200 bg-white shadow-sm relative">

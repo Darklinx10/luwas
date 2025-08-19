@@ -8,117 +8,31 @@ import {
   Popup,
   LayersControl,
   GeoJSON,
-  useMap,
   CircleMarker,
   Tooltip
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
-import { getDistance } from 'geolib';
 import L from 'leaflet';
 import * as turf from '@turf/turf';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth, storage } from '@/firebase/config';
-import { ref, uploadBytes, getBytes, deleteObject, getDownloadURL } from "firebase/storage";
-import AccidentMapForm from '@/components/accidentMapForm';
-import dynamic from 'next/dynamic';
-import { formatSusceptibility } from '@/app/utils/susceptibility';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { formatSusceptibility } from '@/components/hazards/utils/susceptibility';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { FiX, FiUploadCloud } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
-const HazardLayers = dynamic(
-  () => import('@/components/hazards/hazardLayers'),
-  { ssr: false }
-);
-
-// =============================
-// HEATMAP COMPONENT
-// Handles rendering of accident heatmap points
-// =============================
-function AccidentHeatmap({ points }) {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (!map || !points.length) return;
-
-    const heatLayer = L.heatLayer(points, {
-      radius: 25,
-      blur: 15,
-      maxZoom: 10,
-      gradient: {
-        0.4: 'green',   // ~2 accidents
-        0.6: 'yellow',  // ~3–4 accidents
-        0.9: 'red'      // 5 or more accidents
-      }
-    }).addTo(map);
-
-    return () => {
-      map.removeLayer(heatLayer);
-    };
-  }, [map, points]);
-
-  return null;
-}
-
-// =============================
-// MAP WITH HAZARDS COMPONENT
-// Displays hazard layers based on active hazard type
-// =============================
-function MapWithHazards({ activeHazard, setLoading }) {
-  const map = useMap();
-  return <HazardLayers activeHazard={activeHazard} map={map} setLoading={setLoading} />;
-}
-
-
-// =============================
-// LEAFLET ICON OVERRIDES
-// Sets custom marker icons for households, accidents, affected areas, and plus marker
-// =============================
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x.src,
-  iconUrl: markerIcon.src,
-  shadowUrl: markerShadow.src,
-});
-
-// Custom icons
-const houseIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/7720/7720546.png',
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-  popupAnchor: [0, -32]
-});
-const accidentIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/564/564619.png',
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-  popupAnchor: [0, -32]
-});
-
-const affectedIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/4539/4539472.png',
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-  popupAnchor: [0, -32]
-});
-
-const plusMarkerIcon = L.divIcon({
-  className: 'custom-plus-icon',
-  html: '<div style="color: red; font-size: 24px;">➕</div>',
-  iconSize: [24, 24],
-  iconAnchor: [12, 24],
-});
-
+import AccidentMapForm from '@/components/accidentMapForm';
+import AccidentHeatmap from './AccidentHeatmap';
+import MapWithHazards from './MapWithHazards';
+import MapClickHandler from './MapClickHandler';
+import { houseIcon, accidentIcon, affectedIcon, plusMarkerIcon } from './utils/icons';
+import { groupNearbyAccidents } from './utils/groupNearbyAccidents';
 
 const { BaseLayer } = LayersControl;
 const defaultPosition = [9.941975, 124.033194]; // Default map center
-
 
 // =============================
 // MAIN MAP PAGE COMPONENT
@@ -130,7 +44,6 @@ export default function OSMMapPage() {
   const [householdMarkers, setHouseholdMarkers] = useState([]);
   const [accidents, setAccidents] = useState([]);
   const [addingAccident, setAddingAccident] = useState(false);
-  const [clarinBoundary, setClarinBoundary] = useState(null);
   const [loading, setLoading] = useState(false);
   const isHouseholdMap = activeMap === 'Household Map';
   const isAccidentMap = activeMap === 'Accident Map';
@@ -138,12 +51,12 @@ export default function OSMMapPage() {
   const [hazardGeoJSON, setHazardGeoJSON] = useState({});
   const [profile, setProfile] = useState(null);
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const [, setUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedHousehold, setSelectedHousehold] = useState(null);
   const [defaultCenter, setDefaultCenter] = useState(defaultPosition);
-  const [settingDefault, setSettingDefault] = useState(false);
-  const [plusMarkers, setPlusMarkers] = useState([]);
+  const [, setSettingDefault] = useState(false);
+  const [plusMarkers,] = useState([]);
   const [geojsonFile, setGeojsonFile] = useState(null); // the raw File
   const [boundaryGeoJSON, setBoundaryGeoJSON] = useState(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -234,55 +147,6 @@ export default function OSMMapPage() {
     
   };
   
-
-
-  
-
-  
-  
-
-  // =============================
-  // MAP CLICK HANDLER FOR SETTING DEFAULT CENTER
-  // =============================
-  function MapClickHandler() {
-    const map = useMap();
-  
-    useEffect(() => {
-      const onClick = async (e) => {
-        if (!settingDefault) return;
-  
-        const { lat, lng } = e.latlng;
-  
-        // Show marker + update center state
-        setPlusMarkers([{ lat, lng }]);
-        setDefaultCenter([lat, lng]);
-        map.setView([lat, lng], map.getZoom());
-  
-        try {
-          await setDoc(doc(db, "settings", "mapCenter"), { lat, lng });
-  
-          toast.success("New default center added successfully!", {
-            position: "top-right",
-            autoClose: 2000,
-          });
-  
-          // ✅ Instead of reloading the page, just re-fetch Firestore data
-          fetchMapCenter?.(); // optional: refetch in parent if you have this function
-        } catch (err) {
-          console.error("Error saving default center:", err);
-          toast.error("Failed to save new default center.");
-        }
-  
-        setSettingDefault(false);
-      };
-  
-      map.on("click", onClick);
-      return () => map.off("click", onClick);
-    }, [map, settingDefault]);
-  
-    return null;
-  }
-  
   // =============================
   // FETCH DEFAULT MAP CENTER FROM FIRESTORE
   // =============================
@@ -342,16 +206,6 @@ export default function OSMMapPage() {
       router.push('/unauthorized'); // No profile or role found
     }
   }, [profile]);
-
-  // =============================
-  // 🌍 FETCH CLARIN BOUNDARY GEOJSON
-  // =============================
-  // useEffect(() => {
-  //   fetch('/data/Clarin_Boundary.geojson')
-  //     .then((res) => res.json())
-  //     .then((data) => setClarinBoundary(data))
-  //     .catch((err) => console.error('Failed to load GeoJSON:', err));
-  // }, []);
 
   // =============================
   // HAZARD LAYER → UPDATE AFFECTED HOUSEHOLDS
@@ -501,51 +355,6 @@ export default function OSMMapPage() {
     setAddingAccident(false);
   };
 
-  // =============================
-  // GROUP NEARBY ACCIDENTS FOR HEATMAP
-  // =============================
-  function groupNearbyAccidents(accidents, radius = 50) {
-    const clusters = [];
-
-    accidents.forEach(acc => {
-      const { position } = acc;
-      if (!position) return;
-
-      // Handle both [lat, lng] and { lat: ..., lng: ... }
-      const [lat, lng] = Array.isArray(position)
-        ? position
-        : [position.lat, position.lng];
-
-      if (!lat || !lng) return;
-
-      let added = false;
-
-      for (const cluster of clusters) {
-        const distance = getDistance(
-          { latitude: lat, longitude: lng },
-          { latitude: cluster.lat, longitude: cluster.lng }
-        );
-
-        if (distance <= radius) {
-          cluster.count += 1;
-          cluster.accidents.push(acc);
-          added = true;
-          break;
-        }
-      }
-
-      if (!added) {
-        clusters.push({
-          lat,
-          lng,
-          count: 1,
-          accidents: [acc],
-        });
-      }
-    });
-
-    return clusters;
-  }
   const clustered = groupNearbyAccidents(accidents, 50); // 50m radius
 
   const MAX_ACCIDENTS = 5;
@@ -589,7 +398,6 @@ export default function OSMMapPage() {
       </div>
     );
   }
-
 
   return (
     <div className="relative">
@@ -660,18 +468,6 @@ export default function OSMMapPage() {
           </BaseLayer>
         </LayersControl>
 
-        {/* {clarinBoundary && profile?.role !== 'SeniorAdmin' && (
-          <GeoJSON
-            data={clarinBoundary}
-            style={{
-                  color: 'black',        
-                  weight: 1,             
-                  fillOpacity: 0,
-                  dashArray: '2 4',        
-                }}
-          />
-        )} */}
-
         {/* Render uploaded GeoJSON */}
         {boundaryGeoJSON && (
           <GeoJSON
@@ -719,10 +515,6 @@ export default function OSMMapPage() {
             </div>
           </div>
         )}
-
-
-
-
 
         {isHouseholdMap && !isSeniorAdmin && (
           <div className="leaflet-top leaflet-left ml-10">
@@ -818,7 +610,9 @@ export default function OSMMapPage() {
         })}
 
 
-        {isAccidentMap && addingAccident && !isSeniorAdmin && <AccidentMapForm onSubmit={handleAccidentSubmit} />}
+        {isAccidentMap && addingAccident && !isSeniorAdmin && (
+          <AccidentMapForm onSubmit={handleAccidentSubmit} />
+        )}
 
         {isAccidentMap && !isSeniorAdmin &&
           accidents.map((acc, idx) => (
@@ -832,14 +626,25 @@ export default function OSMMapPage() {
               }}
             >
               <Popup>
-                <strong>Type:</strong> {acc.type}<br />
-                <strong>Severity:</strong> {acc.severity}<br />
-                <strong>Description:</strong> {acc.description}<br />
-                <strong>Date & Time:</strong> {acc.datetime}
+                <div className="text-sm">
+                  {/* ✅ Display accident image if available */}
+                  {acc.imageUrl && (
+                    <div className="mt-2 flex justify-center">
+                      <img
+                        src={acc.imageUrl}
+                        alt="Accident"
+                        className="w-40 h-28 object-cover rounded-md border"
+                      />
+                    </div>
+                  )}
+                  <p><strong>Type:</strong> {acc.type}</p>
+                  <p><strong>Severity:</strong> {acc.severity}</p>
+                  <p><strong>Description:</strong> {acc.description}</p>
+                  <p><strong>Date & Time:</strong> {acc.datetime}</p>
+                </div>
               </Popup>
             </Marker>
           ))}
-
         {isHouseholdMap && activeHazard && !isSeniorAdmin && (
           <MapWithHazards activeHazard={activeHazard} setLoading={setLoading} />
         )}

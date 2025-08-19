@@ -12,7 +12,7 @@ import dynamic from 'next/dynamic';
 
 
 const HazardMapPreview = dynamic(
-  () => import('@/components/hazardMapPreview'),
+  () => import('@/components/hazards/hazardMapPreview'),
   { ssr: false } // important: disable server-side rendering
 );
 

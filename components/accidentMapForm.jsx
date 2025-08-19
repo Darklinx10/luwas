@@ -3,18 +3,20 @@
 import { useState } from 'react';
 import { Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { db } from '@/firebase/config';
+import { db, storage } from '@/firebase/config';
 import { collection, addDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'react-toastify';
 
 export default function AccidentMapForm({ onSubmit }) {
   const [position, setPosition] = useState(null);
-  const [loading, setLoading] = useState(false); // NEW: loading state
+  const [loading, setLoading] = useState(false);
+  const [file, setFile] = useState(null); // NEW: file state
   const [formData, setFormData] = useState({
     type: '',
     severity: '',
     description: '',
-    datetime: ''
+    datetime: '',
   });
 
   useMapEvents({
@@ -31,18 +33,34 @@ export default function AccidentMapForm({ onSubmit }) {
     }));
   };
 
+  const handleFileChange = (e) => {
+    if (e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!position) return;
 
-    setLoading(true); // Start loading
+    setLoading(true);
     try {
+      let imageUrl = null;
+
+      // ✅ Upload image if provided
+      if (file) {
+        const storageRef = ref(storage, `accidents/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        imageUrl = await getDownloadURL(storageRef);
+      }
+
       const data = {
         ...formData,
         position: {
           lat: position.lat,
           lng: position.lng,
         },
+        imageUrl, // save uploaded image url
         createdAt: new Date(),
       };
 
@@ -50,13 +68,15 @@ export default function AccidentMapForm({ onSubmit }) {
       toast.success('Accident data submitted successfully!');
       if (onSubmit) onSubmit(data);
 
+      // reset form
       setPosition(null);
       setFormData({ type: '', severity: '', description: '', datetime: '' });
+      setFile(null);
     } catch (error) {
       console.error('Error submitting accident:', error);
       toast.error('Failed to submit accident.');
     } finally {
-      setLoading(false); // Stop loading
+      setLoading(false);
     }
   };
 
@@ -132,7 +152,19 @@ export default function AccidentMapForm({ onSubmit }) {
               />
             </div>
 
-            {/* Submit Button with Spinner */}
+            {/* Image Upload */}
+            <div>
+              <label htmlFor="image" className="block text-sm font-medium">Upload Picture</label>
+              <input
+                type="file"
+                id="image"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="border w-full p-1 rounded"
+              />
+            </div>
+
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}

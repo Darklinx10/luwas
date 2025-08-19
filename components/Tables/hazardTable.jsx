@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { FiSearch } from 'react-icons/fi';
+import { formatSusceptibility } from '@/components/hazards/utils/susceptibility';
 
 // Debounce hook
 function useDebounce(value, delay = 300) {
@@ -157,7 +158,7 @@ export default function HazardTable({
                       <td className="px-4 py-2 border">{h.name}</td>
                       <td className="px-4 py-2 border">{h.barangay}</td>
                       <td className="px-4 py-2 border">{h.contactnumber}</td>
-                      <td className="px-4 py-2 border">{h.susceptibility || 'Unknown'}</td>
+                      <td className="px-4 py-2 border">{formatSusceptibility(h.susceptibility || 'Unknown')}</td>
                     </tr>
                   ))}
                 </tbody>

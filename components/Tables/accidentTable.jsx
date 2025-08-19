@@ -1,11 +1,12 @@
 'use client';
 
-import { db } from '@/firebase/config';
+import { db, storage } from '@/firebase/config';
 import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { FiEdit, FiSearch, FiTrash2, FiX } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Dynamically import MapPopup to avoid SSR issues
 const MapPopup = dynamic(() => import('@/components/householdComp/mapPopUP'), { ssr: false });
@@ -87,35 +88,47 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
   };
 
   const handleSaveEdit = async () => {
-  if (!editData) return;
-  setLoading(true); // Show spinner
-
-  try {
-    const { id, type, severity, description, datetime } = editData;
-
-    await updateDoc(doc(db, 'accidents', id), {
-      type,
-      severity,
-      description,
-      datetime,
-    });
-
-    // Update local state
-    setAccidents((prev) =>
-      prev.map((acc) =>
-        acc.id === id ? { ...acc, type, severity, description, datetime } : acc
-      )
-    );
-
-    setShowEditModal(false);
-    toast.success('Accident updated.');
-  } catch (err) {
-    console.error(err);
-    toast.error('Update failed.');
-  } finally {
-    setLoading(false); // Hide spinner
-  }
-};
+    if (!editData) return;
+    setLoading(true); // Show spinner
+  
+    try {
+      const { id, type, severity, description, datetime, imageFile } = editData;
+  
+      let imageUrl = editData.imageUrl; // keep the old image by default
+  
+      // ✅ If user uploaded a new image, upload to Firebase Storage
+      if (imageFile) {
+        const storageRef = ref(storage, `accidents/${id}-${imageFile.name}`);
+        await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(storageRef);
+      }
+  
+      // ✅ Update Firestore document
+      await updateDoc(doc(db, 'accidents', id), {
+        type,
+        severity,
+        description,
+        datetime,
+        imageUrl,
+      });
+  
+      // ✅ Update local state
+      setAccidents((prev) =>
+        prev.map((acc) =>
+          acc.id === id ? { ...acc, type, severity, description, datetime, imageUrl } : acc
+        )
+      );
+  
+      setShowEditModal(false);
+      toast.success('Accident updated.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Update failed.');
+    } finally {
+      setLoading(false); // Hide spinner
+    }
+  };
+  
 
 
   // Print report
@@ -231,67 +244,77 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
             <p className="text-center text-gray-500 py-6">No accident record results.</p>
           ) : (
             <>
-              <table className="w-full text-sm text-center print:text-xs print:w-full print:border print:border-gray-400">
-                <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
-                  <tr>
-                    <th className="px-4 py-2 border">Type</th>
-                    <th className="px-4 py-2 border">Severity</th>
-                    <th className="px-4 py-2 border">Description</th>
-                    <th className="px-4 py-2 border">Date & Time</th>
-                    <th className="px-4 py-2 border print:hidden">Map</th>
-                    <th className="px-4 py-2 border print:hidden">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Sorted and filtered accidents */}
-                  {filteredAccidents
-                    .sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
-                    .map((accident) => (
-                      <tr key={accident.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 border">{accident.type}</td>
-                        <td className="px-4 py-2 border">{accident.severity}</td>
-                        <td className="px-4 py-2 border">{accident.description}</td>
-                        <td className="px-4 py-2 border">
-                          {accident.datetime
-                            ? new Date(accident.datetime).toLocaleString()
-                            : '—'}
-                        </td>
-                        <td className="px-4 py-2 border print:hidden">
+            <table className="w-full text-sm text-center print:text-xs print:w-full print:border print:border-gray-400">
+              <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
+              <tr>
+                {[
+                  <th key="img" className="px-4 py-2 border">Image</th>,
+                  <th key="type" className="px-4 py-2 border">Type</th>,
+                  <th key="sev" className="px-4 py-2 border">Severity</th>,
+                  <th key="desc" className="px-4 py-2 border">Description</th>,
+                  <th key="dt" className="px-4 py-2 border">Date &amp; Time</th>,
+                  <th key="map" className="px-4 py-2 border print:hidden">Map</th>,
+                  <th key="act" className="px-4 py-2 border print:hidden">Action</th>,
+                ]}
+              </tr>
+              </thead>
+              <tbody>
+                {filteredAccidents
+                  .sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
+                  .map((accident) => (
+                    <tr key={accident.id} className="hover:bg-gray-50">
+                      {/* ✅ Accident Image */}
+                      <td className="px-4 py-2 border">
+                        {accident.imageUrl ? (
+                          <img
+                            src={accident.imageUrl}
+                            alt={accident.type}
+                            className="w-16 h-16 object-cover mx-auto rounded"
+                          />
+                        ) : (
+                          <span className="text-gray-400">No Image</span>
+                        )}
+                      </td>
 
-                          {/* Map button */}
-                          <button
-                            onClick={() =>
-                              openMapWithLocation(accident.position?.lat, accident.position?.lng)
-                            }
-                            className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 cursor-pointer"
-                          >
-                            Map
-                          </button>
-                        </td>
-                        <td className="px-4 py-2 border space-x-2 print:hidden">
-
-                          {/* Edit button */}
-                          <button
-                            onClick={() => handleEdit(accident.id)}
-                            className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                            title="Edit"
-                          >
-                            <FiEdit size={16} />
-                          </button>
-
-                          {/* Delete button */}
-                          <button
-                            onClick={() => handleDelete(accident.id)}
-                            className="text-red-600 hover:text-red-800 cursor-pointer"
-                            title="Delete"
-                          >
-                            <FiTrash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
+                      <td className="px-4 py-2 border">{accident.type}</td>
+                      <td className="px-4 py-2 border">{accident.severity}</td>
+                      <td className="px-4 py-2 border">{accident.description}</td>
+                      <td className="px-4 py-2 border">
+                        {accident.datetime
+                          ? new Date(accident.datetime).toLocaleString()
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-2 border print:hidden">
+                        <button
+                          onClick={() =>
+                            openMapWithLocation(accident.position?.lat, accident.position?.lng)
+                          }
+                          className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 cursor-pointer"
+                        >
+                          Map
+                        </button>
+                      </td>
+                      <td className="px-4 py-2 border space-x-2 print:hidden">
+                        <button
+                          onClick={() => handleEdit(accident.id)}
+                          className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                          title="Edit"
+                        >
+                          <FiEdit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(accident.id)}
+                          className="text-red-600 hover:text-red-800 cursor-pointer"
+                          title="Delete"
+                        >
+                          <FiTrash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
                   ))}
-                </tbody>
-              </table>
+              </tbody>
+            </table>
+
               {/* Record Count */}
               <p className="text-sm text-gray-700 mt-4 print:hidden">
                 <strong>Total accident records:</strong> <span className="font-semibold">{filteredAccidents.length}</span>
@@ -308,31 +331,79 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
       {showEditModal && editData && (
         <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl relative">
-            <button className="absolute top-2 right-2 text-gray-500 hover:text-black" onClick={() => setShowEditModal(false)}><FiX /></button>
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-black"
+              onClick={() => setShowEditModal(false)}
+            >
+              <FiX />
+            </button>
+
             <h2 className="text-lg font-bold mb-4">Edit Accident Info</h2>
             <div className="space-y-3">
+              {/* Image */}
+                <div>
+                  <label
+                    htmlFor="image"
+                    className="block text-sm font-medium text-center"
+                  >
+                    <strong>Accident Image</strong>
+                  </label>
+
+                  {/* Current Image Preview */}
+                  {editData.imageUrl && (
+                    <div className="flex justify-center mb-2">
+                      <img
+                        src={editData.imageUrl}
+                        alt="Accident"
+                        className="w-32 h-32 object-cover rounded border"
+                      />
+                    </div>
+                  )}
+
+                  {/* Upload New Image */}
+                  <input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        imageFile: e.target.files[0], // store file for uploading
+                      }))
+                    }
+                    className="w-full border rounded px-3 py-2"
+                  />
+                </div>
               {/* Type */}
               <div>
-                <label htmlFor="type" className="block text-sm font-medium">Type</label>
+                <label htmlFor="type" className="block text-sm font-medium">
+                  Type
+                </label>
                 <input
                   id="type"
                   name="type"
                   type="text"
                   className="w-full border rounded px-3 py-2"
                   value={editData.type || ''}
-                  onChange={(e) => setEditData((prev) => ({ ...prev, type: e.target.value }))}
+                  onChange={(e) =>
+                    setEditData((prev) => ({ ...prev, type: e.target.value }))
+                  }
                 />
               </div>
 
               {/* Severity */}
               <div>
-                <label htmlFor="severity" className="block text-sm font-medium">Severity</label>
+                <label htmlFor="severity" className="block text-sm font-medium">
+                  Severity
+                </label>
                 <select
                   id="severity"
                   name="severity"
                   className="w-full border rounded px-3 py-2"
                   value={editData.severity || ''}
-                  onChange={(e) => setEditData((prev) => ({ ...prev, severity: e.target.value }))}
+                  onChange={(e) =>
+                    setEditData((prev) => ({ ...prev, severity: e.target.value }))
+                  }
                 >
                   <option value="">Select severity</option>
                   <option value="Minor">Minor</option>
@@ -343,38 +414,61 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
 
               {/* Description */}
               <div>
-                <label htmlFor="description" className="block text-sm font-medium">Description</label>
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-medium"
+                >
+                  Description
+                </label>
                 <textarea
                   id="description"
                   name="description"
                   className="w-full border rounded px-3 py-2"
                   rows={3}
                   value={editData.description || ''}
-                  onChange={(e) => setEditData((prev) => ({ ...prev, description: e.target.value }))}
+                  onChange={(e) =>
+                    setEditData((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
                 />
               </div>
 
               {/* Date & Time */}
               <div>
-                <label htmlFor="datetime" className="block text-sm font-medium">Date & Time</label>
+                <label
+                  htmlFor="datetime"
+                  className="block text-sm font-medium"
+                >
+                  Date & Time
+                </label>
                 <input
                   id="datetime"
                   name="datetime"
                   type="datetime-local"
                   className="w-full border rounded px-3 py-2"
                   value={editData.datetime || ''}
-                  onChange={(e) => setEditData((prev) => ({ ...prev, datetime: e.target.value }))}
+                  onChange={(e) =>
+                    setEditData((prev) => ({
+                      ...prev,
+                      datetime: e.target.value,
+                    }))
+                  }
                 />
               </div>
 
+              
+
               {/* Action Buttons */}
               <div className="flex justify-end gap-2 pt-4">
-                <button 
-                  onClick={() => setShowEditModal(false)} 
-                  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
-                    Cancel
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                >
+                  Cancel
                 </button>
-                
+
                 <button
                   onClick={handleSaveEdit}
                   disabled={loading}
@@ -414,6 +508,7 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
           </div>
         </div>
       )}
+
     </div>
   );
 }
