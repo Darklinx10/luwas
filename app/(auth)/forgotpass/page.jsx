@@ -1,166 +1,46 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
-import { FiMail } from "react-icons/fi";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/firebase/config";
+import ForgotPassForm from "@/app/(auth)/components/ForgotPasswordForm";
 import Image from "next/image";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/firebase/config"; // Make sure db is imported too
-import RequiredField from "@/components/Required";
-
+import Footer from "@/components/Layout/footer";
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
-  // State for email input
-  const [email, setEmail] = useState(""); // Holds the user's email
-  const [loading, setLoading] = useState(false); // Tracks loading state
-
-  // Handles password reset form submission
-  const handleResetPassword = async (e) => {
-    e.preventDefault(); // Prevent default form behavior
-
-    // Check for empty email input
-    if (!email.trim()) {
-      toast.error("Please enter your email.");
-      return;
-    }
-
-    setLoading(true); // Start loading spinner
-    try {
-      // 1. Check if user exists in Firestore
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("email", "==", email));
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        toast.error("Email not found in our records.");
-        return;
-      }
-
-      // 2. Send password reset email
-      await sendPasswordResetEmail(auth, email);
-      toast.success("Password reset email sent. Please check your inbox.");
-      router.push("/login");
-    } catch (error) {
-      console.error("Reset error:", error);
-
-      if (error.code === "auth/user-not-found") {
-        toast.error("Email not registered in authentication.");
-      } else {
-        toast.error("Failed to send reset email. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#fafafa] px-4 font-roboto">
-      <div className="w-full max-w-lg flex flex-col items-center space-y-6">
-
+    <div className="min-h-screen flex flex-col items-center justify-between bg-gradient-to-b from-green-50 to-white px-4 font-roboto relative">
+      {/* Top Section */}
+      <div className="flex flex-col items-center justify-center flex-grow">
         {/* Logos */}
-        <div className="flex justify-center gap-4 ml-6 mb-6">
+        <div className="flex justify-center gap-3 mb-6">
           <Image
             src="/clarinLogo.png"
             alt="Clarin Municipality Logo"
             width={90}
             height={90}
-            className="rounded-full"
+            className="rounded-full shadow-md"
             priority
           />
           <Image
             src="/mdrrmcLogo.png"
             alt="MDRRMC Logo"
-            width={150}
-            height={170}
-            className="object-contain"
+            width={160}
+            height={90}
+            className="drop-shadow-lg"
             priority
           />
         </div>
 
-        {/* System title */}
-        <h1 className="text-3xl font-extrabold text-gray-800 tracking-wide mb-2">LUWAS</h1>
-        <h2 className="text-center text-base sm:text-lg md:text-xl font-semibold text-gray-700 leading-snug mt-2">
+        {/* Title */}
+        <h1 className="text-4xl font-extrabold text-green-700 tracking-wide mb-2">
+          LUWAS
+        </h1>
+        <h2 className="text-center max-w-xl text-base sm:text-lg md:text-xl font-medium text-gray-600 leading-snug mb-10">
           LGU Unified Web-based Alert System for Risk Mapping and Accident Reporting
         </h2>
 
-        {/* Forgot Password form container */}
-        <div className="bg-white border border-gray-300 p-8 rounded-2xl shadow-md w-[342px] mt-4">
-          <h2 className="text-xl font-bold text-gray-700 mb-6 text-center">
-            Forgot Password
-          </h2>
-
-          {/* Form starts here */}
-          <form onSubmit={handleResetPassword}>
-            <div className="mb-6">
-              <RequiredField
-                htmlFor="email"
-                label="Enter your email to reset password"
-                required
-                showError={!email.trim() && !loading}
-              >
-                <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80">
-                  <FiMail className="text-gray-500 mr-2" />
-                  <input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full outline-none text-sm"
-                    required
-                    autoComplete="email"
-                  />
-                </div>
-              </RequiredField>
-
-              {/* Link back to login */}
-              <p className="text-sm text-center text-gray-600 mt-4">
-                Remembered your password?{" "}
-                <a href="/login" className="text-[#0BAD4A] font-medium hover:underline">
-                  Sign in
-                </a>
-              </p>
-            </div>
-
-            {/* Submit button */}
-            <div className="flex justify-center">
-              <button
-                type="submit"
-                className="w-[200px] bg-[#0BAD4A] hover:bg-[#0a9c43] text-white font-medium py-2 rounded-lg transition flex justify-center items-center"
-                disabled={loading}
-              >
-                {loading ? (
-                  <svg
-                    className="animate-spin h-5 w-5 text-white"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-                    />
-                  </svg>
-                ) : (
-                  "Send Reset Email"
-                )}
-              </button>
-            </div>
-          </form>
+        {/* Forgot Password Form Card */}
+        <div className="w-full max-w-md">
+          <ForgotPassForm />
         </div>
       </div>
+        <Footer/>
     </div>
   );
 }

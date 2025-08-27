@@ -1,31 +1,33 @@
 'use client';
 
 import {
-  FaUsers,
-  FaHome,
-  FaUsersCog,
-  FaChartLine,
-  FaWheelchair,
-  FaUserClock,
-  FaExclamationTriangle,
   FaCarCrash,
+  FaChartLine,
+  FaExclamationTriangle,
+  FaHome,
+  FaUserClock,
+  FaUsers,
+  FaUsersCog,
+  FaWheelchair,
 } from 'react-icons/fa';
 
-import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
-import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
-import { db, auth } from '@/firebase/config';
-import { onAuthStateChanged } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
+import BottomStat from './components/bottomStats';
+import SummaryCard from './components/summartCard';
 import RoleGuard from '@/components/roleGuard';
+import { auth, db } from '@/firebase/config';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 // Charts (lazy load)
-const BarChartComponent = dynamic(() => import('@/components/barchart'), { ssr: false });
-const AgeBracketChart = dynamic(() => import('@/components/agebracket'), { ssr: false });
+const BarChartComponent = dynamic(() => import('./components/barchart'), { ssr: false });
+const AgeBracketChart = dynamic(() => import('./components/agebracket'), { ssr: false });
 
 export default function DashboardPageWrapper() {
   return (
-    <RoleGuard allowedRoles={['Secretary', 'OfficeStaff']}>
+    <RoleGuard allowedRoles={['Brgy-Secretary', 'MDRRMC-Personnel']}>
       <DashboardPage />
     </RoleGuard>
   );
@@ -63,7 +65,6 @@ function DashboardPage() {
           getDocs(collection(db, 'accidents')),
         ]);
 
-        const householdCount = householdSnap.size;
         let residentCount = 0;
         let householdHeads = 0;
         let householdMembers = 0;
@@ -135,6 +136,7 @@ function DashboardPage() {
       const hazardTypes = [
         "Active Faults",
         "Earthquake Induced Landslide",
+        "Ground Shaking",
         "Landslide",
         "Liquefaction",
         "Rain Induced Landslide",
@@ -176,69 +178,37 @@ function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Top Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-5">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 ">
         <SummaryCard title="Total Residents" value={stats.residents} icon={<FaUsers />} color="bg-blue-500" loading={loading} />
         <SummaryCard title="Total Households" value={stats.households} icon={<FaHome />} color="bg-green-500" loading={loading} />
         <SummaryCard title="Total Families" value={stats.families} icon={<FaUsersCog />} color="bg-yellow-500" loading={loading} />
-        <SummaryCard title="Population Growth Rate" value={stats.growthRate} icon={<FaChartLine />} color="bg-red-500" loading={loading} />
+        <SummaryCard
+        title="Population Growth Rate"
+        value={stats.growthRate}
+        icon={<FaChartLine />}
+        color="bg-red-500"
+        loading={loading}
+        />
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="col-span-2 bg-white rounded-xl shadow p-4">
+        <div className="col-span-2 bg-white rounded-xl shadow p-3">
           <h3 className="text-lg font-semibold mb-4">Residents Data</h3>
           <BarChartComponent />
         </div>
-        <div className="bg-white rounded-xl shadow p-4">
+        <div className="bg-white rounded-xl shadow p-3">
           <h3 className="text-lg font-semibold mb-4">Age Bracket</h3>
           <AgeBracketChart />
         </div>
       </div>
 
       {/* Bottom Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 ">
         <BottomStat title="Total PWD" value={stats.pwd} icon={<FaWheelchair />} color="bg-blue-500" loading={loading} />
         <BottomStat title="Total Senior Citizens" value={stats.seniors} icon={<FaUserClock />} color="bg-green-500" loading={loading} />
         <BottomStat title="Total Hazards" value={stats.hazards} icon={<FaExclamationTriangle />} color="bg-yellow-500" loading={loading} />
         <BottomStat title="Total Accidents" value={stats.accidents} icon={<FaCarCrash />} color="bg-red-500" loading={loading} />
-      </div>
-    </div>
-  );
-}
-
-function Spinner() {
-  return (
-    <div className="w-5 h-5 border-2 border-gray border-t-transparent rounded-full animate-spin" />
-  );
-}
-
-function SummaryCard({ title, value, icon, color, loading }) {
-  return (
-    <div className={`flex items-center p-4 rounded-xl text-white shadow ${color}`}>
-      <div className="text-3xl mr-4">{icon}</div>
-      <div>
-        <div className="text-lg font-semibold">
-          {loading ? <Spinner /> : value}
-        </div>
-        <div className="text-sm">{title}</div>
-      </div>
-    </div>
-  );
-}
-
-function BottomStat({ title, value, icon, color, loading }) {
-  return (
-    <div className="flex items-center justify-between bg-white rounded-xl shadow p-6">
-      <div className="flex items-center">
-        <div className={`text-xl p-2 rounded-full text-white ${color} mr-3`}>
-          {icon}
-        </div>
-        <div>
-          <div className="text-sm">{title}</div>
-          <div className="text-lg font-bold">
-            {loading ? <Spinner className="text-gray-200" /> : value}
-          </div>
-        </div>
       </div>
     </div>
   );

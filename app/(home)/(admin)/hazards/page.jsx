@@ -1,21 +1,15 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { collection, getDocs, deleteDoc, doc, addDoc, serverTimestamp, getDoc, query, orderBy } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/firebase/config';
-import { FiSearch, FiTrash2, FiPlus, FiUploadCloud } from 'react-icons/fi';
+import AddHazardModal from './components/AddHazardModal';
+import HazardPreviewModal from './components/HazardPreviewModal';
+import HazardTable from './components/HazardTable';
 import RoleGuard from '@/components/roleGuard';
+import { db, storage } from '@/firebase/config';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { useEffect, useState } from 'react';
+import { FiPlus, FiSearch } from 'react-icons/fi';
 import { toast } from 'react-toastify';
-import dynamic from 'next/dynamic';
-
-
-
-const HazardMapPreview = dynamic(
-  () => import('@/components/hazards/hazardMapPreview'),
-  { ssr: false } // important: disable server-side rendering
-);
-
 
 export default function HazardsPage() {
   const [hazards, setHazards] = useState([]);
@@ -30,8 +24,6 @@ export default function HazardsPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedHazard, setSelectedHazard] = useState(null);
   const [loadingUpload, setLoadingUpload] = useState(false);
-
-  const mapRef = useRef(null);
 
   
   // Delete hazard
@@ -54,7 +46,6 @@ export default function HazardsPage() {
   };
   
 
-
   // Preview hazard GeoJSON
 const handlePreview = async (hazard) => {
   try {
@@ -72,7 +63,6 @@ const handlePreview = async (hazard) => {
     toast.error('Failed to load GeoJSON preview.');
   }
 };
-
 
   // Save hazard: upload GeoJSON to Storage and store metadata in Firestore
   const handleUploadAndSave = async () => {
@@ -138,7 +128,6 @@ const handlePreview = async (hazard) => {
     }
   };
   
-  
   // Fetch all hazards (by type)
   const fetchHazards = async () => {
     setLoading(true);
@@ -203,8 +192,6 @@ const handlePreview = async (hazard) => {
     }
   };
   
-  
-  
   // 🔍 Filtered hazards based on search
   const filteredHazards = hazards.filter((hazard) =>
     `${hazard.type} ${hazard.description}`
@@ -218,8 +205,8 @@ const handlePreview = async (hazard) => {
   
 
   return (
-    <RoleGuard allowedRoles={['SeniorAdmin']}>
-      <div className="p-4">
+    <RoleGuard allowedRoles={['MDRRMC-Admin']}>
+    <div className="p-4 bg-gradient-to-t from-green-50 to-white">
         <div className="text-sm text-right text-gray-500 mb-2">Home / Hazard Management</div>
 
         <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg flex justify-between items-center">
@@ -251,156 +238,35 @@ const handlePreview = async (hazard) => {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
-          {loading ? (
-            <p className="text-center text-gray-500 py-6">Loading...</p>
-          ) : filteredHazards.length === 0 ? (
-            <p className="text-center text-gray-500 py-6">No hazard layers found.</p>
-          ) : (
-            <table className="w-full text-sm text-center">
-              <thead className="bg-gray-100 text-gray-600">
-                <tr>
-                  <th className="p-2 border">Type</th>
-                  <th className="p-2 border">Description</th>
-                  <th className="p-2 border">Date Uploaded</th>
-                  <th className="p-2 border">View</th>
-                  <th className="p-2 border">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-              {filteredHazards.map((hazard) => (
-                  <tr key={hazard.id} className="hover:bg-gray-50">
-                    <td className="p-2 border">{hazard.type}</td>
-                    <td className="p-2 border">{hazard.description}</td>
-                    <td className="p-2 border">
-                      {hazard.createdAt
-                        ? new Date(hazard.createdAt.seconds * 1000).toLocaleString()
-                        : 'N/A'}
-                    </td>
-                    <td className="p-2 border">
-                      <button
-                        onClick={() => handlePreview(hazard)}
-                        className="px-2 py-1 text-white bg-green-600 hover:bg-green-700 rounded"
-                      >
-                        Preview
-                      </button>
-                    </td>
-                    <td className="p-2 border">
-                      <button
-                        onClick={() => handleDeleteHazard(hazard)}
-                        className="text-red-600 hover:text-red-800 cursor-pointer"
-                      >
-                        <FiTrash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <HazardTable
+          loading={loading}
+          filteredHazards={filteredHazards}
+          handlePreview={handlePreview}
+          handleDeleteHazard={handleDeleteHazard}
+        />
 
         {/* Add Hazard Modal */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999]">
-            <div className="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-md">
-              <h2 className="text-xl font-bold mb-4 text-center">Add Hazard Layer</h2>
-
-              {/* Type */}
-              <label className="block text-sm font-medium mb-1">Hazard Type</label>
-              <select
-                value={hazardType}
-                onChange={(e) => setHazardType(e.target.value)}
-                className="w-full border rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">Select type</option>
-                <option value="Active Faults">Active Faults</option>
-                <option value="Landslide">Landslide</option>
-                <option value="Earthquake Induced Landslide">Earthquake Induced Landslide</option>
-                <option value="Storm Surge">Storm Surge</option>
-                <option value="Tsunami">Tsunami</option>
-                <option value="Rain Induced Landslide">Rain Induced Landslide</option>
-                <option value="Ground Shaking">Ground Shaking</option>
-                <option value="Liquefaction">Liquefaction</option>
-                <option value="Other">Other</option>
-              </select>
-
-              {/* Description */}
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full border rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Enter hazard description..."
-              />
-              {/* Info Text */}
-              <label className="block text-sm font-medium mb-1">Info Text (HTML)</label>
-              <textarea
-                value={infoText}
-                onChange={(e) => setInfoText(e.target.value)}
-                className="w-full border rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Enter info text with HTML content..."
-                rows={6}
-              />
-
-              {/* Upload */}
-              <label
-                htmlFor="hazardGeojsonUpload"
-                className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all"
-              >
-                <FiUploadCloud className="text-4xl text-green-600 mb-2" />
-                <p className="text-gray-700 font-medium">
-                  {geojsonFile ? geojsonFile.name : 'Click to upload GeoJSON file'}
-                </p>
-                <input
-                  id="hazardGeojsonUpload"
-                  type="file"
-                  accept=".geojson,application/geo+json"
-                  className="hidden"
-                  onChange={(e) => setGeojsonFile(e.target.files[0])}
-                />
-              </label>
-
-              {/* Buttons */}
-              <div className="flex justify-end gap-2 mt-6">
-                <button
-                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                  onClick={handleUploadAndSave}
-                  disabled={loadingUpload}
-                >
-                  {loadingUpload ? 'Uploading...' : 'Save'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <AddHazardModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          hazardType={hazardType}
+          setHazardType={setHazardType}
+          description={description}
+          setDescription={setDescription}
+          infoText={infoText}
+          setInfoText={setInfoText}
+          geojsonFile={geojsonFile}
+          setGeojsonFile={setGeojsonFile}
+          handleUploadAndSave={handleUploadAndSave}
+          loadingUpload={loadingUpload}
+        />
 
         {/* Preview Modal */}
-        {isPreviewOpen && selectedHazard && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg shadow-lg w-[90%] max-w-4xl p-4">
-              <div className="flex justify-between items-center border-b pb-2 mb-4">
-                <h2 className="text-lg font-bold">Preview Hazard Layer</h2>
-                <button
-                  onClick={() => setIsPreviewOpen(false)}
-                  className="text-gray-500 hover:text-gray-800"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="h-[500px] w-full">
-              <HazardMapPreview geojson={selectedHazard.geojson} />
-              </div>
-            </div>
-          </div>
-        )}
+        <HazardPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          hazard={selectedHazard}
+        />
 
       </div>
     </RoleGuard>

@@ -3,17 +3,16 @@
 
 
 :root {
-  --background: #fafafa;
+  --background: #ECFDF5; /* Tailwind green-50 */
   --foreground: #171717;
-
   --foreground-rgb: 0, 0, 0;
-
 }
+
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #ffffff;
-    --foreground: #ffffff;
+    --background: #F9FAFB;
+    --foreground: #F9FAFB;
 
     
   }
@@ -40,7 +39,8 @@
 
 
 body {
-  background: var(--background);
+  background: linear-gradient(to top, #ECFDF5, #FFFFFF);
   font-family: 'Roboto', sans-serif;
   color: rgb(var(--foreground-rgb));
+  overflow:hidden;
 }

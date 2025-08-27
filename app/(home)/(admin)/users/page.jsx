@@ -10,10 +10,11 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import { FiSearch, FiPlus, FiEdit, FiTrash2, FiX } from 'react-icons/fi';
+import { FiSearch, FiPlus } from 'react-icons/fi';
 import RoleGuard from '@/components/roleGuard';
 import { toast } from 'react-toastify';
-import { useAuth } from '@/context/authContext'; // ✅ get refreshUserData
+import UserModal from './components/UserModal';
+import UserTable from './components/UserTable';
 
 
 const UserManagementPage = () => {
@@ -30,34 +31,50 @@ const UserManagementPage = () => {
     password: '',
     contactNumber: '',
     barangay: '',
-    role: 'Secretary',
+    role: 'Brgy-Secretary',
   });
+
 
   // Loading states for different operations
   const [loading, setLoading] = useState(false); // for fetching users & editing
   const [saving, setSaving] = useState(false); // for saving user in modal
   const [loadingAddModal, setLoadingAddModal] = useState(false); // for "Add User" button
-  const { refreshUserData } = useAuth(); //
+  
 
-  // Fetch all users from Firestore (only Secretary and OfficeStaff roles)
+  
   const fetchUsers = async () => {
     try {
       setLoading(true);
       const querySnapshot = await getDocs(collection(db, 'users'));
-      const usersData = querySnapshot.docs
-        .map((docSnap) => {
-          const data = docSnap.data();
-          const fullName = [data.firstName, data.middleName, data.lastName]
-            .filter(Boolean)
-            .join(' ');
-          return {
-            id: docSnap.id,
-            ...data,
-            fullName,
-          };
-        })
-        .filter((user) => ['Secretary', 'OfficeStaff'].includes(user.role));
-
+  
+      // Use Promise.all to handle potential async operations per user
+      const usersData = await Promise.all(
+        querySnapshot.docs
+          .filter((docSnap) => {
+            const role = docSnap.data().role;
+            return ['Brgy-Secretary', 'MDRRMC-Personnel'].includes(role);
+          })
+          .map(async (docSnap) => {
+            const data = docSnap.data();
+  
+            // Build full name
+            const fullName = [data.firstName, data.middleName, data.lastName]
+              .filter(Boolean)
+              .join(' ');
+  
+            // Example async operation per user (optional)
+            // const extraDoc = await getDoc(doc(db, 'extraCollection', docSnap.id));
+            // const extraData = extraDoc.exists() ? extraDoc.data() : {};
+  
+            return {
+              id: docSnap.id,
+              ...data,
+              fullName,
+              // ...extraData
+            };
+          })
+      );
+  
       setUsers(usersData);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -66,11 +83,12 @@ const UserManagementPage = () => {
       setLoading(false);
     }
   };
-
+  
   // Load user list when component mounts
   useEffect(() => {
     fetchUsers();
   }, []);
+  
 
   // Opens edit modal and pre-fills selected user's data
   const handleEdit = (user) => {
@@ -125,7 +143,7 @@ const UserManagementPage = () => {
 
       //  Refresh lists and profile
       await fetchUsers();
-      await refreshUserData();
+      
 
       //  Reset form
       setNewUser({
@@ -136,9 +154,9 @@ const UserManagementPage = () => {
         password: '',
         contactNumber: '',
         barangay: '',
-        role: 'Secretary',
+        role: 'Brgy-Secretary',
       });
-
+      
     } catch (error) {
       console.error('Error creating user:', error);
       toast.error(error.message || 'Something went wrong.');
@@ -161,7 +179,7 @@ const UserManagementPage = () => {
       setShowModal(false);
 
       await fetchUsers();           // ✅ refresh list
-      await refreshUserData();      // ✅ refresh current user's role/profile
+      
 
     } catch (error) {
       console.error('Error updating user:', error);
@@ -180,7 +198,7 @@ const UserManagementPage = () => {
       toast.success('User deleted successfully.');
 
       await fetchUsers();           // ✅ refresh list
-      await refreshUserData();      // ✅ refresh current user's role/profile
+      
 
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -194,8 +212,8 @@ const UserManagementPage = () => {
   );
 
   return (
-    <RoleGuard allowedRoles={['SeniorAdmin']}>
-      <div className="p-4">
+    <RoleGuard allowedRoles={['MDRRMC-Admin']}>
+      <div className="p-4 bg-gradient-to-t from-green-50 to-white ">
         <div className="text-sm text-right text-gray-500 mb-2">
           Home / User Management
         </div>
@@ -257,82 +275,13 @@ const UserManagementPage = () => {
           </button>
         </div>
 
-        <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
-          {filteredUsers.length === 0 ? (
-            <div className="text-center text-gray-500 py-6">
-              {loading ? (
-                <div className="flex items-center justify-center gap-2 text-gray-500 py-6">
-                  <svg
-                    className="animate-spin h-4 w-4 text-gray-500"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-                    />
-                  </svg>
-                  Loading users...
-                </div>
-              ) : (
-                <p className="text-center text-gray-500 py-6">No users found.</p>
-              )}
-            </div>
-          ) : (
-            <table className="w-full text-sm text-center">
-              <thead className="bg-gray-100 text-gray-600">
-                <tr>
-                  <th className="p-2 border">Name</th>
-                  <th className="p-2 border">Email</th>
-                  <th className="p-2 border">Barangay</th>
-                  <th className="p-2 border">Role</th>
-                  <th className="p-2 border">Contact Number</th>
-                  <th className="p-2 border">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="p-2 border">{user.fullName || 'N/A'}</td>
-                    <td className="p-2 border">{user.email}</td>
-                    <td className="p-2 border">{user.barangay || 'N/A'}</td>
-                    <td className="p-2 border">{user.role}</td>
-                    <td className="p-2 border">{user.contactNumber}</td>
-                    <td className="p-2 border text-center">
-                      <div className="flex justify-center items-center gap-2">
-                        <button
-                          onClick={() => handleEdit(user)}
-                          className="text-blue-600 hover:text-blue-800"
-                          title="Edit"
-                        >
-                          <FiEdit size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(user.id)}
-                          className="text-red-600 hover:text-red-800"
-                          title="Delete"
-                        >
-                          <FiTrash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
+        <UserTable
+          loading={loading}
+          filteredUsers={filteredUsers}
+          handleEdit={handleEdit}
+          handleDelete={handleDelete}
+        />
+        
         {showModal && selectedUser && (
           <UserModal
             user={selectedUser}
@@ -358,181 +307,5 @@ const UserManagementPage = () => {
     </RoleGuard>
   );
 };
-
-const UserModal = ({ user, setUser, onClose, onSave, saving, mode }) => {
-  return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl relative">
-        <button
-          className="absolute top-2 right-2 text-gray-500 hover:text-black"
-          onClick={onClose}
-          aria-label="Close modal"
-        >
-          <FiX />
-        </button>
-        <h2 className="text-lg font-bold mb-4">
-          {mode === 'edit' ? 'Edit User Info' : 'Add New Secretary'}
-        </h2>
-
-        <div className="space-y-3">
-          <Input
-            label="First Name"
-            id="firstName"
-            value={user.firstName}
-            onChange={(v) => setUser((p) => ({ ...p, firstName: v }))}
-            autoComplete="given-name"
-            placeholder="Enter first name"
-            required
-          />
-          <Input
-            label="Middle Name"
-            id="middleName"
-            value={user.middleName}
-            onChange={(v) => setUser((p) => ({ ...p, middleName: v }))}
-            autoComplete="additional-name"
-            placeholder="Enter middle name"
-            required
-          />
-          <Input
-            label="Last Name"
-            id="lastName"
-            value={user.lastName}
-            onChange={(v) => setUser((p) => ({ ...p, lastName: v }))}
-            autoComplete="family-name"
-            placeholder="Enter last name"
-            required
-          />
-          <Input
-            label="Contact Number"
-            id="contactNumber"
-            value={user.contactNumber}
-            onChange={(v) => {
-              if ((v === '' || /^0\d{0,10}$/.test(v)) && v.length <= 11) {
-                setUser((p) => ({ ...p, contactNumber: v }));
-              }
-            }}
-            type="tel"
-            autoComplete="tel"
-            placeholder="Enter contact number"
-          />
-          <Input
-            label="Barangay"
-            id="barangay"
-            value={user.barangay}
-            onChange={(v) => setUser((p) => ({ ...p, barangay: v }))}
-            autoComplete="address-level3"
-            placeholder="Enter barangay"
-          />
-          <Input
-            label="Email"
-            id="email"
-            value={user.email}
-            onChange={(v) => setUser((p) => ({ ...p, email: v }))}
-            type="email"
-            autoComplete="email"
-            placeholder="Enter email address"
-            disabled={mode === 'edit'}
-            required
-          />
-
-          {mode === 'add' && (
-            <>
-              <Input
-                label="Password"
-                id="password"
-                type="password"
-                value={user.password}
-                onChange={(v) => setUser((p) => ({ ...p, password: v }))}
-                autoComplete="new-password"
-                placeholder="Enter password"
-                required
-              />
-              <div>
-                <label htmlFor="role" className="block text-sm font-medium">
-                  Role
-                </label>
-                <select
-                  id="role"
-                  value={user.role}
-                  onChange={(e) => setUser((p) => ({ ...p, role: e.target.value }))}
-                  className="w-full border rounded px-3 py-2"
-                >
-                  <option value="Secretary">Secretary</option>
-                  <option value="OfficeStaff">Office Staff</option>
-                </select>
-              </div>
-            </>
-          )}
-
-          <div className="flex justify-end gap-2 pt-4">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onSave}
-              disabled={saving}
-              className={`px-4 py-2 text-white rounded flex items-center gap-2 ${
-                saving
-                  ? 'bg-green-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700'
-              }`}
-            >
-              {saving ? (
-                <>
-                  <svg
-                    className="animate-spin h-5 w-5 text-white"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-                    />
-                  </svg>
-                  Saving...
-                </>
-              ) : (
-                'Save'
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const Input = ({ label, id, value, onChange, type = 'text', autoComplete, placeholder, disabled = false, required = false }) => (
-  <div>
-    <label htmlFor={id} className="block text-sm font-medium">
-      {label} {required && <span className="text-red-500">*</span>}
-    </label>
-    <input
-      id={id}
-      type={type}
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      disabled={disabled}
-      className={`w-full border rounded px-3 py-2 ${
-        disabled ? 'bg-gray-100 cursor-not-allowed' : ''
-      }`}
-      required={required}
-    />
-  </div>
-);
 
 export default UserManagementPage;

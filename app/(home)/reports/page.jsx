@@ -5,10 +5,10 @@ import * as turf from '@turf/turf';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 
-import PWDTable from '@/components/Tables/pwdTable';
-import SeniorTable from '@/components/Tables/seniorTable';
-import HazardTable from '@/components/Tables/hazardTable';
-import AccidentTable from '@/components/Tables/accidentTable';
+import PWDTable from '@/app/(home)/reports/components/pwdReport';
+import SeniorTable from '@/app/(home)/reports/components/seniorReport';
+import HazardTable from '@/app/(home)/reports/components/hazardReport';
+import AccidentTable from '@/app/(home)/reports/components/accidentReport';
 import RoleGuard from '@/components/roleGuard'; // ✅ Import RoleGuard
 
 const hazardTypes = [
@@ -173,7 +173,7 @@ function ReportsPageContent() {
 
 export default function ReportsPage() {
   return (
-    <RoleGuard allowedRoles={['OfficeStaff']}>
+    <RoleGuard allowedRoles={['MDRRMC-Personnel']}>
       <ReportsPageContent />
     </RoleGuard>
   );

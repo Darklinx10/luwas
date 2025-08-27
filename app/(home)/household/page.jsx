@@ -1,18 +1,19 @@
 'use client';
 
-import EditHouseholdModal from '@/components/householdComp/editHouseholModal';
 import RoleGuard from '@/components/roleGuard';
 import { auth, db } from '@/firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useState } from 'react';
-import { FaArrowRight } from 'react-icons/fa';
-import { FiEdit, FiPlus, FiSearch, FiTrash2 } from 'react-icons/fi';
+import React, { useCallback, useEffect, useState } from 'react';
+import { FiPlus, FiSearch } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import EditMemberModal from './components/edithhMemberModal';
+import EditHouseholdModal from './components/editHouseholModal';
+import HouseholdTable from './components/HouseholdTable';
 
-const MapPopup = dynamic(() => import('@/components/householdComp/mapPopUP'), { ssr: false });
+const MapPopup = dynamic(() => import('../../../components/mapPopUP'), { ssr: false });
 
 export default function HouseholdPage() {
   const router = useRouter();
@@ -122,10 +123,13 @@ export default function HouseholdPage() {
     }
   };
 
-
+  const handleCloseEditModal = useCallback(() => {
+    setEditModalOpen(false);
+  }, []); // empty array means this function is stable
+  
 
   const handleAddClick = () => {
-    router.push('/household/addHouseholdForms');
+    router.push('/household/add');
   };
 
   const openMapWithLocation = (lat, lng) => {
@@ -333,12 +337,12 @@ export default function HouseholdPage() {
   const filteredByRoleAndBarangay = React.useMemo(() => {
     if (!profile) return households;
 
-    if (profile.role === 'Secretary') {
+    if (profile.role === 'Brgy-Secretary') {
       // Show only households with the same barangay as the secretary's barangay
       return households.filter(
         (hh) => (hh.barangay || '').toLowerCase() === profile.barangay.toLowerCase()
       );
-    } else if (profile.role === 'OfficeStaff') {
+    } else if (profile.role === 'MDRRMC-Personnel') {
       // OfficeStaff sees all households, no filter
       return households;
     } else {
@@ -346,7 +350,6 @@ export default function HouseholdPage() {
       return households;
     }
   }, [households, profile]);
-
 
   const filteredHouseholds = filteredByRoleAndBarangay.filter((data) => {
     const fullName = [
@@ -360,10 +363,8 @@ export default function HouseholdPage() {
     return fullName.includes(searchTerm.toLowerCase());
   });
 
-
-
   return (
-    <RoleGuard allowedRoles={['Secretary', 'OfficeStaff']}>
+    <RoleGuard allowedRoles={['Brgy-Secretary', 'MDRRMC-Personnel']}>
       <div className="p-4">
         {/* Breadcrumb */}
         <div className="text-sm text-right text-gray-500 mb-2 print:hidden">Home / Households</div>
@@ -372,7 +373,6 @@ export default function HouseholdPage() {
           <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg print:text-black print:text-center print:font-bold print:py-2 print:rounded-none">
             Household Information (2025)
           </div>
-
 
           {/* Search and Actions (Hidden on Print) */}
           <div className="flex flex-wrap items-center justify-between bg-white shadow border-t-0 px-4 py-3 gap-2 print:hidden">
@@ -389,7 +389,7 @@ export default function HouseholdPage() {
               />
             </div>
 
-            {profile?.role === 'Secretary' && (
+            {profile?.role === 'Brgy-Secretary' && (
               <button
                 onClick={() => {
                   setLoading(true);
@@ -404,8 +404,7 @@ export default function HouseholdPage() {
               </button>
             )}
 
-
-            {profile?.role === 'OfficeStaff' && (
+            {profile?.role === 'MDRRMC-Personnel' && (
               <div className="flex gap-2">
                 <button
                   onClick={() => {
@@ -434,381 +433,47 @@ export default function HouseholdPage() {
             )}
 
           </div>
-
-          <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
-            {loading ? (
-              <div className="flex items-center justify-center py-10">
-                <div className="flex flex-col items-center">
-                  <svg
-                    className="animate-spin h-10 w-10 text-green-500 mb-3"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                  <p className="text-gray-600 text-sm">Loading household records...</p>
-                </div>
-              </div>
-            ) : households.length === 0 ? (
-              <p className="text-center text-gray-500 py-6">No results matched your search.</p>
-            ) : filteredHouseholds.length === 0 ? (
-              <p className="text-center text-gray-500 py-6">No household records found.</p>
-            ) : (
-              <>
-                <table className="w-full text-sm text-center print:text-xs print:border print:border-gray-400">
-                  <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
-                    <tr>
-                      <th className="p-2 border print:hidden"></th>
-                      <th className="p-2 border">Family Head</th>
-                      <th className="p-2 border">Barangay</th>
-                      <th className="p-2 border">Sex</th>
-                      <th className="p-2 border">Contact Number</th>
-                      <th className="p-2 border">Age</th>
-                      <th className="p-2 border print:hidden">Map</th>
-                      <th className="p-2 border print:hidden">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...filteredHouseholds]
-                      .sort((a, b) =>
-                        [a.headFirstName, a.headMiddleName, a.headLastName]
-                          .join(' ')
-                          .localeCompare([b.headFirstName, b.headMiddleName, b.headLastName].join(' '))
-                      )
-                      .map((data) => {
-                        const fullName = [
-                          data.headFirstName,
-                          data.headMiddleName,
-                          data.headLastName,
-                          data.headSuffix !== 'n/a' ? data.headSuffix : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ');
-
-                        const isExpanded = expandedHouseholds[data.householdId];
-                        const members = membersData[data.householdId] || [];
-
-                        return (
-                          <React.Fragment key={data.householdId}>
-                            <tr className="hover:bg-gray-50">
-                              <td className="p-2 border text-center print:hidden">
-                                <button onClick={() => toggleExpanded(data.householdId)} title="View Members">
-                                  <FaArrowRight
-                                    className={`text-green-600 inline transition-transform duration-200 cursor-pointer ${
-                                      isExpanded ? 'rotate-90' : ''
-                                    }`}
-                                  />
-                                </button>
-                              </td>
-                              <td className="p-2 border">{fullName || '-'}</td>
-                              <td className="p-2 border">{data.barangay || '-'}</td>
-                              <td className="p-2 border">{data.headSex || '-'}</td>
-                              <td className="p-2 border">{data.contactNumber || '-'}</td>
-                              <td className="p-2 border">{data.headAge || '-'}</td>
-                              <td className="p-2 border print:hidden">
-                                <button
-                                  onClick={() => openMapWithLocation(data.latitude, data.longitude)}
-                                  className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 cursor-pointer"
-                                >
-                                  Map
-                                </button>
-                              </td>
-                              <td className="p-2 border space-x-2 print:hidden">
-                                <button
-                                  onClick={() => {
-                                    setSelectedHouseholdId(data.householdId);
-                                    setEditModalOpen(true);
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                                  title="Edit"
-                                >
-                                  <FiEdit />
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    const confirmed = confirm('Are you sure you want to delete this household?');
-                                    if (!confirmed) return;
-
-                                    setLoading(true);
-                                    try {
-                                      const docRef = doc(db, 'households', data.householdId);
-                                      await deleteDoc(docRef);
-                                      await fetchHouseholds();
-                                      toast.success('Household deleted successfully.');
-                                    } catch (error) {
-                                      console.error('Error deleting household:', error);
-                                      toast.error('Failed to delete household.');
-                                    } finally {
-                                      setLoading(false);
-                                    }
-                                  }}
-                                  disabled={loading}
-                                  className={`text-red-600 hover:text-red-800 cursor-pointer ${
-                                    loading ? 'opacity-50 cursor-not-allowed' : ''
-                                  }`}
-                                  title="Delete"
-                                >
-                                  {loading ? 'Deleting...' : <FiTrash2 />}
-                                </button>
-                              </td>
-                            </tr>
-
-                            {/* Member list row */}
-                            {isExpanded && (
-                              <tr>
-                                <td colSpan="8" className="p-4 border bg-gray-50 text-left text-sm">
-                                  <strong>Household Members:</strong>
-
-                                  {loadingMembers[data.householdId] ? (
-                                    <p className="text-gray-500 mt-1 animate-pulse">Loading household members...</p>
-                                  ) : members.length === 0 ? (
-                                    <p className="text-gray-500 mt-1">No household members found...</p>
-                                  ) : members.filter(
-                                      (m) =>
-                                        (m.relationshipToHead || m.nuclearRelation || '').toLowerCase() !== 'head'
-                                    ).length === 0 ? (
-                                    <p className="text-gray-500 mt-1">No members found...</p>
-                                  ) : (
-                                    <div className="mt-2 overflow-x-auto">
-                                      <table className="w-full text-center text-sm border border-collapse">
-                                        <thead>
-                                          <tr className="bg-gray-100 text-gray-600">
-                                            <th className="p-2 border">Name</th>
-                                            <th className="p-2 border">Relation</th>
-                                            <th className="p-2 border">Age</th>
-                                            <th className="p-2 border">Contact Number</th>
-                                            <th className="p-2 border text-center">Actions</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {members
-                                            .filter(
-                                              (m) =>
-                                                (m.relationshipToHead || m.nuclearRelation || '').toLowerCase() !== 'head'
-                                            )
-                                            .map((m) => {
-                                              const name = [m.firstName,m.middleName, m.lastName].filter(Boolean).join(' ');
-                                              const rawRelation = m.nuclearRelation || m.relationshipToHead || 'Unspecified';
-                                              const relationLabel = rawRelation.includes(' - ')
-                                                ? rawRelation.split(' - ')[1].trim()
-                                                : rawRelation.trim();
-                                              const ageStr = m.age ? `${m.age} ` : 'N/A';
-                                              const contactNumber = m.contactNumber;
-
-                                              return (
-                                                <tr key={m.id} className="hover:bg-gray-100">
-                                                  <td className="p-2 border">{name || 'Unnamed'}</td>
-                                                  <td className="p-2 border">{relationLabel}</td>
-                                                  <td className="p-2 border">{ageStr}</td>
-                                                  <td className="p-2 border">{contactNumber}</td>
-                                                  <td className="p-2 border text-center space-x-2">
-                                                    <button
-                                                      onClick={() => handleEditMember(m, data.householdId)}
-                                                      className="text-blue-600 hover:text-blue-800"
-                                                      title="Edit"
-                                                    >
-                                                      <FiEdit />
-                                                    </button>
-
-                                                    <button
-                                                      onClick={() => handleDeleteMember(m.id)}
-                                                      className="text-red-600 hover:text-red-800"
-                                                      title="Delete"
-                                                    >
-                                                      <FiTrash2 />
-                                                    </button>
-                                                  </td>
-                                                </tr>
-                                              );
-                                            })}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  )}
-                                </td>
-                              </tr>
-                            )}
-
-                          </React.Fragment>
-                        );
-                      })}
-                  </tbody>
-                </table>
-
-                {isEditModalOpen && selectedMember && (
-                    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
-                      <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 w-[90%] max-w-lg">
-                        <h2 className="text-xl font-bold text-gray-800 mb-6">Edit Member Information</h2>
-
-                        <div className="space-y-4">
-                          {/* First Name */}
-                          <div>
-                            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                              First Name
-                            </label>
-                            <input
-                              id="firstName"
-                              name="firstName"
-                              value={selectedMember.firstName || ''}
-                              onChange={handleEditFieldChange}
-                              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                          </div>
-
-                          {/* Last Name */}
-                          <div>
-                            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                              Last Name
-                            </label>
-                            <input
-                              id="lastName"
-                              name="lastName"
-                              value={selectedMember.lastName || ''}
-                              onChange={handleEditFieldChange}
-                              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                          </div>
-
-                          <div>
-                            <label htmlFor="middleName" className="block text-sm font-medium text-gray-700 mb-1">
-                              Middle Name
-                            </label>
-                            <input
-                              type="text"
-                              name="middleName"
-                              value={selectedMember.middleName || ''}
-                              onChange={handleEditFieldChange}
-                              placeholder="Middle Name"
-                              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                          </div> 
-
-
-                          {/* Age */}
-                          <div>
-                            <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1">
-                              Age
-                            </label>
-                            <input
-                              id="age"
-                              name="age"
-                              type="number"
-                              value={selectedMember.age || ''}
-                              readOnly
-                              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                          </div>
-
-                          {/* Contact Number - NEW */}
-                          <div>
-                            <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                              Contact Number
-                            </label>
-                            <input
-                              id="contactNumber"
-                              name="contactNumber"
-                              type="tel"
-                              value={selectedMember.contactNumber || ''}
-                              onChange={handleEditFieldChange}
-                              placeholder="e.g. 0917XXXXXXX"
-                              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-
-                          {/* Relation to Head */}
-                          <div>
-                            <label htmlFor="nuclearRelation" className="block text-sm font-medium text-gray-700 mb-1">
-                              Relation to Head
-                            </label>
-                            <select
-                              name="nuclearRelation"
-                              value={mapRelationToCategory(selectedMember.nuclearRelation || selectedMember.relationshipToHead)}
-                              onChange={handleEditFieldChange}
-                              className="w-full border rounded px-3 py-2"
-                            >
-                              <option value="" disabled>Select relation</option>
-                              <option value="Head">Head</option>
-                              <option value="Spouse">Spouse</option>
-                              <option value="Partner">Partner</option>
-                              <option value="Child">Child</option>
-                              <option value="Parent">Parent</option>
-                              <option value="Sibling">Sibling</option>
-                              <option value="Relative">Relative</option>
-                              <option value="Other">Other</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Buttons */}
-                        <div className="mt-6 flex justify-end gap-3">
-                          <button
-                            onClick={() => setIsEditModalOpen(false)}
-                            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 transition"
-                          >
-                            Cancel
-                          </button>
-
-                          <button
-                            onClick={handleSaveEdit}
-                            disabled={updating}
-                            className={`px-4 py-2 rounded-lg text-white transition flex justify-center items-center gap-2 ${
-                              updating ? 'bg-green-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500'
-                            }`}
-                          >
-                            {updating ? (
-                              <>
-                                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
-                                  <circle
-                                    className="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                    fill="none"
-                                  />
-                                  <path
-                                    className="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-                                  />
-                                </svg>
-                                Updating...
-                              </>
-                            ) : (
-                              'Save'
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                          
-                {/* Totals */}
-                <div className="flex justify-start items-center mt-4 text-sm text-gray-700 space-x-6 print:hidden">
-                  <div>
-                    <strong>Total Households:</strong> {totalHouseholds}
-                  </div>
-                  <div>
-                    <strong>Total Residents:</strong> {totalResidents}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div> 
+          <HouseholdTable
+            loading={loading}
+            households={households}
+            filteredHouseholds={filteredHouseholds}
+            expandedHouseholds={expandedHouseholds}
+            membersData={membersData}
+            toggleExpanded={toggleExpanded}
+            openMapWithLocation={openMapWithLocation}
+            setSelectedHouseholdId={setSelectedHouseholdId}
+            setEditModalOpen={setEditModalOpen}
+            fetchHouseholds={fetchHouseholds}
+            totalHouseholds={totalHouseholds}
+            totalResidents={totalResidents}
+            handleEditMember={handleEditMember}
+            handleDeleteMember={handleDeleteMember}
+            loadingMembers={loadingMembers}
+            db={db}
+            deleteDoc={deleteDoc}
+            doc={doc}
+            toast={toast}
+            setLoading={setLoading}
+          />
+        </div>
 
         {/* Modals */}
+        <EditMemberModal
+          isOpen={isEditModalOpen}
+          member={selectedMember}
+          onClose={() => setIsEditModalOpen(false)}
+          onChange={handleEditFieldChange}
+          onSave={handleSaveEdit}
+          updating={updating}
+          mapRelationToCategory={mapRelationToCategory}
+        />
+
         <EditHouseholdModal
           open={editModalOpen}
-          onClose={() => setEditModalOpen(false)}
+          onClose={handleCloseEditModal}
           householdId={selectedHouseholdId}
           onUpdated={fetchHouseholds} // ✅ This triggers refresh after update
         />
-
 
         <MapPopup
           isOpen={mapOpen}

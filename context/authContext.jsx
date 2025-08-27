@@ -69,16 +69,10 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  // 🔹 Public method to manually refresh
-  const refreshUserData = async () => {
-    if (auth.currentUser) {
-      setLoading(true);
-      await loadUserData(auth.currentUser);
-    }
-  };
+  
 
   return (
-    <AuthContext.Provider value={{ profile, setProfile, user, setUser, role, setRole, loading, refreshUserData }}>
+    <AuthContext.Provider value={{ profile, setProfile, user, setUser, role, setRole, loading}}>
       {children}
     </AuthContext.Provider>
   );

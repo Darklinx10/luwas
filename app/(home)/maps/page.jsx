@@ -5,11 +5,11 @@
 import dynamic from 'next/dynamic';
 import RoleGuard from '@/components/roleGuard';
 
-const OSMMap = dynamic(() => import('@/components/map/OSMMap'), { ssr: false });
+const OSMMap = dynamic(() => import('./components/OSMMap'), { ssr: false });
 
 export default function MapPage() {
   return (
-    <RoleGuard allowedRoles={['SeniorAdmin', 'OfficeStaff']}>
+    <RoleGuard allowedRoles={['MDRRMC-Admin', 'MDRRMC-Personnel']}>
       <div className="p-4">
         <OSMMap />
       </div>
