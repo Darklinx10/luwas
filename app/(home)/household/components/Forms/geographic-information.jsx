@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { toast } from 'react-toastify';
 
 // Dynamically import the Map component (client-side only)
-const MapPopup = dynamic(() => import('@/components/components/mapPopUP'), { ssr: false });
+const MapPopup = dynamic(() => import('@/components/mapPopUP'), { ssr: false });
 
 // Maps input field names to autocomplete hints
 const autocompleteMap = {
@@ -152,15 +152,12 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     }
   };
 
-  
   // Dynamic dropdowns
-  const selectedRegion = geoData.regions.find(r => r.code === form.region);
+  const selectedRegion = geoData.regions.find(r => r.name === form.region);
   const provinceOptions = selectedRegion?.provinces || [];
 
-  // Declare selectedProvince first
-  const selectedProvince = provinceOptions.find(p => p.code === form.province);
+  const selectedProvince = provinceOptions.find(p => p.name === form.province);
 
-  // Cities under the selected province OR directly under the region if no province
   let cityOptions = [];
   if (selectedProvince?.cities?.length) {
     cityOptions = selectedProvince.cities;
@@ -168,10 +165,8 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     cityOptions = selectedRegion.cities;
   }
 
-  // Selected city and barangays
-  const selectedCity = cityOptions.find(c => c.code === form.city);
+  const selectedCity = cityOptions.find(c => c.name === form.city);
   const barangayOptions = selectedCity?.barangays || [];
-
 
   return (
     <form onSubmit={handleSubmit} className="pr-2 space-y-6">
@@ -188,7 +183,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
           >
             <option value="">Select Region</option>
             {geoData.regions.map(region => (
-              <option key={region.code} value={region.code}>{region.name}</option>
+              <option key={region.name} value={region.name}>{region.name}</option>
             ))}
           </select>
         </RequiredField>
@@ -204,7 +199,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
           >
             <option value="">Select Province</option>
             {provinceOptions.map(prov => (
-              <option key={prov.code} value={prov.code}>{prov.name}</option>
+              <option key={prov.name} value={prov.name}>{prov.name}</option>
             ))}
           </select>
         </RequiredField>
@@ -216,10 +211,11 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             value={form.city}
             onChange={handleChange}
             className="border p-2 rounded w-full"
-            disabled={!(selectedProvince || (selectedRegion && selectedRegion.cities?.length))}          >
+            disabled={!(selectedProvince || (selectedRegion && selectedRegion.cities?.length))}
+          >
             <option value="">Select City / Municipality</option>
             {cityOptions.map(city => (
-              <option key={city.code} value={city.code}>{city.name}</option>
+              <option key={city.name} value={city.name}>{city.name}</option>
             ))}
           </select>
         </RequiredField>
@@ -235,7 +231,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
           >
             <option value="">Select Barangay</option>
             {barangayOptions.map(bgy => (
-              <option key={bgy.code} value={bgy.code}>{bgy.name}</option>
+              <option key={bgy.name} value={bgy.name}>{bgy.name}</option>
             ))}
           </select>
         </RequiredField>

@@ -65,20 +65,24 @@ export default function AgeBracketChart() {
         await Promise.all(
           householdSnapshot.docs.map(async (householdDoc) => {
             const householdId = householdDoc.id;
-
+            const countedHeads = new Set(); // Track already-counted heads
+        
             const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
             const membersRef = collection(db, 'households', householdId, 'members');
-
-            const [geoSnap, membersSnap] = await Promise.all([
-              getDoc(geoRef),
-              getDocs(membersRef),
-            ]);
-
+        
+            const [geoSnap, membersSnap] = await Promise.all([getDoc(geoRef), getDocs(membersRef)]);
+        
+            // Count the head from geographicIdentification
             if (geoSnap.exists()) {
               const geoData = geoSnap.data();
-              countAge(geoData.headAge);
+              const headKey = `${geoData.headFirstName}-${geoData.headLastName}-${geoData.headSuffix || ''}`;
+              if (!countedHeads.has(headKey)) {
+                countAge(geoData.headAge);
+                countedHeads.add(headKey);
+              }
             }
-
+        
+            // Count members but skip if already counted as head
             await Promise.all(
               membersSnap.docs.map(async (memberDoc) => {
                 const demoRef = doc(
@@ -90,17 +94,22 @@ export default function AgeBracketChart() {
                   'demographicCharacteristics',
                   'main'
                 );
-
                 const demoSnap = await getDoc(demoRef);
-
+        
                 if (demoSnap.exists()) {
                   const demoData = demoSnap.data();
-                  countAge(demoData.age);
+                  const memberKey = `${demoData.firstName}-${demoData.lastName}-${demoData.suffix || ''}`;
+        
+                  if (!countedHeads.has(memberKey)) {
+                    countAge(demoData.age);
+                    countedHeads.add(memberKey);
+                  }
                 }
               })
             );
           })
         );
+        
 
         const formatted = Object.entries(ageCounts).map(([age, count]) => ({ age, count }));
         setAgeData(formatted);

@@ -1,7 +1,7 @@
 'use client';
 
-import { formatSusceptibility } from '@/components/susceptibility';
 import { capitalizeWords } from '@/utils/capitalize';
+import { formatSusceptibility } from '@/utils/susceptibility';
 import { useMemo, useState } from 'react';
 import { FiSearch } from 'react-icons/fi';
 

@@ -425,7 +425,7 @@ export default function WaterSanitationForm({ householdId, goToNext }) {
         <option value="">-- Select --</option>
         <option value="YES">YES</option>
         <option value="NO">NO</option>
-        <option value="DON'T KNOW">DON'T KNOW</option>
+        <option value="DON'T KNOW">DONT KNOW</option>
       </select>
     </label>
 
@@ -471,7 +471,7 @@ export default function WaterSanitationForm({ householdId, goToNext }) {
         <option value="">-- Select --</option>
         <option value="YES">YES</option>
         <option value="NO">NO</option>
-        <option value="DON'T KNOW">DON'T KNOW</option>
+        <option value="DON'T KNOW">DONT KNOW</option>
       </select>
     </label>
 
@@ -529,8 +529,8 @@ export default function WaterSanitationForm({ householdId, goToNext }) {
 
     {/* Q23 - Other Handwashing Location */}
     <label htmlFor='otherHandwashLocation' className="block">
-      If "Other", specify:
-      <input 
+      If &quot;Other&quot;, specify:
+    <input 
         id='otherHandwashLocation'
         name='otherHandwashLocation'
         className="w-full border p-2 rounded" 

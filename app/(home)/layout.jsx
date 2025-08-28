@@ -14,7 +14,7 @@ export default function DashboardLayout({ children }) {
   const userRole = profile?.role;
 
   return (
-    <div className="flex">
+    <div className="flex h-screen">
       {/* Sidebar */}
       <div
         className={`transition-transform duration-300 ease-in-out
@@ -37,13 +37,9 @@ export default function DashboardLayout({ children }) {
         <Topbar toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
 
         {/* Main content */}
-        <main className="flex-1 bg-gradient-to-t from-green-50 to-white p-6">
+        <main className="flex-1 bg-gradient-to-t from-green-50 to-white p-6 overflow-y-auto">
           {children}
         </main>
-
-        <footer className="w-full">
-          <Footer />
-        </footer>
       </div>
     </div>
   );

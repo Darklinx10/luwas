@@ -3,9 +3,15 @@
 import { db } from '@/firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
-import { normalizeSusceptibility } from '../../../../../components/susceptibility';
-import { fetchHazardFromFirebase } from './utils/fetchHazards';
+import { normalizeSusceptibility } from '@/utils/susceptibility';
+import { fetchHazardFromFirebase } from '@/utils/fetchHazards';
 import dynamic from 'next/dynamic';
+import {
+  styleBySusceptibility,
+  stormSurgeStyle,
+  tsunamiStyle,
+  groundShakingStyle,
+} from '@/utils/hazardStyles';
 
 const L = typeof window !== 'undefined' ? require('leaflet') : null;
 if (typeof window !== 'undefined') {
@@ -23,6 +29,14 @@ const GeoJSON = dynamic(
   () => import("react-leaflet").then(mod => mod.GeoJSON),
   { ssr: false }
 );
+
+// ✅ Place it here, before your component
+const detectHazardType = (properties) => {
+  if (properties.Inundiation) return 'stormSurge';
+  if (properties.descrption) return 'tsunami';
+  if (properties.Intensity) return 'groundShaking';
+  return undefined;
+};
 
 export default function HazardMapPreview({
   hazardType,
@@ -74,19 +88,8 @@ export default function HazardMapPreview({
     if (bounds && bounds.isValid()) mapRef.current.fitBounds(bounds);
   }, [hazardGeoJSON, boundaryGeoJSON]);
 
-  const styleBySusceptibility = (value) => {
-    let fillColor = '#ccc', fillOpacity = 0.7;
-    switch (value) {
-      case 'High Susceptibility':
-      case 'Highly Susceptible': fillColor = '#ef4444'; break;
-      case 'Moderate Susceptibility':
-      case 'Moderately Susceptible': fillColor = '#7e22ce'; break;
-      case 'Low Susceptibility':
-      case 'Least Susceptible': fillColor = '#facc15'; break;
-      case 'Generally Susceptible': fillColor = '#fb923c'; break;
-    }
-    return { color: '#555', weight: 0.5, fillOpacity, fillColor };
-  };
+  
+
 
   return (
     <MapContainer
@@ -103,17 +106,34 @@ export default function HazardMapPreview({
       {hazardGeoJSON && (
         <GeoJSON
           data={hazardGeoJSON}
-          style={(feature) =>
-            styleBySusceptibility(
-              normalizeSusceptibility(
-                feature.properties?.Susciptibi ??
-                feature.properties?.Susceptibility ??
-                feature.properties?.Risk ??
-                feature.properties?.HazardLevel
-              )
-            )
-          }
+          style={(feature) => {
+            const featureHazardType = hazardType || detectHazardType(feature.properties);
+
+            switch (featureHazardType) {
+              case 'stormSurge':
+                return stormSurgeStyle(feature);
+              case 'tsunami':
+                return tsunamiStyle(feature);
+              case 'groundShaking':
+                return groundShakingStyle(feature);
+              default:
+                const normalizedSus = normalizeSusceptibility(
+                  feature.properties?.Susceptibility ??
+                  feature.properties?.Susciptibi ??
+                  feature.properties?.Risk ??
+                  feature.properties?.HazardLevel ??
+                  feature.properties?.Inundiation ??
+                  feature.properties?.Intensity ??
+                  feature.properties?.descrption ??
+                  'Unknown'
+                );
+                console.log("✅ Normalized susceptibility:", normalizedSus);
+                return styleBySusceptibility(normalizedSus);
+            }
+          }}
         />
+
+
       )}
 
       {boundaryGeoJSON && (

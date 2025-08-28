@@ -548,7 +548,7 @@ export default function Agriculture({ householdId, goToNext }) {
       {/* Per-member subform */}
       {(form.engagedMembers || []).map((member) => (
         <div key={member} className="border p-4 mt-4 rounded bg-gray-50">
-          <h3 className="font-semibold text-green-700 mb-2">{member}'s Agricultural Activities</h3>
+          <h3 className="font-semibold text-green-700 mb-2">{member}&apos;s Agricultural Activities</h3>
 
           {/* Question #12 */}
           <div className="space-y-0">
@@ -952,7 +952,7 @@ export default function Agriculture({ householdId, goToNext }) {
 
           {/* Q24 */}
           <section>
-            <h3 className="mt-8">Did Your Household's Harvest Decrease, Increase, or Stay the Same?</h3>
+            <h3 className="mt-8">Did Your Household&apos;s Harvest Decrease, Increase, or Stay the Same?</h3>
             <select
               id="cropChange"
               name="cropChange"

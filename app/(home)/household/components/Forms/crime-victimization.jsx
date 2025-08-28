@@ -165,7 +165,7 @@ export default function CrimeVictimizationForm({ householdId, goToNext }) {
             <option value="SAFE">SAFE</option>
             <option value="SOMEWHAT UNSAFE">SOMEWHAT UNSAFE</option>
             <option value="UNSAFE">UNSAFE</option>
-            <option value="DON'T KNOW">DON'T KNOW</option>
+            <option value="DON'T KNOW">DONT KNOW</option>
           </select>
         </label>
 

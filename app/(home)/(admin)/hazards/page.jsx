@@ -1,8 +1,5 @@
 'use client';
 
-import AddHazardModal from './components/AddHazardModal';
-import HazardPreviewModal from './components/HazardPreviewModal';
-import HazardTable from './components/HazardTable';
 import RoleGuard from '@/components/roleGuard';
 import { db, storage } from '@/firebase/config';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp } from 'firebase/firestore';
@@ -10,6 +7,10 @@ import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { useEffect, useState } from 'react';
 import { FiPlus, FiSearch } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import AddHazardModal from './components/AddHazardModal';
+import HazardPreviewModal from './components/HazardPreviewModal';
+import HazardTable from './components/HazardTable';
+import { reprojectGeoJSON } from '@/utils/geoJsonProjection';
 
 export default function HazardsPage() {
   const [hazards, setHazards] = useState([]);
@@ -65,6 +66,12 @@ const handlePreview = async (hazard) => {
 };
 
   // Save hazard: upload GeoJSON to Storage and store metadata in Firestore
+
+
+
+  
+
+  
   const handleUploadAndSave = async () => {
     if (!hazardType || !description || !geojsonFile) {
       toast.error('Please fill all fields and select a GeoJSON file.');
@@ -72,14 +79,18 @@ const handlePreview = async (hazard) => {
     }
   
     setLoadingUpload(true);
+  
     try {
       // 1️⃣ Read GeoJSON content
       const content = await geojsonFile.text();
-      const geojson = JSON.parse(content);
+      let geojson = JSON.parse(content);
   
       if (!geojson.type || (geojson.type !== 'FeatureCollection' && geojson.type !== 'Feature')) {
         throw new Error('Invalid GeoJSON structure');
       }
+  
+      // 1.5️⃣ Reproject GeoJSON
+      geojson = reprojectGeoJSON(geojson);
   
       // 2️⃣ Upload to Firebase Storage
       const safeFileName = geojsonFile.name.replace(/\s+/g, '_');
@@ -88,7 +99,7 @@ const handlePreview = async (hazard) => {
       await uploadBytes(storageRef, blob);
       const downloadURL = await getDownloadURL(storageRef);
   
-      // 3️⃣ Save raw GeoJSON + metadata in hazardFiles (Firestore)
+      // 3️⃣ Save raw GeoJSON + metadata in hazardFiles
       const hazardFileRef = await addDoc(
         collection(db, 'hazards', hazardType, 'hazardFiles'),
         {
@@ -110,15 +121,15 @@ const handlePreview = async (hazard) => {
         }
       );
   
-      // 5️⃣ UI Updates
-      toast.success('Hazard uploaded and saved successfully!');
+      // 5️⃣ UI updates
+      toast.success('Hazard uploaded, reprojected, and saved successfully!');
       setHazardType('');
       setDescription('');
       setInfoText('');
       setGeojsonFile(null);
       setIsModalOpen(false);
   
-      fetchHazards(); // Refresh list after upload
+      fetchHazards(); // Refresh list
   
     } catch (error) {
       console.error(error);
@@ -127,6 +138,8 @@ const handlePreview = async (hazard) => {
       setLoadingUpload(false);
     }
   };
+  
+  
   
   // Fetch all hazards (by type)
   const fetchHazards = async () => {

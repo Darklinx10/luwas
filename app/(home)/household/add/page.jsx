@@ -181,7 +181,7 @@ function AddHouseholdFormPage() {
   }
 
   if (!user || !userData) {
-    return <div className="p-6 text-red-500">❌ Unable to load form. Make sure you're logged in.</div>;
+    return <div className="p-6 text-red-500">❌ Unable to load form. Make sure you&apos;re logged in.</div>;
   }
 
   if (!householdId) {

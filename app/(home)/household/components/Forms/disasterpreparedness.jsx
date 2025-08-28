@@ -254,7 +254,7 @@ export default function DisasterRiskForm({ householdId, goToNext }) {
           <option>-- Select --</option>
           <option>NO</option>
           <option>YES</option>
-          <option>DON'T KNOW</option>
+          <option>DONT KNOW</option>
         </select>
       </label>
 

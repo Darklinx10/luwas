@@ -355,7 +355,7 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
                 {['rightToSell', 'rightToBequeath'].includes(field.name) && (
                   <>
                     <option>Yes, jointly</option>
-                    <option>Don't know</option>
+                    <option>Dont know</option>
                     <option>Prefer not to answer</option>
                   </>
                 )}
@@ -397,7 +397,7 @@ export default function EconomicCharacteristics({ householdId, members, goToNext
               Saving...
             </>
           ) : (
-            <>Save & Continue &gt;</>
+            <>Save &amp; Continue &gt;</>
           )}
         </button>
       </div>

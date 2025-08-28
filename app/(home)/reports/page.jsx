@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { db } from '@/firebase/config';
 import * as turf from '@turf/turf';
 import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { useEffect, useState } from 'react';
 
+import AccidentTable from '@/app/(home)/reports/components/accidentReport';
+import HazardTable from '@/app/(home)/reports/components/hazardReport';
 import PWDTable from '@/app/(home)/reports/components/pwdReport';
 import SeniorTable from '@/app/(home)/reports/components/seniorReport';
-import HazardTable from '@/app/(home)/reports/components/hazardReport';
-import AccidentTable from '@/app/(home)/reports/components/accidentReport';
 import RoleGuard from '@/components/roleGuard'; // ✅ Import RoleGuard
+import { fetchHazardFromFirebase } from "@/utils/fetchHazards";
 
 const hazardTypes = [
   'Active Faults',
@@ -22,16 +23,7 @@ const hazardTypes = [
   'Landslide',
 ];
 
-const geoJsonFileMap = {
-  'Tsunami': '/data/Clarin_Tsunami_converted.geojson',
-  'Storm Surge': '/data/Clarin_StormSurge_converted.geojson',
-  'Rain Induced Landslide': '/data/Clarin_RIL_converted.geojson',
-  'Liquefaction': '/data/Clarin_Liquefaction_converted.geojson',
-  'Earthquake Induced Landslide': '/data/Clarin_EIL_converted.geojson',
-  'Active Faults': '/data/FaultLine.geojson',
-  'Ground Shaking': '/data/Clarin_GS_converted.geojson',
-  'Landslide': '/data/Clarin_Landslide.geojson',
-};
+
 
 const reportData = {};
 
@@ -56,9 +48,8 @@ function ReportsPageContent() {
 
       setLoading(true);
       try {
-        const geoJsonFile = geoJsonFileMap[selectedReport];
-        const res = await fetch(geoJsonFile);
-        const geojson = await res.json();
+        const geojson = await fetchHazardFromFirebase(selectedReport);
+
 
         const householdsSnap = await getDocs(collection(db, 'households'));
         const households = [];
@@ -85,19 +76,43 @@ function ReportsPageContent() {
 
         households.forEach((h) => {
           const point = turf.point([h.location.lng, h.location.lat]);
-
+        
           for (const feature of geojson.features) {
             const polygon = turf.feature(feature.geometry);
+        
             if (turf.booleanPointInPolygon(point, polygon)) {
+              const properties = feature.properties || {};
+        
+              // Extract relevant properties
+              const susceptibility = properties.Susciptibi || properties.Susceptibility || 'Unknown';
+              const risk = properties.Risk || 'Unknown';
+              const description = properties.descrption || properties.Description || '';
+              const intensity = properties.Intensity ?? 0;
+              const inundation = properties.Inundation || properties.Inundiation || '';
+        
+              // Determine style based on available properties
+              let style = { color: '#ccc', weight: 0.5, fillOpacity: 0.7, fillColor: '#ccc' };
+        
+              if (intensity) {
+                style = groundShakingStyle(feature);
+              } else if (inundation) {
+                style = stormSurgeStyle(feature);
+              } else if (description) {
+                style = tsunamiStyle(feature);
+              }
+        
               affected.push({
                 ...h,
-                susceptibility: feature.properties?.Susciptibi || 'Unknown',
-                risk: feature.properties?.Risk || 'Unknown',
+                susceptibility,
+                risk,
+                style,
               });
-              break;
+        
+              break; // stop checking other features once matched
             }
           }
         });
+        
 
         setAffectedHouseholds(affected);
       } catch (err) {
