@@ -54,17 +54,16 @@ function DashboardPage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        console.warn('🚫 Not authenticated, redirecting to login...');
         router.push('/login');
         return;
       }
-
+  
       try {
         const [householdSnap, accidentsSnap] = await Promise.all([
           getDocs(collection(db, 'households')),
           getDocs(collection(db, 'accidents')),
         ]);
-
+  
         let residentCount = 0;
         let householdHeads = 0;
         let householdMembers = 0;
@@ -72,50 +71,32 @@ function DashboardPage() {
         let seniorCount = 0;
         let ageCount = 0;
         let actualHouseholds = 0;
-
+  
         await Promise.all(
           householdSnap.docs.map(async (householdDoc) => {
             const householdId = householdDoc.id;
-
-            const geoDocRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-            const geoSnapPromise = getDoc(geoDocRef);
-            const membersSnapPromise = getDocs(collection(db, 'households', householdId, 'members'));
-            const healthSnapPromise = getDocs(collection(db, 'households', householdId, 'health'));
-            const mainHealthDocPromise = getDoc(doc(db, 'households', householdId, 'health', 'main'));
-
-            const [geoSnap, membersSnap, healthSnap, mainHealthDoc] = await Promise.all([
-              geoSnapPromise,
-              membersSnapPromise,
-              healthSnapPromise,
-              mainHealthDocPromise,
-            ]);
-
-            const geoData = geoSnap.exists() ? geoSnap.data() : {};
-            const headAge = parseInt(geoData.headAge);
-
-            // Only count as valid household if there's a valid headAge
-            if (!isNaN(headAge)) {
-              actualHouseholds++;
-              householdHeads++;
-              ageCount += headAge;
-            }
-
+  
+            const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
+            const healthSnap = await getDocs(collection(db, 'households', householdId, 'health'));
+            const mainHealthDoc = await getDoc(doc(db, 'households', householdId, 'health', 'main'));
+  
             const healthMap = new Map(healthSnap.docs.map((h) => [h.id, h.data()]));
-
-            if (mainHealthDoc.exists()) {
-              const mainHealth = mainHealthDoc.data();
-              if (mainHealth?.isPWD === true) pwdCount++;
+  
+            // Count household if it has members
+            if (!membersSnap.empty) {
+              actualHouseholds++;
+              householdHeads++; // optional, if you still want to count heads
             }
-
+  
             residentCount += membersSnap.size;
             householdMembers += membersSnap.size;
-
+  
             const demoSnaps = await Promise.all(
               membersSnap.docs.map((memberDoc) =>
                 getDoc(doc(db, 'households', householdId, 'members', memberDoc.id, 'demographicCharacteristics', 'main'))
               )
             );
-
+  
             demoSnaps.forEach((demoSnap, idx) => {
               if (demoSnap.exists()) {
                 const demo = demoSnap.data();
@@ -124,56 +105,63 @@ function DashboardPage() {
                   ageCount += age;
                   if (age >= 60) seniorCount++;
                 }
-
+  
                 const health = healthMap.get(membersSnap.docs[idx].id);
                 if (health?.isPWD === true) pwdCount++;
               }
             });
+  
+            // Check main health doc for PWD
+            if (mainHealthDoc.exists()) {
+              const mainHealth = mainHealthDoc.data();
+              if (mainHealth?.isPWD === true) pwdCount++;
+            }
           })
         );
-        
-        // ✅ Calculate total hazards dynamically
-      const hazardTypes = [
-        "Active Faults",
-        "Earthquake Induced Landslide",
-        "Ground Shaking",
-        "Landslide",
-        "Liquefaction",
-        "Rain Induced Landslide",
-        "Storm Surge",
-        "Tsunami",
-      ];
-
-      let totalHazards = 0;
-      await Promise.all(
-        hazardTypes.map(async (hazardType) => {
-          const snap = await getDocs(collection(db, 'hazards', hazardType, 'hazardInfo'));
-          totalHazards += snap.size;
-        })
-      );
-
-      setStats({
-        residents: residentCount,
-        householdHeads,
-        householdMembers,
-        households: actualHouseholds,
-        families: actualHouseholds,
-        pwd: pwdCount,
-        seniors: seniorCount,
-        ageCount,
-        hazards: totalHazards, // dynamically set
-        accidents: accidentsSnap.size,
-        growthRate: '0%',
-      });
-    } catch (err) {
-      console.error('🔥 Error fetching dashboard stats:', err);
-    } finally {
-      setLoading(false);
-    }
-  });
-
-  return () => unsubscribe();
-}, [router]);
+  
+        // Hazards count (dynamic)
+        const hazardTypes = [
+          "Active Faults",
+          "Earthquake Induced Landslide",
+          "Ground Shaking",
+          "Landslide",
+          "Liquefaction",
+          "Rain Induced Landslide",
+          "Storm Surge",
+          "Tsunami",
+        ];
+  
+        let totalHazards = 0;
+        await Promise.all(
+          hazardTypes.map(async (hazardType) => {
+            const snap = await getDocs(collection(db, 'hazards', hazardType, 'hazardInfo'));
+            totalHazards += snap.size;
+          })
+        );
+  
+        setStats({
+          residents: residentCount,
+          householdHeads,
+          householdMembers,
+          households: actualHouseholds,
+          families: actualHouseholds,
+          pwd: pwdCount,
+          seniors: seniorCount,
+          ageCount,
+          hazards: totalHazards,
+          accidents: accidentsSnap.size,
+          growthRate: '0%',
+        });
+      } catch (err) {
+        console.error('Error fetching dashboard stats:', err);
+      } finally {
+        setLoading(false);
+      }
+    });
+  
+    return () => unsubscribe();
+  }, [router]);
+  
 
   return (
     <div className="space-y-6">

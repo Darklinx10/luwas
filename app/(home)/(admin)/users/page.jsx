@@ -213,7 +213,7 @@ const UserManagementPage = () => {
 
   return (
     <RoleGuard allowedRoles={['MDRRMC-Admin']}>
-      <div className="p-4 bg-gradient-to-t from-green-50 to-white ">
+      <div className="p-4 ">
         <div className="text-sm text-right text-gray-500 mb-2">
           Home / User Management
         </div>

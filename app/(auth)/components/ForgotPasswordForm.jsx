@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { FiMail, FiUser } from "react-icons/fi";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { auth, db } from "@/firebase/config";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { auth } from "@/firebase/config";
 import RequiredField from "@/components/Required";
 
 export default function ForgotPassForm() {
@@ -27,18 +26,31 @@ export default function ForgotPassForm() {
     setLoading(true);
   
     try {
-      // Firebase Auth reset (will not throw for unregistered emails)
+      // Call server-side API to check email
+      const res = await fetch("/api/checkEmail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+  
+      const data = await res.json();
+  
+      if (!res.ok || data.exists === false) {
+        toast.error("This email is not registered.");
+        setLoading(false);
+        return;
+      }
+  
+      // Send reset email via client-side Firebase Auth
       await sendPasswordResetEmail(auth, email);
   
-      toast.success(
-        "If this email is registered, a reset link has been sent. Please check your inbox."
-      );
-  
+      toast.success("A reset link has been sent. Please check your inbox.");
       setShowPageLoader(true);
       setTimeout(() => {
         setRedirectMessage("Redirecting to login...");
         router.push("/login");
       }, 1000);
+  
     } catch (error) {
       console.error("Reset error:", error);
       toast.error("Failed to send reset email. Please try again.");
@@ -46,6 +58,7 @@ export default function ForgotPassForm() {
       setLoading(false);
     }
   };
+  
   
 
   if (showPageLoader) {

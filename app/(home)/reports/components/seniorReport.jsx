@@ -5,6 +5,8 @@ import { collection, getDocs, getDoc, doc, updateDoc, deleteDoc } from 'firebase
 import { db } from '@/firebase/config';
 import { FiSearch, FiEdit, FiTrash2, FiX } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import { useAuth } from '@/context/authContext';
+
 
 export default function SeniorPage() {
   const [seniors, setSeniors] = useState([]); // Stores all senior citizen data
@@ -12,7 +14,8 @@ export default function SeniorPage() {
   const [loading, setLoading] = useState(false); //  Controls loading spinner visibility
   const [selectedSenior, setSelectedSenior] = useState(null); //  Stores currently selected senior for editing
   const [showModal, setShowModal] = useState(false); //  Controls modal visibility
-
+  const profile = useAuth();
+  
   useEffect(() => {
     const fetchSeniors = async () => {
       setLoading(true);

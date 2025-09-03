@@ -23,7 +23,7 @@ export default function AgeBracketChart() {
       setLoading(true);
       try {
         const householdSnapshot = await getDocs(collection(db, 'households'));
-
+  
         const ageCounts = {
           'Under 1': 0,
           '1-4': 0,
@@ -40,12 +40,12 @@ export default function AgeBracketChart() {
           '55-59': 0,
           '60 and over': 0,
         };
-
+  
         const countAge = (age) => {
           if (!age) return;
           const a = parseInt(age);
           if (isNaN(a)) return;
-
+  
           if (a < 1) ageCounts['Under 1']++;
           else if (a <= 4) ageCounts['1-4']++;
           else if (a <= 9) ageCounts['5-9']++;
@@ -61,28 +61,13 @@ export default function AgeBracketChart() {
           else if (a <= 59) ageCounts['55-59']++;
           else ageCounts['60 and over']++;
         };
-
+  
         await Promise.all(
           householdSnapshot.docs.map(async (householdDoc) => {
             const householdId = householdDoc.id;
-            const countedHeads = new Set(); // Track already-counted heads
-        
-            const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
             const membersRef = collection(db, 'households', householdId, 'members');
-        
-            const [geoSnap, membersSnap] = await Promise.all([getDoc(geoRef), getDocs(membersRef)]);
-        
-            // Count the head from geographicIdentification
-            if (geoSnap.exists()) {
-              const geoData = geoSnap.data();
-              const headKey = `${geoData.headFirstName}-${geoData.headLastName}-${geoData.headSuffix || ''}`;
-              if (!countedHeads.has(headKey)) {
-                countAge(geoData.headAge);
-                countedHeads.add(headKey);
-              }
-            }
-        
-            // Count members but skip if already counted as head
+            const membersSnap = await getDocs(membersRef);
+  
             await Promise.all(
               membersSnap.docs.map(async (memberDoc) => {
                 const demoRef = doc(
@@ -95,22 +80,16 @@ export default function AgeBracketChart() {
                   'main'
                 );
                 const demoSnap = await getDoc(demoRef);
-        
+  
                 if (demoSnap.exists()) {
                   const demoData = demoSnap.data();
-                  const memberKey = `${demoData.firstName}-${demoData.lastName}-${demoData.suffix || ''}`;
-        
-                  if (!countedHeads.has(memberKey)) {
-                    countAge(demoData.age);
-                    countedHeads.add(memberKey);
-                  }
+                  countAge(demoData.age); // Only members' ages
                 }
               })
             );
           })
         );
-        
-
+  
         const formatted = Object.entries(ageCounts).map(([age, count]) => ({ age, count }));
         setAgeData(formatted);
       } catch (error) {
@@ -119,9 +98,10 @@ export default function AgeBracketChart() {
         setLoading(false);
       }
     };
-
+  
     fetchAgeBrackets();
   }, []);
+  
 
   if (loading) return <Spinner />;
 
@@ -152,7 +132,7 @@ function Spinner() {
   return (
     <div className="flex justify-center items-center h-64">
       <svg
-        className="animate-spin h-8 w-8 text-green-500"
+        className="animate-spin h-8 w-8 text-green-600"
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"

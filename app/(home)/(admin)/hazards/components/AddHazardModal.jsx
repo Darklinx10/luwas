@@ -9,8 +9,6 @@ export default function AddHazardModal({
   setHazardType,
   description,
   setDescription,
-  infoText,
-  setInfoText,
   geojsonFile,
   setGeojsonFile,
   handleUploadAndSave,
@@ -49,16 +47,6 @@ export default function AddHazardModal({
           onChange={(e) => setDescription(e.target.value)}
           className="w-full border rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
           placeholder="Enter hazard description..."
-        />
-
-        {/* Info Text */}
-        <label className="block text-sm font-medium mb-1">Info Text (HTML)</label>
-        <textarea
-          value={infoText}
-          onChange={(e) => setInfoText(e.target.value)}
-          className="w-full border rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-          placeholder="Enter info text with HTML content..."
-          rows={6}
         />
 
         {/* Upload */}

@@ -252,7 +252,7 @@ export default function Agriculture({ householdId, goToNext }) {
   return (
     <form onSubmit={handleSubmit} className="max-w-5xl mx-auto p-6 space-y-4">
 
-      {/* Agriculture Section 1 */}
+      {/* Parcel / Land Section */}
       <h2 className="text-lg font-bold text-green-600 mb-4">For 15 years old and over</h2>
 
       {/* Select Parcel Type Question #1 */}
@@ -475,6 +475,7 @@ export default function Agriculture({ householdId, goToNext }) {
         </section>
       )}
 
+      {/* Engagement Section */}
       {/* Question #11.1 */}
       <div className="space-y-0">
         <label htmlFor="engagedInAgriFishery" className="block">
@@ -545,7 +546,7 @@ export default function Agriculture({ householdId, goToNext }) {
       </div>
 
       
-      {/* Per-member subform */}
+      {/* Per-Member Activities Section */}
       {(form.engagedMembers || []).map((member) => (
         <div key={member} className="border p-4 mt-4 rounded bg-gray-50">
           <h3 className="font-semibold text-green-700 mb-2">{member}&apos;s Agricultural Activities</h3>
@@ -785,6 +786,7 @@ export default function Agriculture({ householdId, goToNext }) {
           </select>
         </div>
       ))}
+      {/* Crop Operator Section */}
       {/* Q20 */}
       <>
         {/* Member Dropdown for Crop Operators */}
@@ -950,6 +952,7 @@ export default function Agriculture({ householdId, goToNext }) {
             </select>
           </section>
 
+          {/**Crop Operator Section */}
           {/* Q24 */}
           <section>
             <h3 className="mt-8">Did Your Household&apos;s Harvest Decrease, Increase, or Stay the Same?</h3>
@@ -1042,6 +1045,7 @@ export default function Agriculture({ householdId, goToNext }) {
             ))}
           </section>
 
+          {/**Livestock Section*/}
           {/* Q28 */}
           <section>
             <h3 className="mt-8">Tools/Machinery Used for Livestock</h3>
@@ -1136,7 +1140,7 @@ export default function Agriculture({ householdId, goToNext }) {
           </section>
         </>
       )}
-
+      {/*Livestock Section*/}
       {/* Q34 */}
       <section>
         <h3 className="mt-8">Aquafarm Operation</h3>
@@ -1432,7 +1436,7 @@ export default function Agriculture({ householdId, goToNext }) {
           onChange={handleChange}
         />
       </div>
-
+      {/*Fishery Section*/}
       {/* Q47 */}
       <div className="mt-6">
         <label className="font-medium block mb-1" htmlFor="usesBoat">Does any member of the household use boat/vessel for fish capture?</label>

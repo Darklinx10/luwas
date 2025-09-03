@@ -219,7 +219,7 @@ const handlePreview = async (hazard) => {
 
   return (
     <RoleGuard allowedRoles={['MDRRMC-Admin']}>
-    <div className="p-4 bg-gradient-to-t from-green-50 to-white">
+    <div className="p-4">
         <div className="text-sm text-right text-gray-500 mb-2">Home / Hazard Management</div>
 
         <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg flex justify-between items-center">
