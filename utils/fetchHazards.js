@@ -1,32 +1,65 @@
 import { db } from '@/firebase/config';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { toast } from 'react-toastify';
 
 export const fetchHazardFromFirebase = async (hazardType) => {
   try {
-    const hazardFilesRef = collection(db, 'hazards', hazardType, 'hazardFiles');
-    const snapshot = await getDocs(hazardFilesRef);
+    const infoSnap = await getDocs(
+      collection(db, 'hazards', hazardType, 'hazardInfo')
+    );
 
-    if (snapshot.empty) {
-      console.warn(`No hazard files found for ${hazardType}`);
-      return null;
+    if (infoSnap.empty) {
+      console.warn(`No hazard info found for ${hazardType}`);
+      return [];
     }
 
-    // Combine all GeoJSON features from all documents
-    const allFeatures = snapshot.docs.flatMap(doc => {
-      const data = doc.data();
-      if (!data.geojsonString) return [];
-      const geojson = JSON.parse(data.geojsonString);
-      return geojson.features || [];
-    });
+    const hazardsData = await Promise.all(
+      infoSnap.docs.map(async (infoDoc) => {
+        const infoData = infoDoc.data();
+        let fileUrl = null;
+        let features = [];
 
-    if (allFeatures.length === 0) return null;
+        if (infoData.fileId) {
+          const fileSnap = await getDoc(
+            doc(db, 'hazards', hazardType, 'hazardFiles', infoData.fileId)
+          );
+          if (fileSnap.exists()) {
+            const fileData = fileSnap.data();
+            fileUrl = fileData.fileUrl || null;
+            if (fileData.geojsonString) {
+              const geojson = JSON.parse(fileData.geojsonString);
+              features = geojson.features || [];
+            }
+          }
+        }
 
-    return {
-      type: 'FeatureCollection',
-      features: allFeatures
-    };
+        return {
+          id: infoDoc.id,
+          type: infoData.type || hazardType,
+          description: infoData.description || '',
+          createdAt: infoData.createdAt || null,
+          fileId: infoData.fileId || null,
+          fileUrl,
+          legendProp: infoData.legendProp || null,
+          colorSettings: infoData.colorSettings || {},
+          features, // ✅ include parsed GeoJSON features
+        };
+      })
+    );
+
+    // If multiple hazardInfo docs exist, merge features for the activeHazard
+    const merged = hazardsData.reduce(
+      (acc, item) => ({
+        ...item,
+        features: [...(acc.features || []), ...(item.features || [])],
+      }),
+      { features: [] }
+    );
+
+    return merged;
   } catch (err) {
-    console.error(`Error fetching hazard files for ${hazardType}:`, err);
+    console.error(`Error fetching hazard data for ${hazardType}:`, err);
+    toast.error('Failed to load hazard layers.');
     return null;
   }
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -12,10 +12,11 @@ import {
 } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useMap } from '@/context/mapContext'; // optional, for shared boundary/defaultCenter
 
 const { BaseLayer } = LayersControl;
 
-// Set up default Leaflet marker icons
+// Setup default Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon-2x.png',
@@ -23,47 +24,42 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-shadow.png',
 });
 
-// Marker component to update position on map click
+// Marker component to handle map clicks
 function LocationMarker({ setPosition, readOnly }) {
   useMapEvents({
     click(e) {
       if (!readOnly) {
-        setPosition(e.latlng); // Update position state when map is clicked
+        setPosition(e.latlng);
       }
     },
   });
   return null;
 }
 
-// Main component for map modal
+// Main MapPopup component
 export default function MapPopup({
-  isOpen,       // Whether modal is open
-  onClose,      // Function to close modal
-  onSave,       // Function to save selected location
-  location = null, // Initial location (if editing)
-  readOnly = false, // Flag for view-only mode
-  mode = 'household', // Used for labeling
+  isOpen,
+  onClose,
+  onSave,
+  location = null,
+  readOnly = false,
+  mode = 'household',
 }) {
-  const defaultLocation = { lat: 9.9611, lng: 124.0247 }; // Default location fallback
+  const { boundaryGeoJSON: contextBoundary } = useMap(); // optional
+  const defaultLocation = { lat: 9.9611, lng: 124.0247 };
   const [position, setPosition] = useState(location || defaultLocation);
-  const [boundaryGeoJSON, setHboundaryGeoJSON] = useState(null); // Store boundary geojson data
+  const [boundaryGeoJSON, setBoundaryGeoJSON] = useState(contextBoundary || null);
+  const mapRef = useRef(null);
 
-  // Update marker position if location prop changes
+  // Update marker if `location` prop changes
   useEffect(() => {
-    if (location) {
-      setPosition(location);
-    }
+    if (location) setPosition(location);
   }, [location]);
 
-  // Load boundary map GeoJSON from public folder
-  useEffect(() => {
-    fetch('/data/Clarin_Political_Boundary_converted.geojson')
-      .then((res) => res.json())
-      .then((data) => setHboundaryGeoJSON(data))
-      .catch((err) => console.error('Error loading GeoJSON:', err));
-  }, []);
 
-  if (!isOpen) return null; // Do not render if modal is closed
+  
+
+  if (!isOpen) return null;
 
   const label = mode === 'accident' ? 'Accident Location' : 'Household Location';
   const title = readOnly ? label : `Set ${label}`;
@@ -74,17 +70,19 @@ export default function MapPopup({
         <h2 className="text-lg font-semibold mb-2">{title}</h2>
 
         <div className="h-[400px] mb-4">
-          <MapContainer center={position} zoom={13} style={{ height: '100%', width: '100%' }}>
+          <MapContainer
+            center={position}
+            zoom={13}
+            style={{ height: '100%', width: '100%' }}
+            whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
+          >
             <LayersControl position="topright">
-              {/* Base layer: OpenStreetMap */}
               <BaseLayer checked name="OpenStreetMap">
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; OpenStreetMap contributors'
                 />
               </BaseLayer>
-
-              {/* Base layer: Esri Satellite */}
               <BaseLayer name="Satellite (Esri)">
                 <TileLayer
                   url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -93,30 +91,32 @@ export default function MapPopup({
               </BaseLayer>
             </LayersControl>
 
-            {/* boundaries overlay */}
             {boundaryGeoJSON && (
               <GeoJSON
                 data={boundaryGeoJSON}
                 style={{
-                  color: 'black',        
-                  weight: 1,             
+                  color: 'black',
+                  weight: 1,
                   fillOpacity: 0,
-                  dashArray: '2 4',        
+                  dashArray: '2 4',
+                }}
+                onEachFeature={(feature, layer) => {
+                  if (mapRef.current) {
+                    const bounds = layer.getBounds();
+                    mapRef.current.fitBounds(bounds);
+                  }
                 }}
               />
             )}
 
-            {/* Marker shows current position */}
             <Marker position={position}>
               {readOnly && <Popup>{label}</Popup>}
             </Marker>
 
-            {/* Enable click-to-set if not readOnly */}
-            <LocationMarker setPosition={setPosition} readOnly={readOnly} />
+            {!readOnly && <LocationMarker setPosition={setPosition} readOnly={readOnly} />}
           </MapContainer>
         </div>
 
-        {/* Display coordinates and action buttons */}
         <div className="flex justify-between items-center">
           <div className="text-sm text-gray-600">
             Lat: {position.lat.toFixed(6)}, Lng: {position.lng.toFixed(6)}

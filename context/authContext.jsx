@@ -1,4 +1,3 @@
-// AuthContext.js
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
@@ -16,6 +15,7 @@ export const AuthProvider = ({ children }) => {
 
   const loadUserData = async (firebaseUser) => {
     if (!firebaseUser) {
+      // ✅ User logged out: clear state
       setUser(null);
       setRole(null);
       setProfile(null);
@@ -24,14 +24,16 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      // 🔹 Force refresh claims so they’re never stale
+      // 🔹 Refresh ID token claims
       const tokenResult = await getIdTokenResult(firebaseUser, true);
       const claimRole = tokenResult.claims.role || null;
       setRole(claimRole);
 
-      // 🔹 Get Firestore profile (with retry for new writes)
+      // 🔹 Fetch Firestore profile
       const docRef = doc(db, 'users', firebaseUser.uid);
       let docSnap = await getDoc(docRef);
+
+      // Retry in case document hasn't propagated yet
       let retries = 2;
       while (!docSnap.exists() && retries > 0) {
         await new Promise(res => setTimeout(res, 300));
@@ -42,18 +44,17 @@ export const AuthProvider = ({ children }) => {
       if (docSnap.exists()) {
         const userData = docSnap.data();
         setProfile(userData);
-        if (!claimRole) {
-          // If role not in claims, fall back to Firestore
-          setRole(userData.role || null);
-        }
+        // Fallback to Firestore role if claim is missing
+        if (!claimRole) setRole(userData.role || null);
       } else {
-        console.warn('User profile not found after retries');
         setProfile(null);
+        console.warn('User profile not found after retries');
       }
 
       setUser(firebaseUser);
     } catch (error) {
       console.error('Error loading user data:', error);
+      setUser(null);
       setRole(null);
       setProfile(null);
     }
@@ -63,16 +64,23 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setLoading(true);
-      loadUserData(firebaseUser);
+      // ✅ Only call loadUserData if user exists, else clear state safely
+      if (firebaseUser) {
+        setLoading(true);
+        loadUserData(firebaseUser);
+      } else {
+        setUser(null);
+        setRole(null);
+        setProfile(null);
+        setLoading(false);
+      }
     });
+
     return () => unsubscribe();
   }, []);
 
-  
-
   return (
-    <AuthContext.Provider value={{ profile, setProfile, user, setUser, role, setRole, loading}}>
+    <AuthContext.Provider value={{ profile, setProfile, user, setUser, role, setRole, loading }}>
       {children}
     </AuthContext.Provider>
   );

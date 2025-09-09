@@ -7,30 +7,12 @@ const AffectedHouseholdsPanel = ({
   affectedHouseholds,
   isMDRRMCAdmin,
   activeHazard,
-  formatSusceptibility,
-  formatStormSurge,
-  formatTsunami,
-  formatGroundShaking,
+  legendProp, // 👈 pass legendProp down from HazardLayers
+  formatValue, // 👈 NEW: formatter function passed down
 }) => {
   if (!isHouseholdMap || affectedHouseholds.length === 0 || isMDRRMCAdmin) {
     return null;
   }
-
-  // 🔑 Map hazard names to their display category
-  const hazardCategoryMap = {
-    liquefaction: 'susceptibility',
-    landslide: 'susceptibility',
-    'earthquake induced landslide': 'susceptibility',
-  'rain induced landslide': 'susceptibility',
-    'storm surge': 'stormSurge',
-    tsunami: 'tsunami',
-    earthquake: 'groundShaking',
-    'ground shaking': 'groundShaking',
-  };
-
-  // Normalize the hazard name (lowercase for safe matching)
-  const selectedCategory =
-    hazardCategoryMap[activeHazard?.toLowerCase()] || null;
 
   return (
     <div className="absolute bottom-4 left-4 z-[1000] p-4 bg-white rounded shadow max-h-[300px] overflow-auto w-[90vw] max-w-sm sm:max-w-md text-sm">
@@ -56,38 +38,16 @@ const AffectedHouseholdsPanel = ({
             🌐 Location: Lat: {h.lat}, Lng: {h.lng}
             <br />
 
-            {/* Display Susceptibility for applicable hazards */}
-            {selectedCategory === 'susceptibility' && h.susceptibility && (
+            {/* Show hazard-specific value */}
+            {legendProp?.key && (
               <>
-                🌋 Susceptibility: {formatSusceptibility(h.susceptibility)}
+                ⚠️ {legendProp.key}:{" "}
+                {formatValue
+                  ? formatValue(h[legendProp.key])
+                  : h[legendProp.key] ?? "N/A"}
                 <br />
               </>
             )}
-
-            {/* Display Storm Surge */}
-            {selectedCategory === 'stormSurge' &&
-            (h.stormSurge || h.Inundiation) ? (
-              <>
-                🌊 Storm Surge: {formatStormSurge(h.stormSurge || h.Inundiation)}
-                <br />
-              </>
-            ) : null}
-
-            {/* Display Tsunami */}
-            {selectedCategory === 'tsunami' && h.tsunami ? (
-              <>
-                🌊 Tsunami: {h.tsunami?.descrption} ({h.tsunami?.Area} sq.km)
-                <br />
-              </>
-            ) : null}
-
-            {/* Display Ground Shaking */}
-            {selectedCategory === 'groundShaking' && h.intensity ? (
-              <>
-                🌋 Ground Shaking: {formatGroundShaking(h.intensity)}
-                <br />
-              </>
-            ) : null}
           </li>
         ))}
       </ul>

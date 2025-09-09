@@ -8,7 +8,19 @@ const HazardLayers = dynamic(
   { ssr: false }
 );
 
-export default function MapWithHazards({ activeHazard, setLoading }) {
+export default function MapWithHazards({ activeHazard, setLoading, setLegendProp, setColorSettings, setHazardGeoJSON }) {
   const map = useMap();
-  return <HazardLayers activeHazard={activeHazard} map={map} setLoading={setLoading} />;
+
+  if (!map) return null;
+
+  return (
+    <HazardLayers
+      activeHazard={activeHazard}
+      map={map}
+      setLoading={setLoading}
+      setLegendProp={setLegendProp}
+      setColorSettings={setColorSettings}
+      setHazardGeoJSON={setHazardGeoJSON}
+    />
+  );
 }

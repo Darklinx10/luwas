@@ -9,22 +9,10 @@ import AccidentTable from '@/app/(home)/reports/components/accidentReport';
 import HazardTable from '@/app/(home)/reports/components/hazardReport';
 import PWDTable from '@/app/(home)/reports/components/pwdReport';
 import SeniorTable from '@/app/(home)/reports/components/seniorReport';
-import RoleGuard from '@/components/roleGuard'; // ✅ Import RoleGuard
-import { fetchHazardFromFirebase } from "@/utils/fetchHazards";
+import RoleGuard from '@/components/roleGuard';
 import { useAuth } from '@/context/authContext';
-
-const hazardTypes = [
-  'Active Faults',
-  'Liquefaction',
-  'Rain Induced Landslide',
-  'Earthquake Induced Landslide',
-  'Ground Shaking',
-  'Storm Surge',
-  'Tsunami',
-  'Landslide',
-];
-
-
+import { fetchHazardFromFirebase } from "@/utils/fetchHazards";
+import { hazardTypes } from '@/utils/hazardTypes';
 
 const reportData = {};
 
@@ -42,96 +30,99 @@ function ReportsPageContent() {
   const [selectedReport, setSelectedReport] = useState('pwd');
   const [affectedHouseholds, setAffectedHouseholds] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [legendProp, setLegendProp] = useState(null); // default
   const profile = useAuth();
-  
 
   useEffect(() => {
     const loadAffectedHouseholds = async () => {
       if (!hazardTypes.includes(selectedReport)) return;
-
+  
       setLoading(true);
       try {
         const geojson = await fetchHazardFromFirebase(selectedReport);
-
-
+  
+        if (!geojson?.features?.length) {
+          setAffectedHouseholds([]);
+          setLegendProp(null);
+          setLoading(false);
+          return;
+        }
+  
+        // Automatically determine legendProp (first property key)
+        let detectedLegendProp = geojson.legendProp?.key ? geojson.legendProp : null;
+        if (!detectedLegendProp) {
+          const firstFeatureProps = geojson.features[0].properties || {};
+          const keys = Object.keys(firstFeatureProps);
+          if (keys.length) {
+            const key = keys[0];
+            detectedLegendProp = {
+              key,
+              type: typeof firstFeatureProps[key] === 'number' ? 'numeric' : 'categorical',
+            };
+          } else {
+            detectedLegendProp = { key: 'Unknown', type: 'categorical' };
+          }
+        }
+        setLegendProp(detectedLegendProp);
+  
+        // Fetch households
         const householdsSnap = await getDocs(collection(db, 'households'));
         const households = [];
-
+  
         for (const doc of householdsSnap.docs) {
           const geoSnap = await getDocs(collection(db, 'households', doc.id, 'geographicIdentification'));
           geoSnap.forEach((geoDoc) => {
             const data = geoDoc.data();
             const lat = Number(data.latitude);
             const lng = Number(data.longitude);
-
+  
             if (!isNaN(lat) && !isNaN(lng)) {
               households.push({
                 name: `${data.headFirstName || ''} ${data.headLastName || ''}`.trim(),
                 barangay: data.barangay || 'N/A',
-                contactnumber: data.contactNumber || 'N/A',
+                contactNumber: data.contactNumber || 'N/A',
                 location: { lat, lng },
               });
             }
           });
         }
-
+  
+        // Determine affected households
         const affected = [];
-
+  
         households.forEach((h) => {
           const point = turf.point([h.location.lng, h.location.lat]);
-        
+  
           for (const feature of geojson.features) {
             const polygon = turf.feature(feature.geometry);
-        
+  
             if (turf.booleanPointInPolygon(point, polygon)) {
-              const properties = feature.properties || {};
-        
-              // Extract relevant properties
-              const susceptibility = properties.Susciptibi || properties.Susceptibility || 'Unknown';
-              const risk = properties.Risk || 'Unknown';
-              const description = properties.descrption || properties.Description || '';
-              const intensity = properties.Intensity ?? 0;
-              const inundation = properties.Inundation || properties.Inundiation || '';
-        
-              // Determine style based on available properties
-              let style = { color: '#ccc', weight: 0.5, fillOpacity: 0.7, fillColor: '#ccc' };
-        
-              if (intensity) {
-                style = groundShakingStyle(feature);
-              } else if (inundation) {
-                style = stormSurgeStyle(feature);
-              } else if (description) {
-                style = tsunamiStyle(feature);
-              }
-        
               affected.push({
                 ...h,
-                susceptibility,
-                risk,
-                style,
+                ...feature.properties,
               });
-        
               break; // stop checking other features once matched
             }
           }
         });
-        
-
+  
         setAffectedHouseholds(affected);
       } catch (err) {
         console.error('Error loading hazard data:', err);
         setAffectedHouseholds([]);
+        setLegendProp(null);
       } finally {
         setLoading(false);
       }
     };
-
+  
     loadAffectedHouseholds();
   }, [selectedReport]);
+  
 
   const renderTable = () => {
     const title = titleMap[selectedReport];
-  
+
     // Filter data for Brgy-Secretary by their barangay
     let filteredData = undefined;
     if (profile?.role === 'Brgy-Secretary') {
@@ -143,20 +134,27 @@ function ReportsPageContent() {
         filteredData = reportData.senior?.filter(item => item.barangay === profile.barangay);
         return <SeniorTable title={title} data={filteredData} />;
       }
-      return null; // hide other reports
+      return null;
     }
-  
+
     // For other roles, show all reports
     if (selectedReport === 'pwd') return <PWDTable title={title} data={reportData.pwd} />;
     if (selectedReport === 'senior') return <SeniorTable title={title} data={reportData.senior} />;
     if (selectedReport === 'accident') return <AccidentTable data={reportData.accident} title={title} />;
-    if (hazardTypes.includes(selectedReport))
-      return <HazardTable data={affectedHouseholds} title={title} loading={loading} />;
-  
+    if (hazardTypes.includes(selectedReport)) {
+      return (
+        <HazardTable
+          data={affectedHouseholds}
+          title={title}
+          loading={loading}
+          legendProp={legendProp}
+          formatValue={(val) => val ?? 'N/A'}
+        />
+      );
+    }
+
     return null;
   };
-  
-  
 
   return (
     <div className="p-4">
@@ -177,8 +175,6 @@ function ReportsPageContent() {
             </button>
         ))}
 
-
-        {/* Only show hazard dropdown for non-secretary users */}
         {profile?.role !== 'Brgy-Secretary' && (
           <select
             onChange={(e) => setSelectedReport(e.target.value)}

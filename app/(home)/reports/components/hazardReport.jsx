@@ -17,28 +17,64 @@ function useDebounce(value, delay = 300) {
 
   return debounced;
 }
+function getColorScale(geojson, legendProp, colorSettings) {
+  if (!legendProp) return () => '#3388ff';
 
+  const values = geojson.features
+    .map(f => f.properties[legendProp.key])
+    .filter(v => v !== undefined && v !== null);
+
+  if (legendProp.type === 'numeric') {
+    if (!values.length) return () => '#3388ff';
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const start = colorSettings?.min || '#00ff00';
+    const end = colorSettings?.max || '#ff0000';
+    if (min === max) return () => start;
+
+    const hexToRgb = hex => {
+      const bigint = parseInt(hex.replace('#', ''), 16);
+      return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+    };
+    const [r1, g1, b1] = hexToRgb(start);
+    const [r2, g2, b2] = hexToRgb(end);
+
+    return value => {
+      if (typeof value !== 'number') return '#3388ff';
+      const ratio = (value - min) / (max - min);
+      const r = Math.round(r1 + ratio * (r2 - r1));
+      const g = Math.round(g1 + ratio * (g2 - g1));
+      const b = Math.round(b1 + ratio * (b2 - b1));
+      return `rgb(${r},${g},${b})`;
+    };
+  } else {
+    return value => colorSettings?.[value] || '#3388ff';
+  }
+}
 export default function HazardTable({
   data = [],
   title = 'Hazard Reports (2025)',
   loading = false,
+  legendProp, // added
+  formatValue = (val) => val ?? 'N/A', // fallback
+
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
   const [,setIsLoading] = useState(false);
 
   
-
+  
   // Efficient filtering
   const filteredData = useMemo(() => {
     if (!debouncedSearch.trim()) return data;
-
     const search = debouncedSearch.toLowerCase();
+    const key = legendProp?.key || 'Unknown';
     return data.filter((h) => {
-      const haystack = `${h.name} ${h.barangay} ${h.contactnumber} ${h.susceptibility}`.toLowerCase();
+      const haystack = `${h.name} ${h.barangay} ${h.contactNumber} ${h[key]}`.toLowerCase();
       return haystack.includes(search);
     });
-  }, [data, debouncedSearch]);
+  }, [data, debouncedSearch, legendProp]);
 
   const handlePrint = () => window.print();
 
@@ -47,7 +83,7 @@ export default function HazardTable({
 
     const headers = 'Name,Barangay,Contact Number,Susceptibility,Latitude,Longitude';
     const rows = filteredData.map((h) =>
-      [h.name, h.barangay, h.contactnumber, h.susceptibility, h.lat, h.lng].join(',')
+      [h.name, h.barangay, h.contactNumber, h.susceptibility, h.lat, h.lng].join(',')
     );
     const csv = [headers, ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -150,7 +186,7 @@ export default function HazardTable({
                     <th className="px-4 py-2 border">Household</th>
                     <th className="px-4 py-2 border">Barangay</th>
                     <th className="px-4 py-2 border">Contact Number</th>
-                    <th className="px-4 py-2 border">Susceptibility</th>
+                    <th className="px-4 py-2 border">{legendProp?.key || 'Value'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -158,8 +194,8 @@ export default function HazardTable({
                     <tr key={i}>
                       <td className="px-4 py-2 border">{capitalizeWords(h.name)}</td>
                       <td className="px-4 py-2 border">{capitalizeWords(h.barangay)}</td>
-                      <td className="px-4 py-2 border">{h.contactnumber}</td>
-                      <td className="px-4 py-2 border">{formatSusceptibility(h.susceptibility || 'Unknown')}</td>
+                      <td className="px-4 py-2 border">{h.contactNumber}</td>
+                      <td className="px-4 py-2 border">{formatValue(h[legendProp?.key])}</td>
                     </tr>
                   ))}
                 </tbody>

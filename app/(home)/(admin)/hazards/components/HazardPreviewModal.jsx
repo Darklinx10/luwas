@@ -26,7 +26,14 @@ export default function HazardPreviewModal({ isOpen, onClose, hazard }) {
 
         {/* Map Preview */}
         <div className="h-[500px] w-full">
-          <HazardMapPreview geojson={hazard.geojson} />
+          <HazardMapPreview
+            hazardType={hazard.type}
+            geojson={hazard.geojson}
+            legendProp={hazard.legendProp}
+            colorSettings={hazard.colorSettings || {}}
+            center={[hazard.center?.lat || 14.5995, hazard.center?.lng || 120.9842]}
+            zoom={hazard.zoom || 12}
+          />
         </div>
       </div>
     </div>

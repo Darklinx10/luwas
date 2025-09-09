@@ -1,141 +1,86 @@
 'use client';
 
-import { db } from '@/firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
-import { useEffect, useRef, useState } from 'react';
-import { normalizeSusceptibility } from '@/utils/susceptibility';
-import { fetchHazardFromFirebase } from '@/utils/fetchHazards';
+import { useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import {
-  styleBySusceptibility,
-  stormSurgeStyle,
-  tsunamiStyle,
-  groundShakingStyle,
-} from '@/utils/hazardStyles';
+import { useMap } from '@/context/mapContext';
 
 const L = typeof window !== 'undefined' ? require('leaflet') : null;
 if (typeof window !== 'undefined') {
   require('leaflet/dist/leaflet.css');
 }
-const MapContainer = dynamic(
-  () => import("react-leaflet").then(mod => mod.MapContainer),
-  { ssr: false }
-);
-const TileLayer = dynamic(
-  () => import("react-leaflet").then(mod => mod.TileLayer),
-  { ssr: false }
-);
-const GeoJSON = dynamic(
-  () => import("react-leaflet").then(mod => mod.GeoJSON),
-  { ssr: false }
-);
 
-// ✅ Place it here, before your component
-const detectHazardType = (properties) => {
-  if (properties.Inundiation) return 'stormSurge';
-  if (properties.descrption) return 'tsunami';
-  if (properties.Intensity) return 'groundShaking';
-  return undefined;
-};
+const MapContainer = dynamic(() => import('react-leaflet').then(m => m.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then(m => m.TileLayer), { ssr: false });
+const GeoJSON = dynamic(() => import('react-leaflet').then(m => m.GeoJSON), { ssr: false });
+
+// --- Use the same getColorScale as in AddHazardModal ---
+function getColorScale(geojson, legendProp, colorSettings) {
+  if (!legendProp) return () => '#3388ff';
+  const values = geojson.features
+    .map((f) => f.properties[legendProp.key])
+    .filter((v) => v !== undefined && v !== null);
+
+  if (legendProp.type === 'numeric') {
+    if (values.length === 0) return () => '#3388ff';
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    if (min === max) return () => colorSettings.min || '#00ff00';
+
+    const start = colorSettings.min || '#00ff00';
+    const end = colorSettings.max || '#ff0000';
+
+    return (value) => {
+      if (value === undefined || value === null) return '#3388ff';
+      const ratio = (value - min) / (max - min);
+
+      const hexToRgb = (hex) => {
+        const bigint = parseInt(hex.replace('#', ''), 16);
+        return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+      };
+
+      const [r1, g1, b1] = hexToRgb(start);
+      const [r2, g2, b2] = hexToRgb(end);
+
+      const r = Math.round(r1 + ratio * (r2 - r1));
+      const g = Math.round(g1 + ratio * (g2 - g1));
+      const b = Math.round(b1 + ratio * (b2 - b1));
+
+      return `rgb(${r},${g},${b})`;
+    };
+  } else {
+    return (value) => colorSettings[value] || '#3388ff';
+  }
+}
 
 export default function HazardMapPreview({
-  hazardType,
   geojson,
-  center = [9.9611, 124.0247],
-  zoom = 12
+  legendProp,
+  colorSettings,
+  zoom = 12,
 }) {
   const mapRef = useRef(null);
-  const [hazardGeoJSON, setHazardGeoJSON] = useState(geojson || null);
-  const [boundaryGeoJSON, setBoundaryGeoJSON] = useState(null);
+  const { boundaryGeoJSON, defaultCenter } = useMap();
 
-  // Fetch hazard data if hazardType is provided
   useEffect(() => {
-    if (!hazardType) return;
-    const fetchData = async () => {
-      const data = await fetchHazardFromFirebase(hazardType);
-      if (data) setHazardGeoJSON(data);
-    };
-    fetchData();
-  }, [hazardType]);
-
-  // Fetch boundary from Firestore
-  useEffect(() => {
-    const fetchBoundary = async () => {
-      try {
-        const docRef = doc(db, 'settings', 'boundaryFile');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const geojsonString = docSnap.data().data;
-          setBoundaryGeoJSON(JSON.parse(geojsonString));
-        }
-      } catch (err) {
-        console.error('Failed to fetch GeoJSON from Firestore:', err);
-      }
-    };
-    fetchBoundary();
-  }, []);
-
-  // Fit map to hazard + boundary layers
-  useEffect(() => {
-    if (!mapRef.current || !L) return;
-
-    let bounds = null;
-    if (hazardGeoJSON) bounds = L.geoJSON(hazardGeoJSON).getBounds();
-    if (boundaryGeoJSON) {
-      const boundaryBounds = L.geoJSON(boundaryGeoJSON).getBounds();
-      bounds = bounds ? bounds.extend(boundaryBounds) : boundaryBounds;
+    if (!mapRef.current || !geojson) return;
+    try {
+      const bounds = L.geoJSON(geojson).getBounds();
+      if (bounds.isValid()) mapRef.current.fitBounds(bounds);
+    } catch (err) {
+      // ignore
     }
-    if (bounds && bounds.isValid()) mapRef.current.fitBounds(bounds);
-  }, [hazardGeoJSON, boundaryGeoJSON]);
-
-  
-
+  }, [geojson]);
 
   return (
     <MapContainer
-      center={center}
+      center={defaultCenter}
       zoom={zoom}
-      className="h-full w-full"
-      whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
+      style={{ height: '100%', width: '100%' }}
+      whenCreated={map => { mapRef.current = map; }}
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution="&copy; OpenStreetMap contributors"
       />
-
-      {hazardGeoJSON && (
-        <GeoJSON
-          data={hazardGeoJSON}
-          style={(feature) => {
-            const featureHazardType = hazardType || detectHazardType(feature.properties);
-
-            switch (featureHazardType) {
-              case 'stormSurge':
-                return stormSurgeStyle(feature);
-              case 'tsunami':
-                return tsunamiStyle(feature);
-              case 'groundShaking':
-                return groundShakingStyle(feature);
-              default:
-                const normalizedSus = normalizeSusceptibility(
-                  feature.properties?.Susceptibility ??
-                  feature.properties?.Susciptibi ??
-                  feature.properties?.Risk ??
-                  feature.properties?.HazardLevel ??
-                  feature.properties?.Inundiation ??
-                  feature.properties?.Intensity ??
-                  feature.properties?.descrption ??
-                  'Unknown'
-                );
-                console.log("✅ Normalized susceptibility:", normalizedSus);
-                return styleBySusceptibility(normalizedSus);
-            }
-          }}
-        />
-
-
-      )}
-
       {boundaryGeoJSON && (
         <GeoJSON
           data={boundaryGeoJSON}
@@ -145,6 +90,22 @@ export default function HazardMapPreview({
             fillOpacity: 0,
             dashArray: '2 4',
           }}
+        />
+      )}
+      {geojson && (
+        <GeoJSON
+          data={geojson}
+          style={(feature) => ({
+            fillColor: legendProp
+              ? getColorScale(geojson, legendProp, colorSettings)(
+                  feature.properties[legendProp.key]
+                )
+              : '#3388ff',
+            weight: 2,
+            opacity: 1,
+            color: 'transparent',
+            fillOpacity: 0.7,
+          })}
         />
       )}
     </MapContainer>
