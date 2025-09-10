@@ -9,6 +9,7 @@ import { reprojectGeoJSON } from '@/utils/geoJsonProjection';
 import { useMap } from '@/context/mapContext';
 import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
+import { useCallback } from 'react';
 
 // Fix Leaflet default icon issue
 delete L.Icon.Default.prototype._getIconUrl;
@@ -148,14 +149,14 @@ export default function AddHazardModal({
   };
 
   // Reset form function
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setHazardType('');
     setDescription('');
     setGeojsonFile(null);
     setGeojsonData(null);
     setLegendProp(null);
     setColorSettings({});
-  };
+  }, [setHazardType, setDescription, setGeojsonFile, setGeojsonData, setLegendProp, setColorSettings]);
 
   // Handle save and reset
   const handleSave = async () => {
@@ -173,9 +174,9 @@ export default function AddHazardModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      resetForm(); // Clear form when modal opens
+      resetForm();
     }
-  }, [isOpen]);
+  }, [isOpen, resetForm]);
 
   // Update map bounds when geojsonData changes
   useEffect(() => {
