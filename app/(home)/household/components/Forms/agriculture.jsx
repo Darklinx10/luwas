@@ -168,7 +168,7 @@ export default function Agriculture({ householdId, goToNext }) {
     };
 
     autoSubmitIfNo();
-  }, [form.engagedInAgriFishery]);
+  }, [form.engagedInAgriFishery, goToNext, householdId, form]);
 
   // Add crop entry for selected member
   const addCrop = () => {
