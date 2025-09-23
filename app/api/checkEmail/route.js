@@ -1,4 +1,6 @@
 // app/api/checkEmail/route.js
+export const runtime = "nodejs"; // Add this line
+
 import { admin } from "@/lib/firebaseAdmin";
 import { NextResponse } from "next/server";
 
