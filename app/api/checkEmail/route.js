@@ -4,16 +4,22 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
-    const { email } = await req.json();
+    let body = {};
+    try {
+      body = await req.json();
+    } catch (_) {
+      // no body
+    }
 
-    if (!email) {
+    const email = body?.email;
+
+    if (!email || typeof email !== "string") {
       return NextResponse.json(
         { error: "Email is required" },
         { status: 400 }
       );
     }
 
-    // Try fetching user by email
     const userRecord = await admin.auth().getUserByEmail(email);
 
     return NextResponse.json(
