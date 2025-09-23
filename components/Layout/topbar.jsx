@@ -11,6 +11,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import ConfirmModal from '@/components/LogoutConfirmation';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 
 
 export default function Topbar({ toggleSidebar, sidebarOpen }) {
@@ -114,7 +115,12 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
           className="w-10 h-10 rounded-full overflow-hidden cursor-pointer border border-gray-200 shadow-sm"
         >
           {userPhoto ? (
-            <img src={userPhoto} alt="Profile" className="object-cover w-full h-full" />
+            <Image
+              src={userPhoto} 
+              alt="Profile"
+              width={40}
+              height={40}
+              className="object-cover w-full h-full" />
           ) : (
             <FaUserCircle className="w-full h-full text-gray-400" />
           )}
@@ -132,7 +138,12 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
               {/* User Info */}
               <div className="flex flex-col items-center mb-3">
                 {userPhoto ? (
-                  <img src={userPhoto} alt="Profile" className="w-12 h-12 rounded-full border border-gray-200" />
+                  <Image
+                    src={userPhoto} 
+                    alt="Profile" 
+                    width={48}
+                    height={48}
+                    className="w-12 h-12 rounded-full border border-gray-200" />
                 ) : (
                   <FaUserCircle className="text-6xl text-gray-400" />
                 )}

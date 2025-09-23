@@ -158,7 +158,7 @@ function EditProfileContent() {
 
       <div className="flex flex-col items-center mb-6">
         {photoPreview ? (
-          <img
+          <Image
             src={photoPreview}
             alt="Profile Preview"
             width={32}
@@ -182,11 +182,11 @@ function EditProfileContent() {
         {/* Default Avatar Options */}
         <div className="flex gap-4 mt-4">
           {DEFAULT_AVATARS.map((avatar, index) => (
-            <img
+            <Image
               key={index}
               src={avatar}
-              width={32}
-              height={32}
+              width={20}
+              height={20}
               alt={`Avatar ${index + 1}`}
               className={`w-16 h-16 rounded-full cursor-pointer border hover:ring-2 hover:ring-blue-400 ${
                 photoPreview === avatar ? 'ring-2 ring-green-500' : ''

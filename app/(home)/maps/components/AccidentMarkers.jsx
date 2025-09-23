@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Marker, Popup } from 'react-leaflet';
+import Image from 'next/image';
 
 const AccidentMarkers = ({ isAccidentMap, isMDRRMCAdmin, accidents, accidentIcon }) => {
   if (!isAccidentMap || isMDRRMCAdmin) return null;
@@ -23,7 +24,7 @@ const AccidentMarkers = ({ isAccidentMap, isMDRRMCAdmin, accidents, accidentIcon
               {/* ✅ Display accident image if available */}
               {acc.imageUrl && (
                 <div className="mt-2 flex justify-center">
-                  <img
+                  <Image
                     src={acc.imageUrl}
                     alt="Accident"
                     width={160}

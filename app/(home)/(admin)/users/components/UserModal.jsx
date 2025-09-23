@@ -1,6 +1,7 @@
 'use client';
 
-import { FiX } from 'react-icons/fi';
+import { FiX, FiEye, FiEyeOff } from 'react-icons/fi';
+import { useState } from 'react';
 
 export default function UserModal({ user, setUser, onClose, onSave, saving, mode }) {
   return (
@@ -115,7 +116,7 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
               Cancel
             </button>
             <button
-              type='button'
+              type="button"
               onClick={onSave}
               disabled={saving}
               className={`px-4 py-2 text-white rounded flex items-center gap-2 ${
@@ -153,22 +154,46 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
   );
 }
 
-// Reusable Input component
-const Input = ({ label, id, value, onChange, type = 'text', autoComplete, placeholder, disabled = false, required = false }) => (
-  <div>
-    <label htmlFor={id} className="block text-sm font-medium">
-      {label} {required && <span className="text-red-500">*</span>}
-    </label>
-    <input
-      id={id}
-      type={type}
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      disabled={disabled}
-      className={`w-full border rounded px-3 py-2 ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-      required={required}
-    />
-  </div>
-);
+// Reusable Input component with password eye toggle
+const Input = ({
+  label,
+  id,
+  value,
+  onChange,
+  type = 'text',
+  autoComplete,
+  placeholder,
+  disabled = false,
+  required = false,
+}) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === 'password';
+
+  return (
+    <div className="relative">
+      <label htmlFor={id} className="block text-sm font-medium">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <input
+        id={id}
+        type={isPassword && showPassword ? 'text' : type}
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        disabled={disabled}
+        className={`w-full border rounded px-3 py-2 pr-10 ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+        required={required}
+      />
+      {isPassword && (
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          className="absolute right-3 top-8 text-gray-500 hover:text-black"
+        >
+          {showPassword ? <FiEye /> : <FiEyeOff />}
+        </button>
+      )}
+    </div>
+  );
+};

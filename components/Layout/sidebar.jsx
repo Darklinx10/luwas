@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,10 +9,14 @@ import { IoMapSharp } from "react-icons/io5";
 import { FaExclamationTriangle, FaUserShield } from "react-icons/fa";
 import { MdSpaceDashboard } from "react-icons/md";
 import { useAuth } from "@/context/authContext";
+import useIsMobile from "@/hooks/useMobile";
 
 export default function Sidebar({ sidebarOpen }) {
   const pathname = usePathname().toLowerCase();
   const profile = useAuth();
+
+  const isMobile = useIsMobile();
+  const effectiveSidebarOpen = isMobile ? false : sidebarOpen;
 
   const navItems = [
     {
@@ -58,9 +62,9 @@ export default function Sidebar({ sidebarOpen }) {
       className={`
         fixed top-0 left-0 h-full z-50 flex flex-col
         transform transition-all duration-300 ease-in-out
-        ${sidebarOpen ? "w-64" : "w-20"}
+        ${effectiveSidebarOpen ? "w-64" : "w-0"}
         bg-gradient-to-b from-green-50 to-white
-    border-r border-gray-200 shadow-xl
+        border-r border-gray-200 shadow-xl
       `}
     >
       {/* Logo & Title */}
@@ -74,16 +78,16 @@ export default function Sidebar({ sidebarOpen }) {
           priority
         />
         <h1
-          className={`text-xl font-extrabold text-green-700 tracking-wide mt-2 text-center 
-            transition-all duration-300 overflow-hidden 
-            ${sidebarOpen ? "opacity-100 max-h-10" : "opacity-0 max-h-0"}
+          className={`text-xl font-extrabold text-green-700 tracking-wide mt-2 text-center
+            transition-all duration-300 overflow-hidden
+            ${effectiveSidebarOpen ? "opacity-100 max-h-10" : "opacity-0 max-h-0"}
           `}
         >
           LUWAS
         </h1>
         <p
           className={`text-sm text-gray-500 text-center transition-all duration-300 overflow-hidden
-            ${sidebarOpen ? "opacity-100 max-h-10" : "opacity-0 max-h-0"}
+            ${effectiveSidebarOpen ? "opacity-100 max-h-10" : "opacity-0 max-h-0"}
           `}
         >
           LGU Unified Web-based Alert System
@@ -133,7 +137,7 @@ export default function Sidebar({ sidebarOpen }) {
                 <span
                   className={`
                     ml-3 whitespace-nowrap transition-all duration-300
-                    ${sidebarOpen ? "opacity-100 max-w-xs" : "opacity-0 max-w-0"}
+                    ${effectiveSidebarOpen ? "opacity-100 max-w-xs" : "opacity-0 max-w-0"}
                     ${isActive ? "font-bold text-green-700" : "group-hover:font-semibold"}
                     overflow-hidden
                   `}
@@ -142,7 +146,7 @@ export default function Sidebar({ sidebarOpen }) {
                 </span>
 
                 {/* Tooltip when collapsed */}
-                {!sidebarOpen && (
+                {!effectiveSidebarOpen && (
                   <span
                     className="absolute left-full ml-3 px-2 py-1 rounded-md bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 transition whitespace-nowrap"
                   >
@@ -158,7 +162,7 @@ export default function Sidebar({ sidebarOpen }) {
       <div
         className={`
           mt-auto mb-6 flex flex-col items-center text-sm text-gray-500 transition-all duration-300 overflow-hidden
-          ${sidebarOpen ? "opacity-100 max-h-32" : "opacity-0 max-h-0"}
+          ${effectiveSidebarOpen ? "opacity-100 max-h-32" : "opacity-0 max-h-0"}
         `}
       >
         {/* User Avatar */}
@@ -167,10 +171,12 @@ export default function Sidebar({ sidebarOpen }) {
           border border-gray-200 shadow-sm transition-transform duration-300 hover:scale-105 cursor-pointer
         `}>
           {profile?.profilePhoto ? (
-            <img 
+            <Image
               src={profile.profilePhoto} 
-              alt="Profile" 
-              className="w-full h-full object-cover" 
+              alt="Profile"
+              width={48}
+              height={48}
+              className="w-full h-full object-cover"
             />
           ) : (
             <span className="bg-green-100 w-full h-full flex items-center justify-center text-green-600 font-bold text-lg">
@@ -185,8 +191,6 @@ export default function Sidebar({ sidebarOpen }) {
         {/* User Role */}
         {profile?.role && <p className="text-gray-400 text-xs text-center">{profile.role}</p>}
       </div>
-
-
     </aside>
   );
 }

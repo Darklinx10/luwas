@@ -1,6 +1,17 @@
-module.exports = {
-  webpack: (config) => {
-    config.cache = false;
-    return config;
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "firebasestorage.googleapis.com",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn-icons-png.flaticon.com",
+      },
+    ],
   },
 };
+
+module.exports = nextConfig;

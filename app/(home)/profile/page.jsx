@@ -95,11 +95,14 @@ export default function UserProfile() {
       {/* Profile image or fallback icon */}
       <div className="flex justify-center mb-6">
         {userProfile.profilePhoto ? (
-          <img
-            src={userProfile.profilePhoto}
-            alt="Profile"
-            className="w-32 h-32 rounded-full object-cover border border-gray-300"
-          />
+        <Image
+          src={userProfile.profilePhoto}
+          alt="Profile"
+          width={120}  // 👈 equivalent to w-32
+          height={120}  // 👈 equivalent to h-32
+          className="rounded-full object-cover border border-gray-300"
+        />
+
         ) : (
           <FaUserCircle className="text-gray-400 w-40 h-40" />
         )}

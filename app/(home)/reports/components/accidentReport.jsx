@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { FiEdit, FiSearch, FiTrash2, FiX } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import Image from 'next/image';
 
 // Dynamically import MapPopup to avoid SSR issues
 const MapPopup = dynamic(() => import('@/components/mapPopUP'), { ssr: false });
@@ -266,9 +267,11 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
                       {/* ✅ Accident Image */}
                       <td className="px-4 py-2 border">
                         {accident.imageUrl ? (
-                          <img
+                          <Image
                             src={accident.imageUrl}
                             alt={accident.type}
+                            width={64}
+                            height={64}
                             className="w-16 h-16 object-cover mx-auto rounded"
                           />
                         ) : (
@@ -352,9 +355,11 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
                   {/* Current Image Preview */}
                   {editData.imageUrl && (
                     <div className="flex justify-center mb-2">
-                      <img
+                      <Image
                         src={editData.imageUrl}
                         alt="Accident"
+                        width={64}
+                        height={64}
                         className="w-32 h-32 object-cover rounded border"
                       />
                     </div>
