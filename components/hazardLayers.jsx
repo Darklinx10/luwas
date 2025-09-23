@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { fetchHazardFromFirebase } from '@/utils/fetchHazards';
 import useIsMobile from '@/hooks/useMobile';
