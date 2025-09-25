@@ -4,33 +4,29 @@ import "@/styles/globals.css";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-// Context Providers for auth and map
 import { AuthProvider } from '@/context/authContext';
-import { MapProvider } from '@/context/mapContext'; // ✅ import MapProvider
+import { MapProvider } from '@/context/mapContext';
 
-// Page metadata including title, description, and icons
 export const metadata = {
   title: "LUWAS",
   description: "LGU Unified Web-based Alert System for Risk Mapping and Accident Reporting",
   icons: {
-    icon: [
-      { url: "/clarinLogo.png", type: "image/png" },
-    ],
+    icon: [{ url: "/clarinLogo.png", type: "image/png" }],
   },
 };
 
-// Root layout that wraps all pages
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
+      <body className="flex flex-col min-h-screen">
         <AuthProvider>
-          <MapProvider> {/* ✅ wrap with MapProvider */}
-            <div className="flex flex-col min-h-screen">
-              <main className="flex-grow">
-                {children}
-              </main>
-            </div>
+          <MapProvider>
+            <main className="flex-grow">
+              {children}
+            </main>
             <ToastContainer position="top-right" autoClose={3000} />
           </MapProvider>
         </AuthProvider>
