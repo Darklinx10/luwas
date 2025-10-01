@@ -10,29 +10,19 @@ export default function LoginPage() {
   const [redirectMessage, setRedirectMessage] = useState("Redirecting...");
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-between bg-gradient-to-b from-green-50 to-white px-4 font-roboto relative">
-      <div className="flex flex-col items-center justify-center flex-grow">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-green-50 to-white font-roboto overflow-y-auto">
+      {/* Scrollable content */}
+      <div className="flex-grow flex flex-col items-center justify-start md:justify-center px-4 py-6 overflow-y-auto">
+        
         {/* Logos */}
-        <div className="flex justify-center gap-3 mb-6">
-          <Image
-            src="/clarinLogo.png"
-            alt="Clarin Municipality Logo"
-            width={90}
-            height={90}
-            className="rounded-full shadow-md sm:w-20 sm:h-20 md:w-24 md:h-24"
-          />
-          <Image
-            src="/mdrrmcLogo.png"
-            alt="MDRRMC Logo"
-            width={180}
-            height={90}
-            className="drop-shadow-lg"
-          />
+        <div className="flex justify-center gap-2 mb-4">
+          <Image src="/clarinLogo.png" alt="Clarin Logo" width={80} height={80} className="drop-shadow-lg" />
+          <Image src="/mdrrmcLogo.png" alt="MDRRMC Logo" width={150} height={150} className="drop-shadow-lg" />
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl font-extrabold text-green-700 tracking-wide mb-2">LUWAS</h1>
-        <h2 className="text-center max-w-xl text-base sm:text-lg md:text-xl font-medium text-gray-600 leading-snug mb-10">
+        <h1 className="text-2xl font-extrabold text-green-700 tracking-wide mb-2">LUWAS</h1>
+        <h2 className="text-center max-w-xl text-sm font-medium text-gray-600 leading-snug mb-10">
           LGU Unified Web-based Alert System for Risk Mapping and Accident Reporting
         </h2>
 
@@ -62,10 +52,10 @@ export default function LoginPage() {
             <p className="text-gray-600 text-sm">{redirectMessage}</p>
           </div>
         ) : (
-            <div className="w-full max-w-md">
-              <LoginForm
-                setShowPageLoader={setShowPageLoader}
-                setRedirectMessage={setRedirectMessage}
+          <div className="w-full max-w-md">
+            <LoginForm
+              setShowPageLoader={setShowPageLoader}
+              setRedirectMessage={setRedirectMessage}
             />
           </div>
         )}

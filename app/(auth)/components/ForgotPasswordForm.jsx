@@ -92,14 +92,21 @@ export default function ForgotPassForm() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-white to-green-50 border border-gray-200 p-8 sm:p-10 md:p-12 rounded-2xl shadow-xl w-full max-w-md md:max-w-lg lg:max-w-xl">
+    <div className="
+        bg-gradient-to-b from-white to-green-50 border border-gray-200
+        p-6 sm:p-8 md:p-10
+        rounded-2xl shadow-xl
+        w-full max-w-sm sm:max-w-md md:max-w-lg
+        mx-auto
+      "
+    >
       {/* Logo & Title */}
       <div className="flex flex-col items-center mb-8">
         <FiUser className="text-green-600 text-6xl md:text-7xl mb-3" />
-        <h2 className="text-3xl md:text-3xl font-extrabold text-green-700">
+        <h2 className="text-2xl md:text-3xl font-extrabold text-green-700">
           Forgot Password
         </h2>
-        <p className="text-gray-500 text-sm md:text-base mt-1">
+        <p className="text-gray-500 text-sm mt-1">
           Enter your email to reset your password
         </p>
       </div>

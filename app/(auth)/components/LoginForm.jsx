@@ -96,11 +96,19 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
   };
 
   return (
-    <div className="bg-gradient-to-b from-white to-green-50 border border-gray-200 p-8 sm:p-10 md:p-12 rounded-2xl shadow-xl w-full max-w-md md:max-w-lg lg:max-w-xl">
+    <div
+      className="
+        bg-gradient-to-b from-white to-green-50 border border-gray-200
+        p-6 sm:p-8 md:p-10
+        rounded-2xl shadow-xl
+        w-full max-w-sm sm:max-w-md md:max-w-lg
+        mx-auto
+      "
+    >
       {/* Logo & Title inside form */}
       <div className="flex flex-col items-center mb-8">
         <FiUser className="text-green-600 text-6xl mb-3" />
-        <h2 className="text-3xl font-extrabold text-green-700">Welcome Back</h2>
+        <h2 className="text-2xl font-extrabold text-green-700">Welcome Back</h2>
         <p className="text-gray-500 text-sm mt-1">Login to continue</p>
       </div>
 
@@ -185,9 +193,11 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
         {/* Button */}
         <button
           type="submit"
-          className="w-full bg-[#0BAD4A] hover:bg-[#0a9c43] text-white font-semibold py-3 rounded-xl shadow-md transition flex justify-center items-center"
+          className="w-full bg-[#0BAD4A] hover:bg-[#0a9c43] text-white font-semibold py-2.5 sm:py-3 rounded-xl shadow-md transition flex justify-center items-center"
           disabled={loading}
         >
+
+
           {loading ? (
             <svg
               className="animate-spin h-5 w-5 text-white"

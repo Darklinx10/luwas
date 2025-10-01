@@ -42,5 +42,5 @@ body {
   background: linear-gradient(to top, #ECFDF5, #FFFFFF);
   font-family: 'Roboto', sans-serif;
   color: rgb(var(--foreground-rgb));
-  overflow:hidden;
+  overflow:auto;
 }
