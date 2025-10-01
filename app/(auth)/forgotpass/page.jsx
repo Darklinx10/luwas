@@ -4,11 +4,11 @@ import Footer from "@/components/Layout/footer";
 
 export default function ForgotPasswordPage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-between bg-gradient-to-b from-green-50 to-white px-4 font-roboto relative">
+    <div className="min-h-screen flex flex-col justify-between bg-gradient-to-b from-green-50 to-white px-4 font-roboto overflow-y-auto">
       {/* Top Section */}
-      <div className="flex flex-col items-center justify-center flex-grow">
+      <div className="flex-grow flex flex-col items-center justify-start md:justify-center px-4 py-6 overflow-y-auto">
         {/* Logos */}
-        <div className="flex justify-center gap-3 mb-4">
+        <div className="flex justify-center gap-3 mb-4 ">
           <Image src="/clarinLogo.png" alt="Clarin Logo" width={80} height={80} className="drop-shadow-lg" />
           <Image src="/mdrrmcLogo.png" alt="MDRRMC Logo" width={150} height={150} className="drop-shadow-lg" />
         </div>
