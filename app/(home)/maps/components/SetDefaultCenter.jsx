@@ -13,7 +13,8 @@ const SetDefaultCenterControl = ({ isMDRRMCAdmin, setSettingDefault }) => {
             setSettingDefault(true);
             alert('Click on the map to set a new default center.');
           }}
-          className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 w-full cursor-pointer"
+          className="text-xm sm:text-sm bg-green-600 text-white px-2 sm:px-3 py-1 rounded hover:bg-green-700 w-[9rem] sm:w-full cursor-pointer"
+
         >
           Set New Default Center
         </button>
