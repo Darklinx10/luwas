@@ -267,13 +267,16 @@ export default function OSMMapPage() {
       {/* Admin boundary button */}
       {isMDRRMCAdmin && (
         <div className="leaflet-top leaflet-left ml-60">
-          <div className="leaflet-control leaflet-bar bg-white shadow rounded p-2 space-y-2">
+          <div className="leaflet-control leaflet-bar bg-white shadow rounded p-2 space-y-2 flex flex-col sm:flex-row gap-2 w-64">
             <button
               className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 w-full cursor-pointer"
               onClick={() => setIsUploadModalOpen(true)}
             >
               Set New Boundary
             </button>
+            <SetDefaultCenterControl
+              setSettingDefault={setSettingDefault}
+            />
           </div>
         </div>
       )}
@@ -320,10 +323,7 @@ export default function OSMMapPage() {
           <Marker key={idx} position={[marker.lat, marker.lng]} icon={plusMarkerIcon} />
         ))}
 
-        <SetDefaultCenterControl
-          isMDRRMCAdmin={isMDRRMCAdmin}
-          setSettingDefault={setSettingDefault}
-        />
+        
 
         <HazardSelectControls
           isHouseholdMap={isHouseholdMap}
