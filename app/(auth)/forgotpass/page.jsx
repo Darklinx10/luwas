@@ -8,7 +8,7 @@ export default function ForgotPasswordPage() {
       {/* Top Section */}
       <div className="flex flex-col items-center justify-center flex-grow">
         {/* Logos */}
-        <div className="flex justify-center gap-2 mb-4">
+        <div className="flex justify-center gap-3 mb-4">
           <Image src="/clarinLogo.png" alt="Clarin Logo" width={80} height={80} className="drop-shadow-lg" />
           <Image src="/mdrrmcLogo.png" alt="MDRRMC Logo" width={150} height={150} className="drop-shadow-lg" />
         </div>
