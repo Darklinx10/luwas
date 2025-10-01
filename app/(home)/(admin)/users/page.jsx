@@ -140,6 +140,7 @@ const UserManagementPage = () => {
 
       toast.success('User created successfully!');
       setShowAddModal(false);
+      setSearchTerm(''); 
 
       //  Refresh lists and profile
       await fetchUsers();
