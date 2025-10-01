@@ -242,7 +242,8 @@ export default function OSMMapPage() {
       
       {/* Map selector */}
       {profile?.role !== 'MDRRMC-Admin' && (
-        <div className="mb-4 flex gap-3 z-30 relative">
+        <div className="mb-4 flex flex-col sm:flex-row gap-3 z-30 relative">
+
           {['Household Map', 'Accident Map'].map(option => (
             <button
               key={option}
