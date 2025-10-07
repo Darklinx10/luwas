@@ -12,15 +12,21 @@ export default function HazardSelectControls({
   if (!isHouseholdMap || isMDRRMCAdmin) return null;
 
   return (
-    <div className="leaflet-top leaflet-left ml-10">
-      <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2">
-        <div className="flex items-center gap-2 mb-1">
-          <label htmlFor="hazard-select" className="text-sm font-medium">
+    <div className="leaflet-top leaflet-left ml-10 md:ml-10 sm:ml-2">
+      <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2 w-[200px] sm:w-[150px] md:w-[220px]">
+        <div className="flex items-center justify-between mb-1">
+          <label
+            htmlFor="hazard-select"
+            className="text-sm font-medium whitespace-nowrap sm:text-xs"
+          >
             Hazards
           </label>
           {loading && (
-            <div className="absolute top-2 right-2 z-50">
-              <svg className="animate-spin h-4 w-4 text-green-800" viewBox="0 0 24 24">
+            <div className="relative flex justify-end ml-2">
+              <svg
+                className="animate-spin h-4 w-4 text-green-800"
+                viewBox="0 0 24 24"
+              >
                 <circle
                   className="opacity-25"
                   cx="12"
@@ -41,7 +47,16 @@ export default function HazardSelectControls({
         </div>
         <select
           id="hazard-select"
-          className="text-sm border rounded p-1 cursor-pointer focus:outline-none w-full"
+          className="
+            text-sm md:text-sm sm:text-xs
+            border border-gray-300 rounded-lg
+            p-2 sm:p-1.5
+            cursor-pointer
+            focus:outline-none focus:ring-2 focus:ring-green-600
+            w-full
+            bg-white
+            transition-all duration-200
+          "
           value={activeHazard}
           onChange={(e) => setActiveHazard(e.target.value)}
         >
@@ -55,6 +70,7 @@ export default function HazardSelectControls({
           <option value="Tsunami">Tsunami Susceptibility Map</option>
           <option value="Landslide">Landslide Susceptibility Map</option>
         </select>
+
       </div>
     </div>
   );

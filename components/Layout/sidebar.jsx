@@ -14,7 +14,6 @@ import useIsMobile from "@/hooks/useMobile";
 export default function Sidebar({ sidebarOpen }) {
   const pathname = usePathname().toLowerCase();
   const profile = useAuth();
-
   const isMobile = useIsMobile();
   const effectiveSidebarOpen = isMobile ? false : sidebarOpen;
 
@@ -22,37 +21,37 @@ export default function Sidebar({ sidebarOpen }) {
     {
       href: "/dashboard",
       label: "Dashboard",
-      icon: <MdSpaceDashboard />,
+      icon: <MdSpaceDashboard size={22} />,
       allowedRoles: ["Brgy-Secretary", "MDRRMC-Personnel"],
     },
     {
       href: "/household",
       label: "Households",
-      icon: <BsFillHousesFill />,
+      icon: <BsFillHousesFill size={20} />,
       allowedRoles: ["Brgy-Secretary", "MDRRMC-Personnel"],
     },
     {
       href: "/maps",
       label: "Maps",
-      icon: <IoMapSharp />,
+      icon: <IoMapSharp size={22} />,
       allowedRoles: ["MDRRMC-Admin", "MDRRMC-Personnel"],
     },
     {
       href: "/hazards",
       label: "Hazards",
-      icon: <FaExclamationTriangle />,
+      icon: <FaExclamationTriangle size={20} />,
       allowedRoles: ["MDRRMC-Admin"],
     },
     {
       href: "/users",
       label: "User Management",
-      icon: <FaUserShield />,
+      icon: <FaUserShield size={20} />,
       allowedRoles: ["MDRRMC-Admin"],
     },
     {
       href: "/reports",
       label: "Reports",
-      icon: <HiDocumentReport />,
+      icon: <HiDocumentReport size={22} />,
       allowedRoles: ["MDRRMC-Personnel", "Brgy-Secretary"],
     },
   ];
@@ -62,7 +61,7 @@ export default function Sidebar({ sidebarOpen }) {
       className={`
         fixed top-0 left-0 h-full z-50 flex flex-col
         transform transition-all duration-300 ease-in-out
-        ${effectiveSidebarOpen ? "w-64" : "w-0"}
+        ${effectiveSidebarOpen ? "w-64" : "w-20"}
         bg-gradient-to-b from-green-50 to-white
         border-r border-gray-200 shadow-xl
       `}
@@ -74,9 +73,10 @@ export default function Sidebar({ sidebarOpen }) {
           alt="LUWAS Logo"
           width={80}
           height={80}
-          className="rounded-full shadow-md"
+          className={`rounded-full shadow-md ${isMobile ? "w-[50px] h-[50px]" : "w-[80px] h-[80px]"}`}
           priority
         />
+
         <h1
           className={`text-xl font-extrabold text-green-700 tracking-wide mt-2 text-center
             transition-all duration-300 overflow-hidden
@@ -85,6 +85,7 @@ export default function Sidebar({ sidebarOpen }) {
         >
           LUWAS
         </h1>
+
         <p
           className={`text-sm text-gray-500 text-center transition-all duration-300 overflow-hidden
             ${effectiveSidebarOpen ? "opacity-100 max-h-10" : "opacity-0 max-h-0"}
@@ -109,16 +110,16 @@ export default function Sidebar({ sidebarOpen }) {
                 key={href}
                 href={href}
                 className={`
-                  group relative flex items-center rounded-xl text-lg font-medium
+                  group relative flex items-center md:justify-start justify-center rounded-xl text-base font-medium
                   px-3 py-3 transition-all duration-300
                   ${
                     isActive
-                      ? "bg-green-50 border-l-4 border-green-600 text-green-700 shadow-md"
+                      ? "bg-green-100 border-l-4 border-green-600 text-green-700 shadow-sm"
                       : "text-gray-600 hover:bg-green-50 hover:text-green-700"
                   }
                 `}
               >
-                {/* Icon with circle bg */}
+                {/* Icon */}
                 <span
                   className={`
                     flex items-center justify-center w-10 h-10 rounded-lg
@@ -138,7 +139,7 @@ export default function Sidebar({ sidebarOpen }) {
                   className={`
                     ml-3 whitespace-nowrap transition-all duration-300
                     ${effectiveSidebarOpen ? "opacity-100 max-w-xs" : "opacity-0 max-w-0"}
-                    ${isActive ? "font-bold text-green-700" : "group-hover:font-semibold"}
+                    ${isActive ? "font-semibold text-green-700" : "group-hover:font-semibold"}
                     overflow-hidden
                   `}
                 >
@@ -148,7 +149,7 @@ export default function Sidebar({ sidebarOpen }) {
                 {/* Tooltip when collapsed */}
                 {!effectiveSidebarOpen && (
                   <span
-                    className="absolute left-full ml-3 px-2 py-1 rounded-md bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 transition whitespace-nowrap"
+                    className="absolute left-full ml-3 px-2 py-1 rounded-md bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap"
                   >
                     {label}
                   </span>
@@ -165,14 +166,13 @@ export default function Sidebar({ sidebarOpen }) {
           ${effectiveSidebarOpen ? "opacity-100 max-h-32" : "opacity-0 max-h-0"}
         `}
       >
-        {/* User Avatar */}
-        <div className={`
-          w-12 h-12 rounded-full overflow-hidden flex items-center justify-center mb-2
-          border border-gray-200 shadow-sm transition-transform duration-300 hover:scale-105 cursor-pointer
-        `}>
+        <div
+          className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center mb-2
+          border border-gray-200 shadow-sm transition-transform duration-300 hover:scale-105 cursor-pointer"
+        >
           {profile?.profilePhoto ? (
             <Image
-              src={profile.profilePhoto} 
+              src={profile.profilePhoto}
               alt="Profile"
               width={48}
               height={48}
@@ -184,11 +184,7 @@ export default function Sidebar({ sidebarOpen }) {
             </span>
           )}
         </div>
-
-        {/* User Name */}
         <p className="font-medium text-center">{profile?.name || "User"}</p>
-
-        {/* User Role */}
         {profile?.role && <p className="text-gray-400 text-xs text-center">{profile.role}</p>}
       </div>
     </aside>

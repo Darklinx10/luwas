@@ -21,7 +21,7 @@ export default function LoginPage() {
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-extrabold text-green-700 tracking-wide mb-2">LUWAS</h1>
+        <h1 className="text-3xl font-extrabold mt-2 text-green-700">LUWAS</h1>
         <h2 className="text-center max-w-xl text-sm font-medium text-gray-600 leading-snug mb-10">
           LGU Unified Web-based Alert System for Risk Mapping and Accident Reporting
         </h2>

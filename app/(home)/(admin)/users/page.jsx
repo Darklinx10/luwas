@@ -241,10 +241,16 @@ const UserManagementPage = () => {
               setShowAddModal(true);
               setTimeout(() => setLoadingAddModal(false), 800);
             }}
-            className="flex items-center gap-2 px-4 py-2 rounded text-white bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loadingAddModal}
+            className="
+              group relative flex items-center justify-center gap-2
+              px-4 py-2 rounded text-white bg-green-600 hover:bg-green-700
+              disabled:opacity-50 disabled:cursor-not-allowed
+              transition-all duration-200
+            "
           >
             {loadingAddModal ? (
+              // ✅ Loading Spinner (untouched)
               <span className="flex items-center gap-2">
                 <svg
                   className="animate-spin h-4 w-4 text-white"
@@ -269,11 +275,26 @@ const UserManagementPage = () => {
               </span>
             ) : (
               <>
-                <FiPlus />
-                Add User
+                {/* ✅ Normal State */}
+                <FiPlus className="text-lg transform group-hover:scale-110 transition-transform duration-200" />
+
+                {/* Visible label for md+, tooltip for small screens */}
+                <span className="hidden md:inline">Add User</span>
+
+                {/* Tooltip below the button on mobile */}
+                <span
+                  className="
+                    absolute top-full mt-2 px-2 py-1 rounded-md bg-gray-800 text-white text-xs
+                    opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                    whitespace-nowrap md:hidden
+                  "
+                >
+                  Add User
+                </span>
               </>
             )}
           </button>
+
         </div>
 
         <UserTable

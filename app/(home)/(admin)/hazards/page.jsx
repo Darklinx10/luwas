@@ -268,13 +268,35 @@ export default function HazardsPage() {
           </div>
 
           <div className="ml-4">
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            disabled={loading}
+            className="
+              group relative flex items-center justify-center gap-2
+              px-4 py-2 rounded text-white bg-green-600 hover:bg-green-700
+              disabled:opacity-50 disabled:cursor-not-allowed
+              transition-all duration-200
+            "
+          >
+            <FiPlus className="text-lg transform group-hover:scale-110 transition-transform duration-200" />
+
+            {/* Visible label for md+, tooltip for small screens */}
+            <span className="hidden md:inline">Add Hazard Layer</span>
+
+            {/* Tooltip below the button on mobile */}
+            <span
+              className="
+                absolute top-full mt-2 px-2 py-1 rounded-md bg-gray-800 text-white text-xs
+                opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                whitespace-nowrap md:hidden
+              "
             >
-              <FiPlus /> Add Hazard Layer
-            </button>
+              Add Hazard Layer
+            </span>
+          </button>
+
+
+
           </div>
         </div>
 
