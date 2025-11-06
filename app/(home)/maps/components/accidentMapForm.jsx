@@ -96,20 +96,60 @@ export default function AccidentMapForm({ onSubmit }) {
           <form className="space-y-2" onSubmit={handleSubmit}>
             {/* Type */}
             <div>
-              <label htmlFor="type" className="block text-sm font-medium">Type</label>
-              <input
+              <label htmlFor="type" className="block text-sm font-medium mb-1">
+                Accident Type
+              </label>
+              <select
                 id="type"
                 name="type"
                 value={formData.type}
                 onChange={handleChange}
                 required
-                className="border w-full p-1 rounded"
-              />
+                className="border w-full p-2 rounded focus:ring-2 focus:ring-green-500 focus:outline-none"
+              >
+                <option value="">Select accident type</option>
+                {/* Vehicle-Related */}
+                <option value="car-collision">Car Collision</option>
+                <option value="truck-accident">Truck Accident</option>
+                <option value="bus-accident">Bus Accident</option>
+                <option value="motorcycle-accident">Motorcycle Accident</option>
+                <option value="tricycle-accident">Tricycle Accident</option>
+                <option value="bicycle-accident">Bicycle Accident</option>
+                <option value="pedestrian-accident">Pedestrian Accident</option>
+                <option value="hit-and-run">Hit and Run</option>
+                <option value="vehicle-overturn">Vehicle Overturn / Rollover</option>
+                <option value="rear-end-collision">Rear-End Collision</option>
+                <option value="head-on-collision">Head-On Collision</option>
+                <option value="side-impact">Side-Impact / T-Bone</option>
+                <option value="multiple-vehicle-collision">Multiple Vehicle Collision</option>
+
+                {/* Environmental / Road Condition */}
+                <option value="road-obstruction">Road Obstruction</option>
+                <option value="fallen-tree">Fallen Tree / Debris</option>
+                <option value="slippery-road">Slippery / Oil Spill Incident</option>
+                <option value="pothole-accident">Pothole / Poor Road Condition</option>
+                <option value="bridge-collapse">Bridge Collapse / Road Damage</option>
+
+                {/* Weather / Natural Causes */}
+                <option value="landslide">Landslide</option>
+                <option value="flooding">Flooding</option>
+                <option value="earthquake-damage">Earthquake Damage</option>
+
+                {/* Fire / Explosion */}
+                <option value="vehicle-fire">Vehicle Fire</option>
+                <option value="fuel-spill">Fuel Spill</option>
+                <option value="explosion">Explosion / Chemical Accident</option>
+
+                {/* Others */}
+                <option value="animal-crossing">Animal Crossing Accident</option>
+                <option value="unknown">Other / Unspecified</option>
+              </select>
             </div>
+
 
             {/* Severity */}
             <div>
-              <label htmlFor="severity" className="block text-sm font-medium">Severity</label>
+              <label htmlFor="severity" className="block text-sm font-medium">Accident Severity</label>
               <select
                 id="severity"
                 name="severity"
@@ -127,7 +167,7 @@ export default function AccidentMapForm({ onSubmit }) {
 
             {/* Description */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium">Description</label>
+              <label htmlFor="description" className="block text-sm font-medium">Accident Description</label>
               <textarea
                 id="description"
                 name="description"
@@ -140,7 +180,7 @@ export default function AccidentMapForm({ onSubmit }) {
 
             {/* DateTime */}
             <div>
-              <label htmlFor="datetime" className="block text-sm font-medium">Date & Time</label>
+              <label htmlFor="datetime" className="block text-sm font-medium">Accident Date & Time</label>
               <input
                 id="datetime"
                 type="datetime-local"
@@ -154,7 +194,7 @@ export default function AccidentMapForm({ onSubmit }) {
 
             {/* Image Upload */}
             <div>
-              <label htmlFor="image" className="block text-sm font-medium">Upload Picture</label>
+              <label htmlFor="image" className="block text-sm font-medium">Upload Accident Picture</label>
               <input
                 type="file"
                 id="image"

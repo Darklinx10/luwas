@@ -191,19 +191,29 @@ const UserManagementPage = () => {
   };
 
   // Deletes a user document from Firestore
+  // Deletes a user from Firestore and Firebase Auth
   const handleDelete = async (userId) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+    if (!confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      await deleteDoc(doc(db, 'users', userId));
-      toast.success('User deleted successfully.');
+      const res = await fetch("/api/deleteUser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
 
-      await fetchUsers();           // ✅ refresh list
-      
+      const data = await res.json();
 
+      if (!res.ok) {
+        toast.error(data.error || "Failed to delete user.");
+        return;
+      }
+
+      toast.success("User deleted successfully.");
+      await fetchUsers(); // refresh list
     } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error('Failed to delete user.');
+      console.error("Error deleting user:", error);
+      toast.error("Failed to delete user.");
     }
   };
 

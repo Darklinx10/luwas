@@ -1,6 +1,6 @@
 {
     "files.autoSave": "afterDelay",
-    "workbench.colorTheme": "Dark+ (SAS)",
+    "workbench.colorTheme": "Visual Studio Dark",
     "editor.formatOnSave": false,
     "editor.detectIndentation": false,
     "editor.fontSize": 10,

@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
 
   const loadUserData = async (firebaseUser) => {
     if (!firebaseUser) {
-      // ✅ User logged out: clear state
+      // User logged out → clear state
       setUser(null);
       setRole(null);
       setProfile(null);
@@ -24,30 +24,34 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      // 🔹 Refresh ID token claims
+      setLoading(true);
+
+      // Get token claims
       const tokenResult = await getIdTokenResult(firebaseUser, true);
       const claimRole = tokenResult.claims.role || null;
-      setRole(claimRole);
 
-      // 🔹 Fetch Firestore profile
+      // Get Firestore profile
       const docRef = doc(db, 'users', firebaseUser.uid);
       let docSnap = await getDoc(docRef);
 
-      // Retry in case document hasn't propagated yet
+      // Retry if not found
       let retries = 2;
+      let wait = 300;
       while (!docSnap.exists() && retries > 0) {
-        await new Promise(res => setTimeout(res, 300));
+        await new Promise((res) => setTimeout(res, wait));
         docSnap = await getDoc(docRef);
         retries--;
+        wait *= 2; // exponential backoff
       }
+
 
       if (docSnap.exists()) {
         const userData = docSnap.data();
         setProfile(userData);
-        // Fallback to Firestore role if claim is missing
-        if (!claimRole) setRole(userData.role || null);
+        setRole(claimRole || userData.role || null);
       } else {
         setProfile(null);
+        setRole(claimRole || null);
         console.warn('User profile not found after retries');
       }
 
@@ -57,23 +61,14 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setRole(null);
       setProfile(null);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      // ✅ Only call loadUserData if user exists, else clear state safely
-      if (firebaseUser) {
-        setLoading(true);
-        loadUserData(firebaseUser);
-      } else {
-        setUser(null);
-        setRole(null);
-        setProfile(null);
-        setLoading(false);
-      }
+      loadUserData(firebaseUser);
     });
 
     return () => unsubscribe();

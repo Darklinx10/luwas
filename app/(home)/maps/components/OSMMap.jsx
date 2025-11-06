@@ -37,7 +37,7 @@ import { groupNearbyAccidents } from './utils/groupNearbyAccidents';
 import { accidentIcon, affectedIcon, houseIcon, plusMarkerIcon } from './utils/icons';
 import { useAuth } from '@/context/authContext';
 import { useMap } from '@/context/mapContext';
-
+import { reprojectGeoJSON } from '@/utils/geoJsonProjection';
 
 const { BaseLayer } = LayersControl;
 
@@ -182,53 +182,61 @@ export default function OSMMapPage() {
     .filter(c => c.count >= 2)
     .map(c => [c.lat, c.lng, Math.min(c.count / MAX_ACCIDENTS, 1)]);
 
+  // Handle GeoJSON file upload
   const handleFileUpload = async () => {
     if (!geojsonFile) return toast.error('Please select a GeoJSON file');
-    
-
+  
     if (!geojsonFile.name.endsWith('.geojson')) {
       toast.error('Please upload a valid .geojson file');
       return;
     }
-
+  
     setLoading(true);
-
+  
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const geojson = JSON.parse(event.target.result);
+        let geojson = JSON.parse(event.target.result);
+  
         if (!geojson.type || (geojson.type !== 'FeatureCollection' && geojson.type !== 'Feature')) {
           throw new Error('Invalid GeoJSON structure');
         }
-
+  
+        // **Reproject coordinates to EPSG:4326**
+        geojson = reprojectGeoJSON(geojson);
+  
+        // Update map boundary
         setBoundaryGeoJSON(geojson);
         if (mapRef.current) {
           const leafletGeoJSON = L.geoJSON(geojson);
           mapRef.current.fitBounds(leafletGeoJSON.getBounds());
         }
-
+  
+        // Upload to Firebase Storage
         const storageRef = ref(storage, `boundary/${geojsonFile.name}`);
         const blob = new Blob([JSON.stringify(geojson)], { type: 'application/geo+json' });
         await uploadBytes(storageRef, blob);
         const downloadURL = await getDownloadURL(storageRef);
-
+  
+        // Save metadata to Firestore
         await setDoc(doc(db, 'settings', 'boundaryFile'), {
           name: geojsonFile.name,
           data: JSON.stringify(geojson),
           url: downloadURL,
           uploadedAt: new Date(),
         });
-
-        toast.success('GeoJSON uploaded and map updated!');
+  
+        toast.success('GeoJSON uploaded, reprojected, and map updated!');
         setIsUploadModalOpen(false);
         setGeojsonFile(null);
       } catch (err) {
         console.error(err);
-        toast.error('Failed to upload GeoJSON');
+        toast.error('Failed to upload or reproject GeoJSON');
       } finally {
         setLoading(false);
       }
     };
+  
     reader.readAsText(geojsonFile);
   };
 
@@ -281,7 +289,7 @@ export default function OSMMapPage() {
       <MapContainer
         key={profile?.role}
         center={defaultCenter}
-        zoom={13}
+        zoom={14}
         scrollWheelZoom
         style={{
           height: profile?.role === 'MDRRMC-Admin' ? '810px' : '750px',

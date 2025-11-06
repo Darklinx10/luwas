@@ -14,14 +14,14 @@ import {
 import BottomStat from './components/bottomStats';
 import SummaryCard from './components/summartCard';
 import RoleGuard from '@/components/roleGuard';
-import { auth, db } from '@/firebase/config';
-import { onAuthStateChanged } from 'firebase/auth';
+import { db } from '@/firebase/config';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/authContext'; // ✅ import your context hook
 
-// Charts (lazy load)
+// Lazy-loaded charts
 const BarChartComponent = dynamic(() => import('./components/barchart'), { ssr: false });
 const AgeBracketChart = dynamic(() => import('./components/agebracket'), { ssr: false });
 
@@ -35,6 +35,7 @@ export default function DashboardPageWrapper() {
 
 function DashboardPage() {
   const router = useRouter();
+  const { profile, loading: authLoading } = useAuth(); // ✅ use profile from context
   const [loading, setLoading] = useState(true);
 
   const [stats, setStats] = useState({
@@ -52,18 +53,20 @@ function DashboardPage() {
   });
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-  
+    if (authLoading) return;
+
+    if (!profile) {
+      router.push('/login');
+      return;
+    }
+
+    const fetchStats = async () => {
       try {
         const [householdSnap, accidentsSnap] = await Promise.all([
           getDocs(collection(db, 'households')),
           getDocs(collection(db, 'accidents')),
         ]);
-  
+
         let residentCount = 0;
         let householdHeads = 0;
         let householdMembers = 0;
@@ -71,66 +74,86 @@ function DashboardPage() {
         let seniorCount = 0;
         let ageCount = 0;
         let actualHouseholds = 0;
-  
+
+        const userBarangay = profile?.barangay?.toLowerCase() || '';
+
         await Promise.all(
           householdSnap.docs.map(async (householdDoc) => {
             const householdId = householdDoc.id;
-  
+
+            // ✅ Get barangay of household
+            const geoSnap = await getDoc(
+              doc(db, 'households', householdId, 'geographicIdentification', 'main')
+            );
+            const geoData = geoSnap.exists() ? geoSnap.data() : {};
+            const householdBarangay = geoData.barangay?.toLowerCase() || '';
+
+            // ✅ Barangay filter
+            if (profile.role === 'Brgy-Secretary' && householdBarangay !== userBarangay) return;
+
             const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
             const healthSnap = await getDocs(collection(db, 'households', householdId, 'health'));
             const mainHealthDoc = await getDoc(doc(db, 'households', householdId, 'health', 'main'));
-  
+
             const healthMap = new Map(healthSnap.docs.map((h) => [h.id, h.data()]));
-  
-            // Count household if it has members
+
             if (!membersSnap.empty) {
               actualHouseholds++;
-              householdHeads++; // optional, if you still want to count heads
+              householdHeads++;
             }
-  
+
             residentCount += membersSnap.size;
             householdMembers += membersSnap.size;
-  
+
             const demoSnaps = await Promise.all(
               membersSnap.docs.map((memberDoc) =>
-                getDoc(doc(db, 'households', householdId, 'members', memberDoc.id, 'demographicCharacteristics', 'main'))
+                getDoc(
+                  doc(
+                    db,
+                    'households',
+                    householdId,
+                    'members',
+                    memberDoc.id,
+                    'demographicCharacteristics',
+                    'main'
+                  )
+                )
               )
             );
-  
+
             demoSnaps.forEach((demoSnap, idx) => {
               if (demoSnap.exists()) {
                 const demo = demoSnap.data();
                 const age = parseInt(demo.age);
                 if (!isNaN(age)) {
                   ageCount += age;
-                  if (age >= 60) seniorCount++;
+                  if (age >= 60) seniorCount++; // ✅ Senior
                 }
-  
+
                 const health = healthMap.get(membersSnap.docs[idx].id);
-                if (health?.isPWD === true) pwdCount++;
+                if (health?.isPWD === true) pwdCount++; // ✅ PWD
               }
             });
-  
-            // Check main health doc for PWD
+
             if (mainHealthDoc.exists()) {
               const mainHealth = mainHealthDoc.data();
               if (mainHealth?.isPWD === true) pwdCount++;
             }
           })
         );
-  
-        // Hazards count (dynamic)
+
+        // ✅ Hazards (global)
         const hazardTypes = [
-          "Active Faults",
-          "Earthquake Induced Landslide",
-          "Ground Shaking",
-          "Landslide",
-          "Liquefaction",
-          "Rain Induced Landslide",
-          "Storm Surge",
-          "Tsunami",
+          'Active Faults',
+          'Earthquake Induced Landslide',
+          'Ground Shaking',
+          'Landslide',
+          'Liquefaction',
+          'Rain Induced Landslide',
+          'Storm Surge',
+          'Tsunami',
         ];
-  
+
         let totalHazards = 0;
         await Promise.all(
           hazardTypes.map(async (hazardType) => {
@@ -138,7 +161,7 @@ function DashboardPage() {
             totalHazards += snap.size;
           })
         );
-  
+
         setStats({
           residents: residentCount,
           householdHeads,
@@ -157,11 +180,12 @@ function DashboardPage() {
       } finally {
         setLoading(false);
       }
-    });
-  
-    return () => unsubscribe();
-  }, [router]);
-  
+    };
+
+    fetchStats();
+  }, [profile, authLoading, router]);
+
+  if (authLoading) return <div>Loading authentication...</div>;
 
   return (
     <div className="space-y-6">

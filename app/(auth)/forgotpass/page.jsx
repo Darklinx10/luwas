@@ -1,26 +1,15 @@
+"use client";
+
 import ForgotPassForm from "@/app/(auth)/components/ForgotPasswordForm";
-import Image from "next/image";
 import Footer from "@/components/Layout/footer";
+import AppHeader from "../../../components/AppLogoHeader";
 
 export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen flex flex-col justify-between bg-gradient-to-b from-green-50 to-white px-4 font-roboto overflow-y-auto">
       {/* Top Section */}
       <div className="flex-grow flex flex-col items-center justify-start md:justify-center px-4 py-6 overflow-y-auto">
-        {/* Logos */}
-        <div className="flex justify-center gap-3 mb-4 ">
-          <Image src="/clarinLogo.png" alt="Clarin Logo" width={80} height={80} className="drop-shadow-lg" />
-          <Image src="/mdrrmcLogo.png" alt="MDRRMC Logo" width={150} height={150} className="drop-shadow-lg" />
-        </div>
-
-        {/* Title */}
-        <h1 className="text-2xl font-extrabold text-green-700 tracking-wide mb-2">
-          LUWAS
-        </h1>
-        <h2 className="text-center max-w-xl text-sm font-medium text-gray-600 leading-snug mb-10">
-          LGU Unified Web-based Alert System for Risk Mapping and Accident Reporting
-        </h2>
-
+        <AppHeader />
         {/* Forgot Password Form Card */}
         <div className="w-full max-w-md">
           <ForgotPassForm />

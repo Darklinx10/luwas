@@ -2,8 +2,18 @@
 
 import { FiX, FiEye, FiEyeOff } from 'react-icons/fi';
 import { useState } from 'react';
+import geoData from '@/utils/geoData-ph.json'; // ✅ import your location data
 
 export default function UserModal({ user, setUser, onClose, onSave, saving, mode }) {
+  // ✅ Extract Bohol municipalities and barangays
+  const regionVII = geoData.regions.find((r) => r.name.includes('Region VII'));
+  const bohol = regionVII?.provinces?.find((p) => p.name === 'Bohol');
+  const municipalities = bohol?.cities || [];
+
+  // ✅ Find barangays for the selected municipality
+  const selectedMunicipality = municipalities.find((m) => m.name === user.municipality);
+  const barangays = selectedMunicipality?.barangays || [];
+
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl relative">
@@ -14,6 +24,7 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
         >
           <FiX />
         </button>
+
         <h2 className="text-lg font-bold mb-4">
           {mode === 'edit' ? 'Edit User Info' : 'Add New User'}
         </h2>
@@ -35,7 +46,6 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
             onChange={(v) => setUser((p) => ({ ...p, middleName: v }))}
             autoComplete="additional-name"
             placeholder="Enter middle name"
-            required
           />
           <Input
             label="Last Name"
@@ -59,14 +69,59 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
             autoComplete="tel"
             placeholder="Enter contact number"
           />
-          <Input
-            label="Barangay"
-            id="barangay"
-            value={user.barangay}
-            onChange={(v) => setUser((p) => ({ ...p, barangay: v }))}
-            autoComplete="address-level3"
-            placeholder="Enter barangay"
-          />
+
+          {/* ✅ Municipality Dropdown */}
+          <div>
+            <label htmlFor="municipality" className="block text-sm font-medium">
+              Municipality / City
+            </label>
+            <select
+              id="municipality"
+              value={user.municipality || ''}
+              onChange={(e) =>
+                setUser((p) => ({
+                  ...p,
+                  municipality: e.target.value,
+                  barangay: '', // reset barangay when municipality changes
+                }))
+              }
+              className="w-full border rounded px-3 py-2"
+              required
+            >
+              <option value="">Select Municipality</option>
+              {municipalities.map((m) => (
+                <option key={m.name} value={m.name}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* ✅ Barangay Dropdown */}
+          <div>
+            <label htmlFor="barangay" className="block text-sm font-medium">
+              Barangay
+            </label>
+            <select
+              id="barangay"
+              value={user.barangay || ''}
+              onChange={(e) => setUser((p) => ({ ...p, barangay: e.target.value }))}
+              className="w-full border rounded px-3 py-2"
+              required
+              disabled={!user.municipality}
+            >
+              <option value="">Select Barangay</option>
+              {barangays.map((b, i) => {
+                const name = typeof b === 'string' ? b : b.name;
+                return (
+                  <option key={name || i} value={name || ''}>
+                    {name}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
           <Input
             label="Email"
             id="email"
@@ -108,6 +163,7 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
             </>
           )}
 
+          {/* ✅ Action Buttons */}
           <div className="flex justify-end gap-2 pt-4">
             <button
               onClick={onClose}
@@ -120,12 +176,17 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
               onClick={onSave}
               disabled={saving}
               className={`px-4 py-2 text-white rounded flex items-center gap-2 ${
-                saving ? 'bg-green-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+                saving
+                  ? 'bg-green-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700'
               }`}
             >
               {saving ? (
                 <>
-                  <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    viewBox="0 0 24 24"
+                  >
                     <circle
                       className="opacity-25"
                       cx="12"
@@ -154,7 +215,7 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
   );
 }
 
-// Reusable Input component with password eye toggle
+// ✅ Reusable Input component with password eye toggle
 const Input = ({
   label,
   id,
@@ -182,7 +243,9 @@ const Input = ({
         autoComplete={autoComplete}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full border rounded px-3 py-2 pr-10 ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+        className={`w-full border rounded px-3 py-2 pr-10 ${
+          disabled ? 'bg-gray-100 cursor-not-allowed' : ''
+        }`}
         required={required}
       />
       {isPassword && (

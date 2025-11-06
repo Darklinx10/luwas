@@ -1,21 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, getDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { FiSearch, FiEdit, FiTrash2, FiX } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/authContext';
 
+export default function SeniorTable({ title, barangay: filterBarangay = null }) {
+  const [seniors, setSeniors] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [selectedSenior, setSelectedSenior] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const { profile, loading: authLoading } = useAuth();
 
-export default function SeniorPage() {
-  const [seniors, setSeniors] = useState([]); // Stores all senior citizen data
-  const [searchTerm, setSearchTerm] = useState(''); //  Input for filtering senior records
-  const [loading, setLoading] = useState(false); //  Controls loading spinner visibility
-  const [selectedSenior, setSelectedSenior] = useState(null); //  Stores currently selected senior for editing
-  const [showModal, setShowModal] = useState(false); //  Controls modal visibility
-  const profile = useAuth();
-  
+  // Fetch senior citizen data
   useEffect(() => {
     const fetchSeniors = async () => {
       setLoading(true);
@@ -26,7 +26,6 @@ export default function SeniorPage() {
           householdsSnap.docs.map(async (householdDoc) => {
             const householdId = householdDoc.id;
 
-            // Fetch geographicIdentification and members concurrently
             const [geoSnap, membersSnap] = await Promise.all([
               getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main')),
               getDocs(collection(db, 'households', householdId, 'members')),
@@ -35,20 +34,16 @@ export default function SeniorPage() {
             const geoData = geoSnap.exists() ? geoSnap.data() : {};
             const barangay = geoData?.barangay || '—';
 
-            // Process members in parallel
             const memberData = await Promise.all(
               membersSnap.docs.map(async (memberDoc) => {
                 const memberId = memberDoc.id;
-
                 const demoSnap = await getDoc(
                   doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main')
                 );
-
                 if (!demoSnap.exists()) return null;
 
                 const demo = demoSnap.data();
                 const age = parseInt(demo.age);
-
                 if (!isNaN(age) && age >= 60) {
                   const fullName = `${demo.firstName || ''} ${demo.middleName || ''} ${demo.lastName || ''} ${
                     demo.suffix && demo.suffix.trim().toLowerCase() !== 'n/a' ? demo.suffix : ''
@@ -61,7 +56,6 @@ export default function SeniorPage() {
                     sex: demo.sex || '—',
                     barangay,
                     contact: demo.contactNumber || '—',
-                    isHead: (demo.relationshipToHead || '').toLowerCase() === 'head',
                     householdId,
                   };
                 }
@@ -70,16 +64,14 @@ export default function SeniorPage() {
               })
             );
 
-            // Filter out nulls
             return memberData.filter(Boolean);
           })
         );
 
-        // Flatten and update state
-        const flatData = allHouseholdData.flat();
-        setSeniors(flatData);
+        setSeniors(allHouseholdData.flat());
       } catch (error) {
         console.error('Error fetching senior citizens:', error);
+        toast.error('Failed to fetch senior citizen data.');
       } finally {
         setLoading(false);
       }
@@ -88,31 +80,35 @@ export default function SeniorPage() {
     fetchSeniors();
   }, []);
 
+  // Determine effective barangay for filtering
+  const effectiveBarangay =
+    profile?.role === 'Brgy-Secretary'
+      ? profile?.barangay
+      : filterBarangay;
 
-
-
-  //  Filter senior list by search input
-  const filteredData = seniors.filter((item) =>
-    Object.values(item).some((val) =>
-      String(val).toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter seniors by search term + effective barangay
+  const filteredData = seniors
+    .filter((item) =>
+      !effectiveBarangay ||
+      (item.barangay?.trim().toLowerCase() === effectiveBarangay?.trim().toLowerCase())
     )
-  );
-
-  //  Trigger browser print dialog
-  const handlePrint = () => window.print();
-
-  //  Export filtered data as CSV
-  const handleDownloadCSV = () => {
-    if (!filteredData.length) return;
-
-    const headers = 'Name, Sex, Age, Barangay, Contact';
-    const rows = filteredData.map((p) =>
-      [p.name, p.sex, p.age, p.barangay, p.contact].join(',')
+    .filter((item) =>
+      Object.values(item).some((val) =>
+        String(val).toLowerCase().includes(searchTerm.toLowerCase())
+      )
     );
 
-    const csv = [headers, ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+  // Print functionality
+  const handlePrint = () => window.print();
 
+  // CSV download
+  const handleDownloadCSV = () => {
+    if (!filteredData.length) return;
+    const headers = 'Name,Sex,Age,Barangay,Contact';
+    const rows = filteredData.map((p) => [p.name, p.sex, p.age, p.barangay, p.contact].join(','));
+    const csv = [headers, ...rows].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `senior_citizens_report_2025.csv`;
@@ -120,394 +116,230 @@ export default function SeniorPage() {
     URL.revokeObjectURL(a.href);
   };
 
-  //  Update senior info in Firestore
+  // Save edits
   const handleSaveEdit = async () => {
     if (!selectedSenior) return;
 
-    setLoading(true); // Start spinner
-
-    const {
-      householdId,
-      id,
-      name,
-      sex,
-      age,
-      contact,
-      barangay,
-    } = selectedSenior;
+    setLoading(true);
+    const { householdId, id, name, sex, age, contact, barangay } = selectedSenior;
 
     try {
-      const lineNumber = id.replace(`${householdId}-`, '');
-      const isHead = lineNumber === 'head';
-
-      // 1. Update demographicCharacteristics
-      const demographicRef = isHead
-        ? doc(db, 'households', householdId, 'demographicCharacteristics', 'main')
-        : doc(db, 'households', householdId, 'members', lineNumber, 'demographicCharacteristics', 'main');
-
-      await updateDoc(demographicRef, {
-        name: name ?? '',
-        sex: sex ?? '',
-        age: age ?? '',
-        contactNumber: contact ?? '',
-      });
-
-      // 2. Update geographicIdentification
+      const demographicRef = doc(db, 'households', householdId, 'members', id, 'demographicCharacteristics', 'main');
       const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-      await updateDoc(geoRef, {
-        barangay: barangay ?? '',
-      });
 
-      // 3. Update local state
+      await updateDoc(demographicRef, { name, sex, age, contactNumber: contact });
+      await updateDoc(geoRef, { barangay });
+
       setSeniors((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                name,
-                sex,
-                age,
-                contact,
-                barangay,
-              }
-            : item
-        )
+        prev.map((item) => (item.id === id ? { ...item, name, sex, age, contact, barangay } : item))
       );
 
       setShowModal(false);
       toast.success('Senior info updated.');
     } catch (error) {
-      console.error('Update failed:', error);
+      console.error(error);
       toast.error('Failed to update senior information.');
     } finally {
-      setLoading(false); // Stop spinner
+      setLoading(false);
     }
   };
 
-  // Delete senior info in Firestore
+  // Delete senior
   const handleDelete = async (item) => {
-    const confirmed = window.confirm(`Are you sure you want to remove senior citizen status for ${item.name}?`);
-    if (!confirmed) return;
-
+    if (!window.confirm(`Remove senior citizen status for ${item.name}?`)) return;
     setLoading(true);
 
     try {
-      const { id, householdId: rawHouseholdId } = item;
-      const householdId = rawHouseholdId || id.split('-')[0];
-      const lineNumber = id.replace(`${householdId}-`, '');
-      const isHead = lineNumber === 'head';
-
-      // Reference to the demographic document (head or member)
-      const demographicRef = isHead
-        ? doc(db, 'households', householdId, 'demographicCharacteristics', 'main')
-        : doc(db, 'households', householdId, 'members', lineNumber, 'demographicCharacteristics', 'main');
-
-      // Clear or update senior status fields (adjust field names as per your DB schema)
-      await updateDoc(demographicRef, {
-        isSenior: false,       // Example flag - clear senior status
-        seniorCitizenId: '',   // Or clear any senior-specific ID
-        // Optionally clear other senior-related fields
-      });
-
-      // Update local state
-      setSeniors((prev) => prev.filter((s) => s.id !== id));
-
+      const demographicRef = doc(db, 'households', item.householdId, 'members', item.id, 'demographicCharacteristics', 'main');
+      await updateDoc(demographicRef, { isSenior: false, seniorCitizenId: '' });
+      setSeniors((prev) => prev.filter((s) => s.id !== item.id));
       toast.success(`Senior citizen status removed for ${item.name}.`);
     } catch (error) {
-      console.error('Failed to remove senior status:', error);
+      console.error(error);
       toast.error('Failed to remove senior citizen status.');
     } finally {
       setLoading(false);
     }
   };
 
+  if (authLoading) {
+    return <p className="text-center py-6 text-gray-600">Loading user profile...</p>;
+  }
 
   return (
     <div className="p-4">
-      {/*  Breadcrumb */}
-      <div className="text-sm text-right text-gray-500 mb-2 print:hidden">Home / Reports / Senior Citizens</div>
+      {/* Header */}
+      <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg print:text-black print:bg-white print:text-center">
+        {title}
+      </div>
 
-      <div id="print-section">
-        {/*  Section header */}
-        <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg print:text-black print:bg-white print:text-center">
-          Senior Citizens Information (2025)
+      {/* Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-white shadow border-t-0 px-4 py-3 print:hidden">
+        <div className="relative w-full max-w-xs">
+          <FiSearch className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search Here"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 border border-gray-300 rounded w-full focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
         </div>
 
-        {/*  Top controls (search, print, download) */}
-        <div className="flex flex-wrap items-center justify-between gap-2 bg-white shadow border-t-0 px-4 py-3 print:hidden">
-          <div className="relative w-full max-w-xs">
-            <FiSearch className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
-            <input
-              id='search-input'
-              name='search'
-              type="text"
-              placeholder="Search Here"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded w-full focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setLoading(true);
-                handlePrint();
-                setTimeout(() => setLoading(false), 1000); // optional delay
-              }}
-              disabled={loading}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Print
-            </button>
-
-            <button
-              onClick={async () => {
-                setLoading(true);
-                handleDownloadCSV();
-                setLoading(false);
-              }}
-              disabled={loading}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Download CSV
-            </button>
-          </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handlePrint}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          >
+            Print
+          </button>
+          <button
+            onClick={handleDownloadCSV}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          >
+            Download CSV
+          </button>
         </div>
+      </div>
 
-        {/*  Senior Data Table  */}
-        <div className="overflow-x-auto max-h-[500px] overflow-y-auto shadow border-t-0 rounded-b-md bg-white p-4 scrollbar-thin">
-         {loading ? (
-          <div className="flex items-center justify-center py-10">
-            <div className="flex flex-col items-center">
-              <svg
-                className="animate-spin h-10 w-10 text-green-500 mb-3"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8z"
-                />
-              </svg>
-              <p className="text-gray-600 text-sm">Loading Senior Citizen records...</p>
-            </div>
-          </div>
-         ) : seniors.length === 0 ? (
-          <p className="text-center text-gray-500 py-6">No senior citizen records found.</p>
-         ) : filteredData.length === 0 ? (
-          <p className="text-center text-gray-500 py-6">No senior citizen record results.</p>
-         ) : (
-            <>
-              <table className="w-full text-sm text-center print:text-xs print:w-full print:border print:border-gray-400">
-                <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
-                  <tr>
-                    <th className="px-4 py-2 border">Name</th>
-                    <th className="px-4 py-2 border">Sex</th>
-                    <th className="px-4 py-2 border">Age</th>
-                    <th className="px-4 py-2 border">Barangay</th>
-                    <th className="px-4 py-2 border">Contact</th>
-                    <th className="px-4 py-2 border print:hidden">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...filteredData]
-                    .sort((a, b) => a.name.localeCompare(b.name)) // DEBUG: Sort by name
-                    .map((item, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 border">{item.name}</td>
-                      <td className="px-4 py-2 border">{item.sex}</td>
-                      <td className="px-4 py-2 border">{item.age}</td>
-                      <td className="px-4 py-2 border">{item.barangay}</td>
-                      <td className="px-4 py-2 border">{item.contact}</td>
-                      <td className="px-4 py-2 border print:hidden">
-                        <div className="flex justify-center gap-3">
-
-                          {/* Edit button */}
-                          <button
-                            onClick={() => {
-                              setSelectedSenior(item);
-                              setShowModal(true);
-                            }}
-                            className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                            title="Edit"
-                          >
-                            <FiEdit />
-                          </button>
-
-                           {/* Delete button */}
-                          <button
-                            onClick={() => handleDelete(item)}
-                            className="text-red-600 hover:text-red-800 cursor-pointer"
-                            title="Delete"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/*  Footer count */}
-              <p className="text-sm text-gray-700 mt-4 print:hidden">
-                <strong>Total Senior Citizens found:</strong> <span className="font-semibold">{filteredData.length}</span>
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Modal for editing senior info */}
-        {showModal && selectedSenior && (
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl relative">
-              <button
-                className="absolute top-2 right-2 text-gray-500 hover:text-black"
-                onClick={() => setShowModal(false)}
-              >
-                <FiX />
-              </button>
-              <h2 className="text-lg font-bold mb-4">Edit Senior Info</h2>
-              <div className="space-y-3">
-                {/* Name (readonly) */}
-                <div>
-                  <label htmlFor="senior-name" className="block text-sm font-medium">Name</label>
-                  <input
-                    id="senior-name"
-                    name="name"
-                    type="text"
-                    className="w-full border rounded px-3 py-2 bg-gray-100"
-                    value={selectedSenior.name}
-                    readOnly
-                    autoComplete="name"
-                  />
-                </div>
-
-                {/* Sex */}
-                <div>
-                  <label htmlFor="senior-sex" className="block text-sm font-medium">Sex</label>
-                  <select
-                    id="senior-sex"
-                    name="sex"
-                    className="w-full border rounded px-3 py-2"
-                    value={selectedSenior.sex}
-                    onChange={(e) =>
-                      setSelectedSenior((prev) => ({ ...prev, sex: e.target.value }))
-                    }
-                  >
-                    <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-
-                {/* Age */}
-                <div>
-                  <label htmlFor="senior-age" className="block text-sm font-medium">Age</label>
-                  <input
-                    id="senior-age"
-                    name="age"
-                    type="number"
-                    className="w-full border rounded px-3 py-2"
-                    value={selectedSenior.age}
-                    onChange={(e) =>
-                      setSelectedSenior((prev) => ({ ...prev, age: e.target.value }))
-                    }
-                    autoComplete="bday"
-                  />
-                </div>
-
-                {/* Barangay */}
-                <div>
-                  <label htmlFor="senior-barangay" className="block text-sm font-medium">Barangay</label>
-                  <input
-                    id="senior-barangay"
-                    name="barangay"
-                    type="text"
-                    className="w-full border rounded px-3 py-2"
-                    value={selectedSenior.barangay}
-                    onChange={(e) =>
-                      setSelectedSenior((prev) => ({ ...prev, barangay: e.target.value }))
-                    }
-                    autoComplete="address-level3"
-                  />
-                </div>
-
-                {/* Contact Number */}
-                <div>
-                  <label htmlFor="senior-contact" className="block text-sm font-medium">Contact Number</label>
-                  <input
-                    id="senior-contact"
-                    name="contact"
-                    type="tel"
-                    className="w-full border rounded px-3 py-2"
-                    value={selectedSenior.contact}
-                    onChange={(e) =>
-                      setSelectedSenior((prev) => ({ ...prev, contact: e.target.value }))
-                    }
-                    autoComplete="tel"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4">
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    onClick={handleSaveEdit}
-                    disabled={loading}
-                    className={`px-4 py-2 text-white rounded flex items-center justify-center gap-2 transition ${
-                      loading ? 'bg-green-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 cursor-pointer'
-                    }`}
-                  >
-                    {loading ? (
-                      <>
-                        <svg
-                          className="animate-spin h-5 w-5 text-white"
-                          viewBox="0 0 24 24"
+      {/* Table */}
+      <div className="overflow-x-auto max-h-[500px] overflow-y-auto shadow border-t-0 rounded-b-md bg-white p-4 scrollbar-thin">
+        {loading ? (
+          <p className="text-center py-6 text-gray-600">Loading Senior Citizen records...</p>
+        ) : filteredData.length === 0 ? (
+          <p className="text-center py-6 text-gray-500">No senior citizen records found.</p>
+        ) : (
+          <>
+            <table className="w-full text-sm text-center print:text-xs print:w-full print:border print:border-gray-400">
+              <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
+                <tr>
+                  <th className="px-4 py-2 border">Name</th>
+                  <th className="px-4 py-2 border">Sex</th>
+                  <th className="px-4 py-2 border">Age</th>
+                  <th className="px-4 py-2 border">Barangay</th>
+                  <th className="px-4 py-2 border">Contact</th>
+                  <th className="px-4 py-2 border print:hidden">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredData.sort((a, b) => a.name.localeCompare(b.name)).map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 border">{item.name}</td>
+                    <td className="px-4 py-2 border">{item.sex}</td>
+                    <td className="px-4 py-2 border">{item.age}</td>
+                    <td className="px-4 py-2 border">{item.barangay}</td>
+                    <td className="px-4 py-2 border">{item.contact}</td>
+                    <td className="px-4 py-2 border print:hidden">
+                      <div className="flex justify-center gap-3">
+                        <button
+                          onClick={() => {
+                            setSelectedSenior(item);
+                            setShowModal(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-800"
                         >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                            fill="none"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-                          />
-                        </svg>
-                        Saving...
-                      </>
-                    ) : (
-                      'Save'
-                    )}
-                  </button>
-                </div>
+                          <FiEdit />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <p className="text-sm text-gray-700 mt-4 print:hidden">
+              <strong>Total Senior Citizens:</strong> {filteredData.length}
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Modal */}
+      {showModal && selectedSenior && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl relative">
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-black"
+              onClick={() => setShowModal(false)}
+            >
+              <FiX />
+            </button>
+            <h2 className="text-lg font-bold mb-4">Edit Senior Info</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium">Name</label>
+                <input
+                  type="text"
+                  value={selectedSenior.name}
+                  readOnly
+                  className="w-full border rounded px-3 py-2 bg-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Sex</label>
+                <select
+                  value={selectedSenior.sex}
+                  onChange={(e) => setSelectedSenior((prev) => ({ ...prev, sex: e.target.value }))}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value="">Select</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Age</label>
+                <input
+                  type="number"
+                  value={selectedSenior.age}
+                  onChange={(e) => setSelectedSenior((prev) => ({ ...prev, age: e.target.value }))}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Barangay</label>
+                <input
+                  type="text"
+                  value={selectedSenior.barangay}
+                  onChange={(e) => setSelectedSenior((prev) => ({ ...prev, barangay: e.target.value }))}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Contact Number</label>
+                <input
+                  type="tel"
+                  value={selectedSenior.contact}
+                  onChange={(e) => setSelectedSenior((prev) => ({ ...prev, contact: e.target.value }))}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={loading}
+                  className={`px-4 py-2 text-white rounded ${loading ? 'bg-green-400' : 'bg-green-600 hover:bg-green-700'}`}
+                >
+                  {loading ? 'Saving...' : 'Save'}
+                </button>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Footer from "@/components/Layout/footer";
 import LoginForm from "@/app/(auth)/components/LoginForm";
+import AppHeader from "../../../components/AppLogoHeader";
 
 export default function LoginPage() {
   const [showPageLoader, setShowPageLoader] = useState(false);
@@ -13,19 +13,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-green-50 to-white font-roboto overflow-y-auto">
       {/* Scrollable content */}
       <div className="flex-grow flex flex-col items-center justify-start md:justify-center px-4 py-6 overflow-y-auto">
-        
-        {/* Logos */}
-        <div className="flex justify-center gap-3 mb-4">
-          <Image src="/clarinLogo.png" alt="Clarin Logo" width={80} height={80} className="drop-shadow-lg" />
-          <Image src="/mdrrmcLogo.png" alt="MDRRMC Logo" width={150} height={150} className="drop-shadow-lg" />
-        </div>
-
-        {/* Title */}
-        <h1 className="text-3xl font-extrabold mt-2 text-green-700">LUWAS</h1>
-        <h2 className="text-center max-w-xl text-sm font-medium text-gray-600 leading-snug mb-10">
-          LGU Unified Web-based Alert System for Risk Mapping and Accident Reporting
-        </h2>
-
+      
+        <AppHeader />
         {/* Loader or Form */}
         {showPageLoader ? (
           <div className="flex flex-col items-center gap-2 mt-4">

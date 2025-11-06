@@ -13,17 +13,23 @@ import {
 import { useEffect, useState } from 'react';
 import { db } from '@/firebase/config';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '@/context/authContext'; // ✅ import auth context
 
 export default function AgeBracketChart() {
   const [ageData, setAgeData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { profile, loading: authLoading } = useAuth(); // ✅ get logged-in user
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!profile) return;
+
     const fetchAgeBrackets = async () => {
       setLoading(true);
       try {
         const householdSnapshot = await getDocs(collection(db, 'households'));
-  
+        const userBarangay = profile?.barangay?.toLowerCase() || '';
+
         const ageCounts = {
           'Under 1': 0,
           '1-4': 0,
@@ -40,12 +46,12 @@ export default function AgeBracketChart() {
           '55-59': 0,
           '60 and over': 0,
         };
-  
+
         const countAge = (age) => {
           if (!age) return;
           const a = parseInt(age);
           if (isNaN(a)) return;
-  
+
           if (a < 1) ageCounts['Under 1']++;
           else if (a <= 4) ageCounts['1-4']++;
           else if (a <= 9) ageCounts['5-9']++;
@@ -61,13 +67,24 @@ export default function AgeBracketChart() {
           else if (a <= 59) ageCounts['55-59']++;
           else ageCounts['60 and over']++;
         };
-  
+
         await Promise.all(
           householdSnapshot.docs.map(async (householdDoc) => {
             const householdId = householdDoc.id;
+
+            // ✅ Get barangay for each household
+            const geoSnap = await getDoc(
+              doc(db, 'households', householdId, 'geographicIdentification', 'main')
+            );
+            const geoData = geoSnap.exists() ? geoSnap.data() : {};
+            const barangay = geoData.barangay?.toLowerCase() || '';
+
+            // ✅ Filter: Only include the user's barangay if role is Brgy-Secretary
+            if (profile.role === 'Brgy-Secretary' && barangay !== userBarangay) return;
+
             const membersRef = collection(db, 'households', householdId, 'members');
             const membersSnap = await getDocs(membersRef);
-  
+
             await Promise.all(
               membersSnap.docs.map(async (memberDoc) => {
                 const demoRef = doc(
@@ -80,17 +97,20 @@ export default function AgeBracketChart() {
                   'main'
                 );
                 const demoSnap = await getDoc(demoRef);
-  
+
                 if (demoSnap.exists()) {
                   const demoData = demoSnap.data();
-                  countAge(demoData.age); // Only members' ages
+                  countAge(demoData.age);
                 }
               })
             );
           })
         );
-  
-        const formatted = Object.entries(ageCounts).map(([age, count]) => ({ age, count }));
+
+        const formatted = Object.entries(ageCounts).map(([age, count]) => ({
+          age,
+          count,
+        }));
         setAgeData(formatted);
       } catch (error) {
         console.error('Error fetching age data:', error);
@@ -98,26 +118,29 @@ export default function AgeBracketChart() {
         setLoading(false);
       }
     };
-  
+
     fetchAgeBrackets();
-  }, []);
-  
+  }, [profile, authLoading]);
 
   if (loading) return <Spinner />;
 
-  const COLORS = ["#0ea5e9", "#22c55e", "#f59e0b", "#ef4444", "#9333ea", "#14b8a6", "#6366f1"];
+  const COLORS = [
+    '#0ea5e9',
+    '#22c55e',
+    '#f59e0b',
+    '#ef4444',
+    '#9333ea',
+    '#14b8a6',
+    '#6366f1',
+  ];
 
   return (
-    <ResponsiveContainer width="100%" height={500} >
-      <BarChart
-        layout="vertical"
-        data={ageData}
-        margin={{ top: 20, right: 30, left: 60, bottom: 20 }}
-      >
+    <ResponsiveContainer width="100%" height={500}>
+      <BarChart layout="vertical" data={ageData} margin={{ top: 20, right: 30, left: 60, bottom: 20 }}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis type="number" />
         <YAxis dataKey="age" type="category" width={80} />
-        <Tooltip formatter={(value) => [`${value} residents`, "Age Bracket"]} />
+        <Tooltip formatter={(value) => [`${value} residents`, 'Age Bracket']} />
         <Bar dataKey="count">
           {ageData.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -137,7 +160,14 @@ function Spinner() {
         fill="none"
         viewBox="0 0 24 24"
       >
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <circle
+          className="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="4"
+        />
         <path
           className="opacity-75"
           fill="currentColor"

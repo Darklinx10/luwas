@@ -9,40 +9,13 @@ import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 
-// Dynamically import the Map component (client-side only)
 const MapPopup = dynamic(() => import('@/components/mapPopUP'), { ssr: false });
-
-// Maps input field names to autocomplete hints
-const autocompleteMap = {
-  region: 'address-level1',
-  province: 'address-level1',
-  city: 'address-level2',
-  barangay: 'address-level3',
-  sitio: 'address-level3',
-  eaNumber: 'off',
-  buildingSerial: 'off',
-  housingUnitSerial: 'off',
-  householdSerial: 'off',
-  respondentLineNo: 'off',
-  contactNumber: 'tel',
-  email: 'email',
-  headLastName: 'family-name',
-  headFirstName: 'given-name',
-  headSuffix: 'honorific-suffix',
-  headMiddleName: 'additional-name',
-  headSex: 'sex',
-  headAge: 'bday',
-  floorNo: 'address-line1',
-  houseNo: 'street-address',
-  blockLotNo: 'address-line2',
-  streetName: 'address-line1',
-  subdivision: 'address-line3',
-};
 
 export default function GeographicIdentification({ householdId, goToNext }) {
   const [mapOpen, setMapOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showErrors, setShowErrors] = useState({});
+  const [currentHomeIndex, setCurrentHomeIndex] = useState(0);
 
   const [form, setForm] = useState({
     region: '',
@@ -63,53 +36,71 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     headMiddleName: '',
     headAge: '',
     headSex: '',
-    floorNo: '',
-    houseNo: '',
-    blockLotNo: '',
-    streetName: '',
-    subdivision: '',
-    latitude: '',
-    longitude: '',
+    homes: [
+      {
+        label: 'Primary Home',
+        latitude: '',
+        longitude: '',
+      },
+    ],
   });
 
   // Handle cascading dropdowns
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    if (name === 'region') {
-      setForm((prev) => ({ ...prev, region: value, province: '', city: '', barangay: '' }));
-    } else if (name === 'province') {
-      setForm((prev) => ({ ...prev, province: value, city: '', barangay: '' }));
-    } else if (name === 'city') {
-      setForm((prev) => ({ ...prev, city: value, barangay: '' }));
+    if (['region', 'province', 'city'].includes(name)) {
+      if (name === 'region') setForm((prev) => ({ ...prev, region: value, province: '', city: '', barangay: '' }));
+      if (name === 'province') setForm((prev) => ({ ...prev, province: value, city: '', barangay: '' }));
+      if (name === 'city') setForm((prev) => ({ ...prev, city: value, barangay: '' }));
     } else {
       setForm((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  // Save location from map
-  const handleSaveLocation = (location) => {
+  // Handle homes
+  const handleHomeChange = (key, value, index) => {
+    setForm((prev) => {
+      const newHomes = [...prev.homes];
+      newHomes[index][key] = value;
+      return { ...prev, homes: newHomes };
+    });
+  };
+
+  const handleAddHome = () => {
     setForm((prev) => ({
       ...prev,
-      latitude: location.lat.toFixed(6),
-      longitude: location.lng.toFixed(6),
+      homes: [...prev.homes, { label: `Secondary Home ${prev.homes.length}`, latitude: '', longitude: '' }],
     }));
+  };
+
+  const handleRemoveHome = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      homes: prev.homes.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleSaveLocation = (location) => {
+    handleHomeChange('latitude', location.lat.toFixed(6), currentHomeIndex);
+    handleHomeChange('longitude', location.lng.toFixed(6), currentHomeIndex);
     setMapOpen(false);
   };
 
   // Validation
   const validateForm = () => {
-    const requiredFields = [
-      'region', 'province', 'city', 'barangay', 'sitio', 'eaNumber', 'buildingSerial',
+    const requiredFields = ['region', 'province', 'city', 'barangay', 'sitio', 'eaNumber', 'buildingSerial',
       'housingUnitSerial', 'householdSerial', 'respondentLineNo', 'contactNumber', 'email',
-      'headLastName', 'headFirstName', 'headSex', 'headAge'
-    ];
+      'headLastName', 'headFirstName', 'headSex', 'headAge'];
 
     const errors = {};
     requiredFields.forEach((field) => {
-      if (!form[field]?.toString().trim()) {
-        errors[field] = true;
-      }
+      if (!form[field]?.toString().trim()) errors[field] = true;
+    });
+
+    // Ensure all homes have coordinates
+    form.homes.forEach((home, index) => {
+      if (!home.latitude || !home.longitude) errors[`home-${index}`] = true;
     });
 
     setShowErrors(errors);
@@ -119,51 +110,34 @@ export default function GeographicIdentification({ householdId, goToNext }) {
   // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      toast.error('Please fill out all required fields.');
-      return;
-    }
+    if (!validateForm()) return toast.error('Please fill out all required fields.');
 
     setIsSaving(true);
-
     try {
       const auth = getAuth();
       const user = auth.currentUser;
-
-      if (!user) {
-        toast.error('User not authenticated.');
-        return;
-      }
+      if (!user) return toast.error('User not authenticated.');
 
       const ref = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-      await setDoc(ref, {
-        ...form,
-        uid: user.uid,
-      });
+      await setDoc(ref, { ...form, uid: user.uid });
 
       toast.success('Geographic information saved!');
       goToNext();
     } catch (error) {
-      console.error('Error saving geographic form:', error);
+      console.error(error);
       toast.error('Failed to save data.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Dynamic dropdowns
   const selectedRegion = geoData.regions.find(r => r.name === form.region);
   const provinceOptions = selectedRegion?.provinces || [];
-
   const selectedProvince = provinceOptions.find(p => p.name === form.province);
 
   let cityOptions = [];
-  if (selectedProvince?.cities?.length) {
-    cityOptions = selectedProvince.cities;
-  } else if (!selectedProvince && selectedRegion?.cities?.length) {
-    cityOptions = selectedRegion.cities;
-  }
+  if (selectedProvince?.cities?.length) cityOptions = selectedProvince.cities;
+  else if (!selectedProvince && selectedRegion?.cities?.length) cityOptions = selectedRegion.cities;
 
   const selectedCity = cityOptions.find(c => c.name === form.city);
   const barangayOptions = selectedCity?.barangays || [];
@@ -314,36 +288,47 @@ export default function GeographicIdentification({ householdId, goToNext }) {
         ))}
       </div>
 
-      {/* Map Coordinates */}
-      <h2 className="text-xl font-semibold text-green-600 pt-4">Map Coordinates</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="flex flex-col">
-          <label htmlFor="latitude" className="mb-1 text-sm font-medium text-gray-700">Latitude</label>
-          <input id="latitude" name="latitude" type="text" value={form.latitude} readOnly className="border p-2 rounded w-full" />
+      {/* Homes */}
+      <h2 className="text-xl font-semibold text-green-600 pt-4">Homes</h2>
+      {form.homes.map((home, index) => (
+        <div key={index} className="border p-4 rounded mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-medium">{home.label}</span>
+            {index > 0 && (
+              <button type="button" className="text-red-600" onClick={() => handleRemoveHome(index)}>Remove</button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col">
+              <label className="mb-1 text-sm font-medium text-gray-700">Latitude</label>
+              <input type="text" value={home.latitude} readOnly className="border p-2 rounded w-full" />
+            </div>
+            <div className="flex flex-col">
+              <label className="mb-1 text-sm font-medium text-gray-700">Longitude</label>
+              <input type="text" value={home.longitude} readOnly className="border p-2 rounded w-full" />
+            </div>
+            <div className="sm:col-span-2">
+              <button type="button" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                onClick={() => setCurrentHomeIndex(index) || setMapOpen(true)}>
+                Pick Location from Map
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col">
-          <label htmlFor="longitude" className="mb-1 text-sm font-medium text-gray-700">Longitude</label>
-          <input id="longitude" name="longitude" type="text" value={form.longitude} readOnly className="border p-2 rounded w-full" />
-        </div>
-        <div className="sm:col-span-2">
-          <button type="button" onClick={() => setMapOpen(true)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-            Pick Location from Map
-          </button>
-        </div>
-      </div>
+      ))}
+
+      <button type="button" onClick={handleAddHome} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        Add Another Home
+      </button>
 
       {/* Submit */}
       <div className="pt-6 flex justify-end">
-        <button
-          type="submit"
-          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 flex items-center gap-2 disabled:opacity-50"
-          disabled={isSaving}
-        >
+        <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 flex items-center gap-2" disabled={isSaving}>
           {isSaving ? 'Saving...' : 'Save & Continue >'}
         </button>
       </div>
 
-      {/* Map Popup */}
       <MapPopup isOpen={mapOpen} onClose={() => setMapOpen(false)} onSave={handleSaveLocation} />
     </form>
   );

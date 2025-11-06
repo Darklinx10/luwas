@@ -1,0 +1,35 @@
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                             
+                                                                  1. Logo in login page (align logo of clarin, luwas, and drrm) to remove scrollbar ✅
+                                                                  2. Dropdown when selecting the barangay ✅
+                                                                  3. Barangay Secretary should only see the records under the assigned barangay (in dashboard) ✅
+                                                                  4.Dropdown accident type in adding accidents ✅
+                                                                  5.Primary Home and secondary homes (in add household function) ✅
+                                                                  6. Upload data using csv
+                                                                  7. Map zoom restriction within the defined center ✅
+                                                                  8. Barangay labels in map

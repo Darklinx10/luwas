@@ -12,46 +12,56 @@ import {
 } from 'recharts';
 import { useEffect, useState } from 'react';
 import { db } from '@/firebase/config';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
+import { useAuth } from '@/context/authContext'; // ✅ Import profile context
 
 export default function BarChartComponent() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { profile, loading: authLoading } = useAuth(); // ✅ Get user profile
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!profile) return;
+
     const fetchBarangayCounts = async () => {
       setLoading(true);
       try {
         const snapshot = await getDocs(collection(db, 'households'));
         const barangayCounts = {};
+        const userBarangay = profile?.barangay?.toLowerCase() || '';
 
         await Promise.all(
-          snapshot.docs.map(async (doc) => {
-            const householdId = doc.id;
+          snapshot.docs.map(async (docSnap) => {
+            const householdId = docSnap.id;
 
-            const [geoSnap, membersSnap] = await Promise.all([
-              getDocs(collection(db, 'households', householdId, 'geographicIdentification')),
-              getDocs(collection(db, 'households', householdId, 'members')),
-            ]);
+            // 🔹 Get geographicIdentification/main for barangay info
+            const geoSnap = await getDoc(
+              doc(db, 'households', householdId, 'geographicIdentification', 'main')
+            );
 
+            const geoData = geoSnap.exists() ? geoSnap.data() : {};
+            const barangay = geoData.barangay?.toLowerCase() || '';
+
+            // 🔸 Skip if Barangay Secretary and household not in their barangay
+            if (profile.role === 'Brgy-Secretary' && barangay !== userBarangay) return;
+
+            const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
             const memberCount = membersSnap.size;
 
-            geoSnap.forEach((geoDoc) => {
-              const geoData = geoDoc.data();
-              const barangay = geoData.barangay;
-
-              if (barangay) {
-                barangayCounts[barangay] = (barangayCounts[barangay] || 0) + memberCount;
-              }
-            });
+            if (barangay) {
+              barangayCounts[barangay] = (barangayCounts[barangay] || 0) + memberCount;
+            }
           })
         );
 
+        // 🔹 Convert to chart-friendly format
         const chartData = Object.entries(barangayCounts).map(([name, residents]) => ({
           name,
           residents,
         }));
 
+        // Sort descending by resident count
         chartData.sort((a, b) => b.residents - a.residents);
         setData(chartData);
       } catch (error) {
@@ -62,7 +72,7 @@ export default function BarChartComponent() {
     };
 
     fetchBarangayCounts();
-  }, []);
+  }, [profile, authLoading]);
 
   if (loading) return <Spinner />;
 
@@ -72,13 +82,7 @@ export default function BarChartComponent() {
     <ResponsiveContainer width="100%" height={500}>
       <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis
-          dataKey="name"
-          angle={0} // horizontal
-          textAnchor="middle"
-          interval={0}
-          tick={{ fontSize: 12 }}
-        />
+        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
         <YAxis label={{ value: 'Residents', angle: -90, position: 'insideLeft' }} />
         <Tooltip formatter={(value) => [`${value} residents`, "Count"]} />
         <Bar dataKey="residents">

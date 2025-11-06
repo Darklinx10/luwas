@@ -1,9 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { db } from '@/firebase/config';
 import * as turf from '@turf/turf';
 import { collection, getDocs } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
 
 import AccidentTable from '@/app/(home)/reports/components/accidentReport';
 import HazardTable from '@/app/(home)/reports/components/hazardReport';
@@ -11,13 +11,11 @@ import PWDTable from '@/app/(home)/reports/components/pwdReport';
 import SeniorTable from '@/app/(home)/reports/components/seniorReport';
 import RoleGuard from '@/components/roleGuard';
 import { useAuth } from '@/context/authContext';
-import { fetchHazardFromFirebase } from "@/utils/fetchHazards";
+import { fetchHazardFromFirebase } from '@/utils/fetchHazards';
 import { hazardTypes } from '@/utils/hazardTypes';
 
-const reportData = {};
-
 const titleMap = {
-  pwd: 'List of Person with Disability (2025)',
+  pwd: 'List of Persons with Disability (2025)',
   senior: 'List of Senior Citizens (2025)',
   accident: 'List of Reported Accidents (2025)',
   ...hazardTypes.reduce((map, type) => {
@@ -30,52 +28,44 @@ function ReportsPageContent() {
   const [selectedReport, setSelectedReport] = useState('pwd');
   const [affectedHouseholds, setAffectedHouseholds] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [legendProp, setLegendProp] = useState(null); // default
+  const [legendProp, setLegendProp] = useState(null);
   const profile = useAuth();
 
+  // Load hazards if selected
   useEffect(() => {
     const loadAffectedHouseholds = async () => {
       if (!hazardTypes.includes(selectedReport)) return;
-  
+
       setLoading(true);
       try {
         const geojson = await fetchHazardFromFirebase(selectedReport);
-  
         if (!geojson?.features?.length) {
           setAffectedHouseholds([]);
           setLegendProp(null);
           setLoading(false);
           return;
         }
-  
-        // Automatically determine legendProp (first property key)
-        let detectedLegendProp = geojson.legendProp?.key ? geojson.legendProp : null;
-        if (!detectedLegendProp) {
-          const firstFeatureProps = geojson.features[0].properties || {};
-          const keys = Object.keys(firstFeatureProps);
-          if (keys.length) {
-            const key = keys[0];
-            detectedLegendProp = {
-              key,
-              type: typeof firstFeatureProps[key] === 'number' ? 'numeric' : 'categorical',
+
+        const detectedLegendProp = geojson.legendProp?.key
+          ? geojson.legendProp
+          : {
+              key: Object.keys(geojson.features[0].properties || {})[0] || 'Unknown',
+              type: typeof Object.values(geojson.features[0].properties || {})[0] === 'number'
+                ? 'numeric'
+                : 'categorical',
             };
-          } else {
-            detectedLegendProp = { key: 'Unknown', type: 'categorical' };
-          }
-        }
         setLegendProp(detectedLegendProp);
-  
-        // Fetch households
+
         const householdsSnap = await getDocs(collection(db, 'households'));
         const households = [];
-  
+
         for (const doc of householdsSnap.docs) {
           const geoSnap = await getDocs(collection(db, 'households', doc.id, 'geographicIdentification'));
           geoSnap.forEach((geoDoc) => {
             const data = geoDoc.data();
             const lat = Number(data.latitude);
             const lng = Number(data.longitude);
-  
+
             if (!isNaN(lat) && !isNaN(lng)) {
               households.push({
                 name: `${data.headFirstName || ''} ${data.headLastName || ''}`.trim(),
@@ -86,26 +76,14 @@ function ReportsPageContent() {
             }
           });
         }
-  
-        // Determine affected households
-        const affected = [];
-  
-        households.forEach((h) => {
+
+        const affected = households.filter((h) => {
           const point = turf.point([h.location.lng, h.location.lat]);
-  
-          for (const feature of geojson.features) {
-            const polygon = turf.feature(feature.geometry);
-  
-            if (turf.booleanPointInPolygon(point, polygon)) {
-              affected.push({
-                ...h,
-                ...feature.properties,
-              });
-              break; // stop checking other features once matched
-            }
-          }
+          return geojson.features.some((feature) =>
+            turf.booleanPointInPolygon(point, turf.feature(feature.geometry))
+          );
         });
-  
+
         setAffectedHouseholds(affected);
       } catch (err) {
         console.error('Error loading hazard data:', err);
@@ -115,32 +93,39 @@ function ReportsPageContent() {
         setLoading(false);
       }
     };
-  
+
     loadAffectedHouseholds();
   }, [selectedReport]);
-  
 
   const renderTable = () => {
     const title = titleMap[selectedReport];
 
-    // Filter data for Brgy-Secretary by their barangay
-    let filteredData = undefined;
-    if (profile?.role === 'Brgy-Secretary') {
-      if (selectedReport === 'pwd') {
-        filteredData = reportData.pwd?.filter(item => item.barangay === profile.barangay);
-        return <PWDTable title={title} data={filteredData} />;
-      }
-      if (selectedReport === 'senior') {
-        filteredData = reportData.senior?.filter(item => item.barangay === profile.barangay);
-        return <SeniorTable title={title} data={filteredData} />;
-      }
-      return null;
+    // PWD Table
+    if (selectedReport === 'pwd') {
+      return (
+        <PWDTable
+          title={title}
+          barangay={profile.role === 'Brgy-Secretary' ? profile.barangay : null}
+        />
+      );
     }
 
-    // For other roles, show all reports
-    if (selectedReport === 'pwd') return <PWDTable title={title} data={reportData.pwd} />;
-    if (selectedReport === 'senior') return <SeniorTable title={title} data={reportData.senior} />;
-    if (selectedReport === 'accident') return <AccidentTable data={reportData.accident} title={title} />;
+    // Senior Table
+    if (selectedReport === 'senior') {
+      return (
+        <SeniorTable
+          title={title}
+          barangay={profile.role === 'Brgy-Secretary' ? profile.barangay : null}
+        />
+      );
+    }
+
+    // Accident Table
+    if (selectedReport === 'accident') {
+      return <AccidentTable title={title} />;
+    }
+
+    // Hazard Table
     if (hazardTypes.includes(selectedReport)) {
       return (
         <HazardTable
@@ -158,6 +143,7 @@ function ReportsPageContent() {
 
   return (
     <div className="p-4">
+      {/* Report selection buttons */}
       <div className="flex gap-2 mb-4 flex-wrap">
         {['pwd', 'senior', 'accident']
           .filter((key) => profile?.role !== 'Brgy-Secretary' || key !== 'accident')
@@ -173,17 +159,17 @@ function ReportsPageContent() {
             >
               {titleMap[key].split('(')[0].replace('List of ', '').trim()}
             </button>
-        ))}
+          ))}
 
         {profile?.role !== 'Brgy-Secretary' && (
           <select
             onChange={(e) => setSelectedReport(e.target.value)}
             value={hazardTypes.includes(selectedReport) ? selectedReport : ''}
-            className={`px-2 py-1 rounded cursor-pointer outline-none transition-all duration-200
-              ${hazardTypes.includes(selectedReport)
+            className={`px-2 py-1 rounded cursor-pointer outline-none transition-all duration-200 ${
+              hazardTypes.includes(selectedReport)
                 ? 'bg-green-600 text-white font-bold'
-                : 'bg-gray-300 text-gray-800 hover:bg-green-400'}
-            `}
+                : 'bg-gray-300 text-gray-800 hover:bg-green-400'
+            }`}
           >
             <option value="" disabled className="text-gray-500 bg-white">
               Select Hazard
@@ -197,6 +183,7 @@ function ReportsPageContent() {
         )}
       </div>
 
+      {/* Render table */}
       <div className="bg-white rounded shadow p-4 overflow-x-auto print:border print:border-gray-300">
         {renderTable()}
       </div>
