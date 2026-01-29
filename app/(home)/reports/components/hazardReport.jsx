@@ -97,7 +97,7 @@ export default function HazardTable({
 
   return (
     <div className="p-4">
-      <div className="text-sm text-right text-gray-500 mb-2 print:hidden">
+      <div className="text-sm text-left text-gray-500 mb-2 print:hidden">
         Home / Reports / Hazards
       </div>
 

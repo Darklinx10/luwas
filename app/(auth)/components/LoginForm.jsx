@@ -95,8 +95,8 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
       // 6️⃣ Redirect after login
       setTimeout(() => {
         if (profile.role === "MDRRMC-Admin") {
-          setRedirectMessage && setRedirectMessage("Redirecting to Maps...");
-          router.replace("/maps");
+          setRedirectMessage && setRedirectMessage("Redirecting to Households...");
+          router.replace("/household");
         } else {
           setRedirectMessage && setRedirectMessage("Redirecting to Dashboard...");
           router.replace("/dashboard");

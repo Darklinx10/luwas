@@ -13,7 +13,7 @@ import {
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useRef, useState, useCallback} from 'react';
-import { FiPlus, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiUpload } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import EditMemberModal from './components/edithhMemberModal';
 import EditHouseholdModal from './components/editHouseholModal';
@@ -272,6 +272,59 @@ export default function HouseholdPage() {
     }
   };
 
+  const handleImportFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target.result;
+        const rows = text.split('\n').map((r) => r.split(','));
+
+        // CSV headers: HouseholdID, HeadName, Barangay, Sex, Age, ContactNumber
+        const headers = rows[0].map((h) => h.trim());
+        const dataRows = rows.slice(1);
+
+        setLoading(true);
+
+        for (const row of dataRows) {
+          if (row.length !== headers.length) continue;
+
+          const rowData = headers.reduce((acc, key, idx) => {
+            acc[key] = row[idx].trim();
+            return acc;
+          }, {});
+
+          // Save household geographic info
+          await setDoc(
+            doc(db, 'households', rowData.HouseholdID, 'geographicIdentification', 'main'),
+            {
+              barangay: rowData.Barangay,
+              headFirstName: rowData.HeadName.split(' ')[0],
+              headLastName: rowData.HeadName.split(' ').slice(1).join(' '),
+              headSex: rowData.Sex,
+              headAge: rowData.Age,
+              contactNumber: rowData.ContactNumber,
+            },
+            { merge: true }
+          );
+        }
+
+        toast.success('Household data imported successfully!');
+        fetchHouseholds();
+      } catch (error) {
+        console.error('Import failed:', error);
+        toast.error('Failed to import household data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+
   // ✅ Download as CSV
   const downloadCSV = () => {
     const csvHeaders = ['Household ID', 'Family Head', 'Barangay', 'Sex', 'Age', 'Contact Number'];
@@ -331,12 +384,12 @@ export default function HouseholdPage() {
   if (authLoading) return <div className="p-4">Loading user...</div>;
 
   return (
-    <RoleGuard allowedRoles={['Brgy-Secretary', 'MDRRMC-Personnel']}>
+    <RoleGuard allowedRoles={['Brgy-Secretary', 'MDRRMC-Personnel', 'MDRRMC-Admin']}>
       <div className="p-4">
-        <div className="text-sm text-right text-gray-500 mb-2 print:hidden">Home / Households</div>
+        <div className="text-sm text-left text-gray-500 mb-2 print:hidden">Home / Households</div>
         <div id="print-section">
           <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg print:text-black print:text-center print:font-bold print:py-2 print:rounded-none">
-            Household Information (2025)
+            Household Information
           </div>
 
           {/* Search + Actions */}
@@ -396,7 +449,32 @@ export default function HouseholdPage() {
                 </button>
               </div>
             )}
+
+            {profile?.role === 'MDRRMC-Admin' && (
+              <>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleImportFile}
+                  className="hidden"
+                  id="importFileInput"
+                />
+                <label
+                  htmlFor="importFileInput"
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 cursor-pointer flex items-center gap-2"
+                >
+                  <FiUpload />
+                  Import Household Data
+                </label>
+              </>
+            )}
+
           </div>
+
+
+          
+
+
 
           <HouseholdTable
             loading={loading}

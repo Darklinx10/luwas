@@ -28,7 +28,7 @@ export default function Sidebar({ sidebarOpen }) {
       href: "/household",
       label: "Households",
       icon: <BsFillHousesFill size={20} />,
-      allowedRoles: ["Brgy-Secretary", "MDRRMC-Personnel"],
+      allowedRoles: ["Brgy-Secretary", "MDRRMC-Personnel", "MDRRMC-Admin"],
     },
     {
       href: "/maps",

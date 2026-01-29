@@ -17,7 +17,7 @@ export default function HomePage() {
       return;
     }
 
-    router.replace(role === 'MDRRMC-Admin' ? '/maps' : '/dashboard');
+    router.replace(role === 'MDRRMC-Admin' ? '/household' : '/dashboard');
   }, [user, role, loading, router]);
 
   return (

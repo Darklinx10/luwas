@@ -21,7 +21,7 @@ export async function middleware(req) {
       const decoded = await admin.auth().verifySessionCookie(sessionCookie, true);
 
       url.pathname =
-        decoded.role === 'MDRRMC-Admin' ? '/maps' : '/dashboard';
+        decoded.role === 'MDRRMC-Admin' ? '/household' : '/dashboard';
 
       return NextResponse.redirect(url);
     } catch {
@@ -68,7 +68,7 @@ export async function middleware(req) {
       adminBlocked.some(path => pathname.startsWith(path)) &&
       role === 'MDRRMC-Admin'
     ) {
-      url.pathname = '/maps';
+      url.pathname = '/household';
       return NextResponse.redirect(url);
     }
 

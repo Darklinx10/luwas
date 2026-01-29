@@ -157,7 +157,7 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
   return (
     <div className="p-4">
       {/* Breadcrumb (print hidden) */}
-      <div className="text-sm text-right text-gray-500 mb-2 print:hidden">
+      <div className="text-sm text-left text-gray-500 mb-2 print:hidden">
         Home / Reports / Accidents
       </div>
 
