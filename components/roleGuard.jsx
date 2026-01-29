@@ -5,37 +5,40 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/authContext';
 import LoadingSpinner from './LoadingSpinner';
 
-export default function ProtectedRoute({ children, allowedRoles = [], loggingOut = false }) {
+export default function RoleGuard({ children, allowedRoles = [] }) {
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
-  const { profile, loading, user } = useAuth();
   const [redirecting, setRedirecting] = useState(false);
-  const [redirectMessage, setRedirectMessage] = useState('');
 
   useEffect(() => {
-    if (loading || loggingOut) return;
+    if (loading) return;
 
     let timer;
+    const role = profile?.role;
 
-    if (!user || !profile) {
+    // 🔒 Not authenticated
+    if (!user) {
       setRedirecting(true);
-      setRedirectMessage('Redirecting to login...');
       timer = setTimeout(() => router.replace('/login'), 1500);
-    } else if (!allowedRoles.includes(profile.role)) {
+    }
+    // 🚫 Authenticated but not authorized
+    else if (allowedRoles.length > 0 && role && !allowedRoles.includes(role)) {
       setRedirecting(true);
-      setRedirectMessage('Access denied. Redirecting...');
-      timer = setTimeout(() => router.replace('/unauthorized'), 3000);
+      timer = setTimeout(() => router.replace('/unauthorized'), 2000);
     }
 
     return () => clearTimeout(timer);
-  }, [loading, loggingOut, user, profile, allowedRoles, router]);
+  }, [user, profile, loading, allowedRoles, router]);
 
-  if (loading || !profile || redirecting) {
+  // ⏳ Loading / redirect screen
+  if (loading || redirecting) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <LoadingSpinner message={redirecting ? redirectMessage : 'Checking access...'} />
+        <LoadingSpinner/>
       </div>
     );
   }
 
+  // ✅ Authorized
   return <>{children}</>;
 }

@@ -2,73 +2,255 @@
 
 import RoleGuard from '@/components/roleGuard';
 import { db } from '@/firebase/config';
-import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+} from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback} from 'react';
 import { FiPlus, FiSearch } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import EditMemberModal from './components/edithhMemberModal';
 import EditHouseholdModal from './components/editHouseholModal';
 import HouseholdTable from './components/HouseholdTable';
-import { useAuth } from '@/context/authContext'; // ✅ use AuthContext
+import { useAuth } from '@/context/authContext';
 
 const MapPopup = dynamic(() => import('../../../components/mapPopUP'), { ssr: false });
 
 export default function HouseholdPage() {
   const router = useRouter();
-  const { profile, loading: authLoading } = useAuth(); // ✅ get user data from context
+  const { profile, loading: authLoading } = useAuth();
 
-  const [mapOpen, setMapOpen] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState(null);
   const [households, setHouseholds] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [expandedHouseholds, setExpandedHouseholds] = useState({});
   const [membersData, setMembersData] = useState({});
+  const [expandedHouseholds, setExpandedHouseholds] = useState({});
+  const [loadingMembers, setLoadingMembers] = useState({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+
   const [totalHouseholds, setTotalHouseholds] = useState(0);
   const [totalResidents, setTotalResidents] = useState(0);
-  const [loading, setLoading] = useState(true);
+
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedHouseholdId, setSelectedHouseholdId] = useState(null);
-  const [loadingMembers, setLoadingMembers] = useState({});
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [updating, setUpdating] = useState(false);
 
-  // ✅ Handle member edit
+  const [mapOpen, setMapOpen] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedHomeIndex, setSelectedHomeIndex] = useState(null);
+
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  const memberListeners = useRef({});
+
+  /* =========================
+     FETCH HOUSEHOLDS (Reusable)
+  ========================== */
+  const fetchHouseholds = async () => {
+    setLoading(true);
+    try {
+      const snapshot = await getDocs(collection(db, 'households'));
+      let nonEmptyHouseholdCount = 0;
+
+      const list = await Promise.all(
+        snapshot.docs.map(async (hhDoc) => {
+          const householdId = hhDoc.id;
+
+          // Geographic info
+          const geoSnap = await getDoc(
+            doc(db, 'households', householdId, 'geographicIdentification', 'main')
+          );
+          const geoData = geoSnap.exists() ? geoSnap.data() : {};
+
+          let headData = {};
+          const uniqueResidentIds = new Set();
+          let headFoundInMembers = false;
+
+          // Members
+          const membersSnap = await getDocs(
+            collection(db, 'households', householdId, 'members')
+          );
+
+          for (const m of membersSnap.docs) {
+            const base = m.data();
+            const demoSnap = await getDoc(
+              doc(
+                db,
+                'households',
+                householdId,
+                'members',
+                m.id,
+                'demographicCharacteristics',
+                'main'
+              )
+            );
+            const demo = demoSnap.exists() ? demoSnap.data() : {};
+            const rel = demo.relationshipToHead || base.relationshipToHead || '';
+
+            if (rel.toLowerCase() === 'head') {
+              headData = {
+                headFirstName: base.firstName || '',
+                headMiddleName: base.middleName || '',
+                headLastName: base.lastName || '',
+                headSuffix: base.suffix || '',
+                headSex: demo.sex || '',
+                headAge: demo.age || '',
+                contactNumber: demo.contactNumber || '',
+              };
+              headFoundInMembers = true;
+              uniqueResidentIds.add(m.id);
+            } else {
+              uniqueResidentIds.add(m.id);
+            }
+          }
+
+          // If no head in members, use geographicIdentification
+          if (!headFoundInMembers && geoData?.headFirstName) {
+            headData = {
+              headFirstName: geoData.headFirstName,
+              headMiddleName: geoData.headMiddleName,
+              headLastName: geoData.headLastName,
+              headSuffix: geoData.headSuffix,
+              headSex: geoData.headSex,
+              headAge: geoData.headAge,
+              contactNumber: geoData.contactNumber,
+            };
+            uniqueResidentIds.add(`head-${householdId}`); // synthetic ID for head
+          }
+
+          const hasData =
+            headData.headFirstName || headData.headLastName || geoData?.barangay || membersSnap.size > 0;
+
+          if (hasData) nonEmptyHouseholdCount++;
+
+          return { householdId, ...geoData, ...headData, hasData, residentCount: uniqueResidentIds.size };
+        })
+      );
+
+      const valid = list.filter((h) => h.hasData);
+
+      setHouseholds(valid);
+      setTotalHouseholds(nonEmptyHouseholdCount);
+      setTotalResidents(valid.reduce((sum, h) => sum + h.residentCount, 0));
+    } catch (error) {
+      console.error('Failed to fetch households:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* =========================
+     INITIAL LOAD
+  ========================== */
+  useEffect(() => {
+    fetchHouseholds();
+  }, []);
+
+  /* =========================
+     REALTIME MEMBERS PER HH
+  ========================== */
+  const toggleExpanded = (householdId) => {
+    setExpandedHouseholds((p) => ({ ...p, [householdId]: !p[householdId] }));
+
+    if (memberListeners.current[householdId]) return;
+
+    setLoadingMembers((p) => ({ ...p, [householdId]: true }));
+
+    memberListeners.current[householdId] = onSnapshot(
+      collection(db, 'households', householdId, 'members'),
+      async (snap) => {
+        const members = await Promise.all(
+          snap.docs.map(async (d) => {
+            const base = d.data();
+            const demoSnap = await getDoc(
+              doc(
+                db,
+                'households',
+                householdId,
+                'members',
+                d.id,
+                'demographicCharacteristics',
+                'main'
+              )
+            );
+            const demo = demoSnap.exists() ? demoSnap.data() : {};
+            return { id: d.id, ...base, ...demo };
+          })
+        );
+
+        setMembersData((p) => ({ ...p, [householdId]: members }));
+        setLoadingMembers((p) => ({ ...p, [householdId]: false }));
+      }
+    );
+  };
+
+  /* =========================
+     MEMBER CRUD
+  ========================== */
   const handleEditMember = (member, householdId) => {
     setSelectedMember({ ...member, householdId });
     setIsEditModalOpen(true);
   };
 
-  // ✅ Handle member deletion
   const handleDeleteMember = async (memberId) => {
-    const confirmed = confirm('Are you sure you want to delete this member?');
+    const confirmed = confirm('Delete this member?');
     if (!confirmed) return;
 
     try {
-      const householdId = Object.entries(membersData).find(([_, members]) =>
-        members.some((m) => m.id === memberId)
+      const householdId = Object.entries(membersData).find(([_, m]) =>
+        m.some((x) => x.id === memberId)
       )?.[0];
 
-      if (!householdId) {
-        toast.error("Unable to identify member's household");
-        return;
-      }
+      if (!householdId) return;
 
       await deleteDoc(doc(db, 'households', householdId, 'members', memberId));
-
-      setMembersData((prev) => ({
-        ...prev,
-        [householdId]: prev[householdId].filter((m) => m.id !== memberId),
-      }));
-
-      toast.success('Member deleted successfully');
-    } catch (error) {
-      console.error('Failed to delete member', error);
-      toast.error('Failed to delete member');
+      toast.success('Member deleted');
+      fetchHouseholds(); // refresh table after deleting member
+    } catch {
+      toast.error('Delete failed');
     }
   };
+
+  const handleSaveEdit = async () => {
+    try {
+      setUpdating(true);
+      const { householdId, id, ...data } = selectedMember;
+      await updateDoc(doc(db, 'households', householdId, 'members', id), data);
+      toast.success('Member updated');
+      setIsEditModalOpen(false);
+      fetchHouseholds(); // refresh table after edit
+    } catch {
+      toast.error('Update failed');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // ✅ Relation mapping
+  const mapRelationToCategory = (relation) => {
+    if (!relation) return '';
+    const lower = relation.toLowerCase();
+    if (['head', 'family head'].includes(lower)) return 'Head';
+    if (['spouse', 'partner'].includes(lower)) return 'Spouse';
+    if (['son', 'daughter', 'child', 'nephew', 'niece'].includes(lower)) return 'Child';
+    if (['father', 'mother', 'father-in-law', 'mother-in-law', 'parent'].includes(lower))
+      return 'Parent';
+    if (['brother', 'sister', 'brother-in-law', 'sister-in-law', 'sibling'].includes(lower))
+      return 'Sibling';
+    if (['uncle', 'aunt', 'other relative', 'relative'].includes(lower)) return 'Relative';
+    return 'Other';
+  };
+
+  const handleCloseEditModal = useCallback(() => setEditModalOpen(false), []);
+  const handleAddClick = () => router.push('/household/add');
 
   // ✅ Handle edit field change
   const handleEditFieldChange = (e) => {
@@ -76,48 +258,17 @@ export default function HouseholdPage() {
     setSelectedMember((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Save edited member
-  const handleSaveEdit = async () => {
-    try {
-      setUpdating(true);
-      const { householdId, id, firstName, lastName, middleName, contactNumber, nuclearRelation } =
-        selectedMember;
-
-      const memberRef = doc(db, 'households', householdId, 'members', id);
-      const updateData = { firstName, lastName, middleName, contactNumber };
-
-      if (nuclearRelation !== undefined) updateData.nuclearRelation = nuclearRelation;
-
-      await updateDoc(memberRef, updateData);
-
-      setMembersData((prev) => ({
-        ...prev,
-        [householdId]: prev[householdId].map((m) =>
-          m.id === id ? { ...m, ...updateData } : m
-        ),
-      }));
-
-      toast.success('Member updated!');
-      setIsEditModalOpen(false);
-      setSelectedMember(null);
-    } catch (error) {
-      console.error('Update failed', error);
-      toast.error('Failed to update member');
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleCloseEditModal = useCallback(() => setEditModalOpen(false), []);
-  const handleAddClick = () => router.push('/household/add');
-
-  // ✅ Map popup handler
-  const openMapWithLocation = (lat, lng) => {
-    if (lat && lng) {
-      setSelectedLocation({ lat: parseFloat(lat), lng: parseFloat(lng) });
+  // =========================
+  // MAP HANDLER FOR MULTIPLE HOMES
+  // =========================
+  const openMapWithLocation = (household, index = 0) => {
+    const home = household.homes?.[index];
+    if (home && home.latitude && home.longitude) {
+      setSelectedLocation({ lat: parseFloat(home.latitude), lng: parseFloat(home.longitude) });
+      setSelectedHomeIndex(index);
       setMapOpen(true);
     } else {
-      alert('No location data available for this household.');
+      alert('No location data available for this home.');
     }
   };
 
@@ -148,150 +299,36 @@ export default function HouseholdPage() {
     document.body.removeChild(link);
   };
 
-  // ✅ Relation mapping
-  const mapRelationToCategory = (relation) => {
-    if (!relation) return '';
-    const lower = relation.toLowerCase();
-    if (['head', 'family head'].includes(lower)) return 'Head';
-    if (['spouse', 'partner'].includes(lower)) return 'Spouse';
-    if (['son', 'daughter', 'child', 'nephew', 'niece'].includes(lower)) return 'Child';
-    if (['father', 'mother', 'father-in-law', 'mother-in-law', 'parent'].includes(lower))
-      return 'Parent';
-    if (['brother', 'sister', 'brother-in-law', 'sister-in-law', 'sibling'].includes(lower))
-      return 'Sibling';
-    if (['uncle', 'aunt', 'other relative', 'relative'].includes(lower)) return 'Relative';
-    return 'Other';
-  };
 
-  // ✅ Expand/collapse households and fetch members
-  const toggleExpanded = async (householdId) => {
-    setExpandedHouseholds((prev) => ({ ...prev, [householdId]: !prev[householdId] }));
-
-    if (!membersData[householdId]) {
-      setLoadingMembers((prev) => ({ ...prev, [householdId]: true }));
-
-      try {
-        const memberSnapshot = await getDocs(collection(db, 'households', householdId, 'members'));
-
-        const members = await Promise.all(
-          memberSnapshot.docs.map(async (docSnap) => {
-            const baseData = docSnap.data();
-            const memberId = docSnap.id;
-
-            const demoRef = doc(
-              db,
-              'households',
-              householdId,
-              'members',
-              memberId,
-              'demographicCharacteristics',
-              'main'
-            );
-            const demoSnap = await getDoc(demoRef);
-            const demoData = demoSnap.exists() ? demoSnap.data() : {};
-
-            return { id: memberId, ...baseData, ...demoData };
-          })
-        );
-
-        setMembersData((prev) => ({ ...prev, [householdId]: members }));
-      } catch (error) {
-        console.error('Error fetching members:', error);
-      } finally {
-        setLoadingMembers((prev) => ({ ...prev, [householdId]: false }));
-      }
-    }
-  };
-
-  // ✅ Fetch households
-  const fetchHouseholds = async () => {
-    setLoading(true);
-    try {
-      const householdsSnapshot = await getDocs(collection(db, 'households'));
-      let residentCounter = 0;
-
-      const householdList = await Promise.all(
-        householdsSnapshot.docs.map(async (hhDoc) => {
-          const householdId = hhDoc.id;
-          const geoSnap = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
-          const geoData = geoSnap.exists() ? geoSnap.data() : {};
-
-          const memberSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-          residentCounter += memberSnap.size;
-
-          let headData = {};
-
-          await Promise.all(
-            memberSnap.docs.map(async (memberDoc) => {
-              const baseData = memberDoc.data();
-              const demoSnap = await getDoc(
-                doc(db, 'households', householdId, 'members', memberDoc.id, 'demographicCharacteristics', 'main')
-              );
-              const demoData = demoSnap.exists() ? demoSnap.data() : {};
-              const relationship = demoData.relationshipToHead || baseData.relationshipToHead || '';
-
-              if (relationship.toLowerCase() === 'head') {
-                headData = {
-                  headFirstName: baseData.firstName || demoData.firstName || '',
-                  headMiddleName: baseData.middleName || demoData.middleName || '',
-                  headLastName: baseData.lastName || demoData.lastName || '',
-                  headSuffix: baseData.suffix || demoData.suffix || '',
-                  headSex: demoData.sex || '',
-                  headAge: demoData.age || '',
-                  contactNumber: demoData.contactNumber || '',
-                };
-              }
-            })
-          );
-
-          return { householdId, ...geoData, ...headData };
-        })
-      );
-
-      const validHouseholds = householdList.filter(
-        (h) =>
-          h.headFirstName || h.headLastName || h.barangay || h.latitude || h.longitude
-      );
-
-      setHouseholds(validHouseholds);
-      setTotalHouseholds(validHouseholds.length);
-      setTotalResidents(residentCounter);
-    } catch (error) {
-      console.error('Error fetching households:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchHouseholds();
-  }, []);
-
-  // ✅ Role-based filtering
-  const filteredByRoleAndBarangay = useMemo(() => {
+  /* =========================
+     FILTERS
+  ========================== */
+  const filteredByRole = useMemo(() => {
     if (!profile) return households;
-
     if (profile.role === 'Brgy-Secretary') {
       return households.filter(
-        (hh) => (hh.barangay || '').toLowerCase() === profile.barangay?.toLowerCase()
+        (h) => (h.barangay || '').toLowerCase() === profile.barangay?.toLowerCase()
       );
     }
     return households;
   }, [households, profile]);
 
-  // ✅ Search filtering
-  const filteredHouseholds = filteredByRoleAndBarangay.filter((data) =>
-    [
-      data.headFirstName || '',
-      data.headMiddleName || '',
-      data.headLastName || '',
-    ]
-      .join(' ')
+  const filteredHouseholds = filteredByRole.filter((h) =>
+    `${h.headFirstName} ${h.headMiddleName} ${h.headLastName}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
 
-  if (authLoading) return <div className="p-4 text-gray-500">Loading user...</div>;
+  useEffect(() => {
+    setTotalHouseholds(filteredHouseholds.length);
+    const filteredResidentCount = filteredHouseholds.reduce(
+      (total, hh) => total + (hh.residentCount || 0),
+      0
+    );
+    setTotalResidents(filteredResidentCount);
+  }, [filteredHouseholds]);
+
+  if (authLoading) return <div className="p-4">Loading user...</div>;
 
   return (
     <RoleGuard allowedRoles={['Brgy-Secretary', 'MDRRMC-Personnel']}>
@@ -368,19 +405,19 @@ export default function HouseholdPage() {
             expandedHouseholds={expandedHouseholds}
             membersData={membersData}
             toggleExpanded={toggleExpanded}
-            openMapWithLocation={openMapWithLocation}
             setSelectedHouseholdId={setSelectedHouseholdId}
             setEditModalOpen={setEditModalOpen}
-            fetchHouseholds={fetchHouseholds}
+            fetchHouseholds={fetchHouseholds} // ✅ now passed
             totalHouseholds={totalHouseholds}
             totalResidents={totalResidents}
             handleEditMember={handleEditMember}
             handleDeleteMember={handleDeleteMember}
+            openMapWithLocation={openMapWithLocation}
             loadingMembers={loadingMembers}
+            toast={toast}
             db={db}
             deleteDoc={deleteDoc}
             doc={doc}
-            toast={toast}
             setLoading={setLoading}
           />
         </div>
@@ -403,7 +440,21 @@ export default function HouseholdPage() {
           onUpdated={fetchHouseholds}
         />
 
-        <MapPopup isOpen={mapOpen} onClose={() => setMapOpen(false)} location={selectedLocation} readOnly />
+        <MapPopup
+          isOpen={mapOpen}
+          onClose={() => setMapOpen(false)}
+          location={selectedLocation}
+          readOnly={false} // allow picking
+          onSave={(location) => {
+            if (selectedHomeIndex !== null) {
+              handleHomeChange('latitude', location.lat.toFixed(6), selectedHomeIndex);
+              handleHomeChange('longitude', location.lng.toFixed(6), selectedHomeIndex);
+              setSelectedHomeIndex(null);
+              setMapOpen(false);
+            }
+          }}
+        />
+
       </div>
     </RoleGuard>
   );

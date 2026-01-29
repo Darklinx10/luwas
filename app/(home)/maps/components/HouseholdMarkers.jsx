@@ -18,7 +18,11 @@ const HouseholdMarkers = ({
   return (
     <>
       {householdMarkers.map((marker) => {
-        const isAffected = affectedHouseholds.some((h) => h.id === marker.id);
+        // Check if this home (marker) is affected
+        const isAffected = affectedHouseholds.some(
+          (h) => h.id === marker.id // each home has unique id
+        );
+
         const iconToUse = isAffected ? affectedIcon : houseIcon;
 
         return (
@@ -30,17 +34,27 @@ const HouseholdMarkers = ({
               mouseover: (e) => e.target.openPopup(),
               mouseout: (e) => e.target.closePopup(),
               click: () => {
-                setSelectedHousehold(marker); // pass the marker data
-                setIsModalOpen(true);         // open modal
+                setSelectedHousehold(marker); // includes home info now
+                setIsModalOpen(true);
               },
             }}
           >
             <Popup>
-              <strong>
-                {marker.name ? `${marker.name} Residence` : 'Unnamed Residence'}
-              </strong>
+              <strong>{marker.name ? `${marker.name} Residence` : 'Unnamed Residence'}</strong>
               <br />
-              Lat: {marker.lat.toFixed(4)}, Lng: {marker.lng.toFixed(4)}
+              <span className="text-sm text-gray-700">
+                <strong>{marker.homeLabel || `Home ${marker.id}`}</strong>
+              </span>
+              <br />
+              Barangay: {marker.barangay}
+              <br />
+              📍 {marker.lat.toFixed(5)}, {marker.lng.toFixed(5)}
+              <br />
+              {marker.members?.length > 0 && (
+                <>
+                  Members: {marker.members.join(', ')}
+                </>
+              )}
             </Popup>
           </Marker>
         );

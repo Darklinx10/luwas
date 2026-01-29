@@ -3,6 +3,9 @@ import React from 'react';
 import { FiEdit, FiTrash2 } from 'react-icons/fi';
 import { FaArrowRight } from 'react-icons/fa';
 import HouseholdMembersTable from './HouseholdMemberTble';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { db } from '@/firebase/config';
+
 
 export default function HouseholdTable({
   loading,
@@ -20,12 +23,10 @@ export default function HouseholdTable({
   handleEditMember,
   handleDeleteMember,
   loadingMembers,
-  db,
-  deleteDoc,
-  doc,
   toast,
   setLoading,
 }) {
+
   return (
     <div className="overflow-x-auto shadow border-t-0 rounded-b-md bg-white p-4">
       {loading ? (
@@ -44,7 +45,7 @@ export default function HouseholdTable({
           </div>
         </div>
       ) : households.length === 0 ? (
-        <p className="text-center text-gray-500 py-6">No results matched your search.</p>
+        <p className="text-center text-gray-500 py-6">No household records found.</p>
       ) : filteredHouseholds.length === 0 ? (
         <p className="text-center text-gray-500 py-6">No household records found.</p>
       ) : (
@@ -100,13 +101,24 @@ export default function HouseholdTable({
                         <td className="p-2 border">{data.contactNumber || '-'}</td>
                         <td className="p-2 border">{data.headAge || '-'}</td>
                         <td className="p-2 border print:hidden">
-                          <button
-                            onClick={() => openMapWithLocation(data.latitude, data.longitude)}
-                            className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 cursor-pointer"
-                          >
-                            Map
-                          </button>
+                          {data.homes?.length ? (
+                            <div className="flex flex-col gap-1">
+                              {data.homes.map((home, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => openMapWithLocation(data, idx)}
+                                  className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 cursor-pointer"
+                                  title={`View ${home.label} on Map`}
+                                >
+                                  {home.label}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            '-'
+                          )}
                         </td>
+
                         <td className="p-2 border space-x-2 print:hidden">
                           <button
                             onClick={() => {

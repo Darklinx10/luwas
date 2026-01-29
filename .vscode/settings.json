@@ -1,9 +1,9 @@
 {
     "files.autoSave": "afterDelay",
-    "workbench.colorTheme": "Visual Studio Dark",
+    "workbench.colorTheme": "Default Light Modern",
     "editor.formatOnSave": false,
     "editor.detectIndentation": false,
-    "editor.fontSize": 10,
+    "editor.fontSize": 16,
     "editor.autoIndentOnPaste": true,
     "editor.tabSize": 2
 }

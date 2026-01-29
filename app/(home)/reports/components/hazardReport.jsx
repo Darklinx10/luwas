@@ -53,7 +53,7 @@ function getColorScale(geojson, legendProp, colorSettings) {
 }
 export default function HazardTable({
   data = [],
-  title = 'Hazard Reports (2025)',
+  title = 'Hazard Reports',
   loading = false,
   legendProp, // added
   formatValue = (val) => val ?? 'N/A', // fallback

@@ -36,31 +36,31 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     headMiddleName: '',
     headAge: '',
     headSex: '',
+    floorNo: '',
+    houseNo: '',
+    blockLotNo: '',
+    streetName: '',
+    subdivision: '',
     homes: [
-      {
-        label: 'Primary Home',
-        latitude: '',
-        longitude: '',
-      },
+      { label: 'Primary Home', latitude: '', longitude: '' },
     ],
   });
 
-  // Handle cascading dropdowns
+  // Cascading dropdown handler
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     if (['region', 'province', 'city'].includes(name)) {
-      if (name === 'region') setForm((prev) => ({ ...prev, region: value, province: '', city: '', barangay: '' }));
-      if (name === 'province') setForm((prev) => ({ ...prev, province: value, city: '', barangay: '' }));
-      if (name === 'city') setForm((prev) => ({ ...prev, city: value, barangay: '' }));
+      if (name === 'region') setForm(prev => ({ ...prev, region: value, province: '', city: '', barangay: '' }));
+      if (name === 'province') setForm(prev => ({ ...prev, province: value, city: '', barangay: '' }));
+      if (name === 'city') setForm(prev => ({ ...prev, city: value, barangay: '' }));
     } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
+      setForm(prev => ({ ...prev, [name]: value }));
     }
   };
 
-  // Handle homes
+  // Homes handlers
   const handleHomeChange = (key, value, index) => {
-    setForm((prev) => {
+    setForm(prev => {
       const newHomes = [...prev.homes];
       newHomes[index][key] = value;
       return { ...prev, homes: newHomes };
@@ -68,17 +68,29 @@ export default function GeographicIdentification({ householdId, goToNext }) {
   };
 
   const handleAddHome = () => {
-    setForm((prev) => ({
-      ...prev,
-      homes: [...prev.homes, { label: `Secondary Home ${prev.homes.length}`, latitude: '', longitude: '' }],
-    }));
+    setForm(prev => {
+      const newHomes = [...prev.homes, { label: '', latitude: '', longitude: '' }];
+      return {
+        ...prev,
+        homes: newHomes.map((home, index) => ({
+          ...home,
+          label: index === 0 ? 'Primary Home' : `Secondary Home ${index}`,
+        })),
+      };
+    });
   };
 
   const handleRemoveHome = (index) => {
-    setForm((prev) => ({
-      ...prev,
-      homes: prev.homes.filter((_, i) => i !== index),
-    }));
+    setForm(prev => {
+      const newHomes = prev.homes.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        homes: newHomes.map((home, idx) => ({
+          ...home,
+          label: idx === 0 ? 'Primary Home' : `Secondary Home ${idx}`,
+        })),
+      };
+    });
   };
 
   const handleSaveLocation = (location) => {
@@ -89,16 +101,17 @@ export default function GeographicIdentification({ householdId, goToNext }) {
 
   // Validation
   const validateForm = () => {
-    const requiredFields = ['region', 'province', 'city', 'barangay', 'sitio', 'eaNumber', 'buildingSerial',
+    const requiredFields = [
+      'region', 'province', 'city', 'barangay', 'sitio', 'eaNumber', 'buildingSerial',
       'housingUnitSerial', 'householdSerial', 'respondentLineNo', 'contactNumber', 'email',
-      'headLastName', 'headFirstName', 'headSex', 'headAge'];
-
+      'headLastName', 'headFirstName', 'headSex', 'headAge'
+    ];
     const errors = {};
-    requiredFields.forEach((field) => {
+
+    requiredFields.forEach(field => {
       if (!form[field]?.toString().trim()) errors[field] = true;
     });
 
-    // Ensure all homes have coordinates
     form.homes.forEach((home, index) => {
       if (!home.latitude || !home.longitude) errors[`home-${index}`] = true;
     });
@@ -107,7 +120,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     return Object.keys(errors).length === 0;
   };
 
-  // Submit handler
+  // Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return toast.error('Please fill out all required fields.');
@@ -119,7 +132,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
       if (!user) return toast.error('User not authenticated.');
 
       const ref = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-      await setDoc(ref, { ...form, uid: user.uid });
+      await setDoc(ref, { ...form, uid: user.uid }, { merge: true });
 
       toast.success('Geographic information saved!');
       goToNext();
@@ -131,82 +144,44 @@ export default function GeographicIdentification({ householdId, goToNext }) {
     }
   };
 
+  // Dropdown options
   const selectedRegion = geoData.regions.find(r => r.name === form.region);
   const provinceOptions = selectedRegion?.provinces || [];
   const selectedProvince = provinceOptions.find(p => p.name === form.province);
-
-  let cityOptions = [];
-  if (selectedProvince?.cities?.length) cityOptions = selectedProvince.cities;
-  else if (!selectedProvince && selectedRegion?.cities?.length) cityOptions = selectedRegion.cities;
-
+  let cityOptions = selectedProvince?.cities?.length ? selectedProvince.cities : selectedRegion?.cities || [];
   const selectedCity = cityOptions.find(c => c.name === form.city);
   const barangayOptions = selectedCity?.barangays || [];
 
   return (
     <form onSubmit={handleSubmit} className="pr-2 space-y-6">
 
-      {/* Location */}
+      {/* Location Fields */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <RequiredField htmlFor="region" label="Region" required showError={showErrors.region}>
-          <select
-            id="region"
-            name="region"
-            value={form.region}
-            onChange={handleChange}
-            className="border p-2 rounded w-full"
-          >
+          <select id="region" name="region" value={form.region} onChange={handleChange} className="border p-2 rounded w-full">
             <option value="">Select Region</option>
-            {geoData.regions.map(region => (
-              <option key={region.name} value={region.name}>{region.name}</option>
-            ))}
+            {geoData.regions.map(region => <option key={region.name} value={region.name}>{region.name}</option>)}
           </select>
         </RequiredField>
 
         <RequiredField htmlFor="province" label="Province" required showError={showErrors.province}>
-          <select
-            id="province"
-            name="province"
-            value={form.province}
-            onChange={handleChange}
-            className="border p-2 rounded w-full"
-            disabled={!selectedRegion}
-          >
+          <select id="province" name="province" value={form.province} onChange={handleChange} className="border p-2 rounded w-full" disabled={!selectedRegion}>
             <option value="">Select Province</option>
-            {provinceOptions.map(prov => (
-              <option key={prov.name} value={prov.name}>{prov.name}</option>
-            ))}
+            {provinceOptions.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
           </select>
         </RequiredField>
 
         <RequiredField htmlFor="city" label="Municipality / City" required showError={showErrors.city}>
-          <select
-            id="city"
-            name="city"
-            value={form.city}
-            onChange={handleChange}
-            className="border p-2 rounded w-full"
-            disabled={!(selectedProvince || (selectedRegion && selectedRegion.cities?.length))}
-          >
+          <select id="city" name="city" value={form.city} onChange={handleChange} className="border p-2 rounded w-full" disabled={!selectedRegion}>
             <option value="">Select City / Municipality</option>
-            {cityOptions.map(city => (
-              <option key={city.name} value={city.name}>{city.name}</option>
-            ))}
+            {cityOptions.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
         </RequiredField>
 
         <RequiredField htmlFor="barangay" label="Barangay" required showError={showErrors.barangay}>
-          <select
-            id="barangay"
-            name="barangay"
-            value={form.barangay}
-            onChange={handleChange}
-            className="border p-2 rounded w-full"
-            disabled={!selectedCity}
-          >
+          <select id="barangay" name="barangay" value={form.barangay} onChange={handleChange} className="border p-2 rounded w-full" disabled={!selectedCity}>
             <option value="">Select Barangay</option>
-            {barangayOptions.map(bgy => (
-              <option key={bgy.name} value={bgy.name}>{bgy.name}</option>
-            ))}
+            {barangayOptions.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
           </select>
         </RequiredField>
 
@@ -280,7 +255,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
       {/* Address */}
       <h2 className="text-xl font-semibold text-green-600 pt-4">Address</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {['floorNo', 'houseNo', 'blockLotNo', 'streetName', 'subdivision'].map((field) => (
+        {['floorNo', 'houseNo', 'blockLotNo', 'streetName', 'subdivision'].map(field => (
           <div key={field} className="flex flex-col">
             <label htmlFor={field} className="mb-1 text-sm font-medium text-gray-700">{field.replace(/([A-Z])/g, ' $1')}</label>
             <input id={field} name={field} type="text" value={form[field]} onChange={handleChange} className="border p-2 rounded w-full" placeholder={field.replace(/([A-Z])/g, ' $1')} />
@@ -294,9 +269,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
         <div key={index} className="border p-4 rounded mb-4">
           <div className="flex justify-between items-center mb-2">
             <span className="font-medium">{home.label}</span>
-            {index > 0 && (
-              <button type="button" className="text-red-600" onClick={() => handleRemoveHome(index)}>Remove</button>
-            )}
+            {index > 0 && <button type="button" className="text-red-600" onClick={() => handleRemoveHome(index)}>Remove</button>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -310,7 +283,7 @@ export default function GeographicIdentification({ householdId, goToNext }) {
             </div>
             <div className="sm:col-span-2">
               <button type="button" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                onClick={() => setCurrentHomeIndex(index) || setMapOpen(true)}>
+                onClick={() => { setCurrentHomeIndex(index); setMapOpen(true); }}>
                 Pick Location from Map
               </button>
             </div>

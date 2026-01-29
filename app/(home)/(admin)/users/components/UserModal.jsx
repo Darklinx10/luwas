@@ -3,6 +3,7 @@
 import { FiX, FiEye, FiEyeOff } from 'react-icons/fi';
 import { useState } from 'react';
 import geoData from '@/utils/geoData-ph.json'; // ✅ import your location data
+import { capitalizeWords } from '@/utils/capitalize';
 
 export default function UserModal({ user, setUser, onClose, onSave, saving, mode }) {
   // ✅ Extract Bohol municipalities and barangays
@@ -30,32 +31,39 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
         </h2>
 
         <div className="space-y-3">
+          {/* First Name */}
           <Input
             label="First Name"
             id="firstName"
             value={user.firstName}
-            onChange={(v) => setUser((p) => ({ ...p, firstName: v }))}
+            onChange={(v) => setUser((p) => ({ ...p, firstName: capitalizeWords(v) }))}
             autoComplete="given-name"
             placeholder="Enter first name"
             required
           />
+
+          {/* Middle Name */}
           <Input
             label="Middle Name"
             id="middleName"
             value={user.middleName}
-            onChange={(v) => setUser((p) => ({ ...p, middleName: v }))}
+            onChange={(v) => setUser((p) => ({ ...p, middleName: capitalizeWords(v) }))}
             autoComplete="additional-name"
             placeholder="Enter middle name"
           />
+
+          {/* Last Name */}
           <Input
             label="Last Name"
             id="lastName"
             value={user.lastName}
-            onChange={(v) => setUser((p) => ({ ...p, lastName: v }))}
+            onChange={(v) => setUser((p) => ({ ...p, lastName: capitalizeWords(v) }))}
             autoComplete="family-name"
             placeholder="Enter last name"
             required
           />
+
+          {/* Contact Number */}
           <Input
             label="Contact Number"
             id="contactNumber"
@@ -70,7 +78,7 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
             placeholder="Enter contact number"
           />
 
-          {/* ✅ Municipality Dropdown */}
+          {/* Municipality Dropdown */}
           <div>
             <label htmlFor="municipality" className="block text-sm font-medium">
               Municipality / City
@@ -97,7 +105,7 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
             </select>
           </div>
 
-          {/* ✅ Barangay Dropdown */}
+          {/* Barangay Dropdown */}
           <div>
             <label htmlFor="barangay" className="block text-sm font-medium">
               Barangay
@@ -122,6 +130,7 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
             </select>
           </div>
 
+          {/* Email */}
           <Input
             label="Email"
             id="email"
@@ -134,6 +143,7 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
             required
           />
 
+          {/* Password and Role for Add Mode */}
           {mode === 'add' && (
             <>
               <Input
@@ -163,7 +173,7 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
             </>
           )}
 
-          {/* ✅ Action Buttons */}
+          {/* Action Buttons */}
           <div className="flex justify-end gap-2 pt-4">
             <button
               onClick={onClose}
@@ -176,9 +186,7 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
               onClick={onSave}
               disabled={saving}
               className={`px-4 py-2 text-white rounded flex items-center gap-2 ${
-                saving
-                  ? 'bg-green-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700'
+                saving ? 'bg-green-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
               }`}
             >
               {saving ? (

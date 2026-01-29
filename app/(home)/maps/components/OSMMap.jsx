@@ -76,59 +76,75 @@ export default function OSMMapPage() {
     }
   }, [profile, role, loading, router]);
 
-  // Fetch household locations
+  // Fetch household locations (MULTIPLE HOMES)
+  // Fetch household locations (MULTIPLE HOMES)
   useEffect(() => {
     const fetchHouseholds = async () => {
       try {
         const snapshot = await getDocs(collection(db, 'households'));
-        const promises = snapshot.docs.map(async (doc) => {
+        const allMarkers = [];
+
+        for (const householdDoc of snapshot.docs) {
+          const householdData = householdDoc.data();
+
+          // Fetch members once per household
+          const membersSnap = await getDocs(
+            collection(db, 'households', householdDoc.id, 'members')
+          );
+          const memberNames = membersSnap.docs
+            .map(m =>
+              capitalizeWords(
+                `${m.data().firstName || ''} ${m.data().lastName || ''}`.trim()
+              )
+            )
+            .filter(name => name);
+
+          // Fetch geographic identifications (homes)
           const geoSnap = await getDocs(
-            collection(db, 'households', doc.id, 'geographicIdentification')
+            collection(db, 'households', householdDoc.id, 'geographicIdentification')
           );
 
-          return Promise.all(
-            geoSnap.docs.map(async (geoDoc) => {
-              const data = geoDoc.data();
-              const lat = Number(data.latitude);
-              const lng = Number(data.longitude);
+          for (const geoDoc of geoSnap.docs) {
+            const geoData = geoDoc.data();
+            const headFullName = capitalizeWords(
+              `${geoData.headFirstName || ''} ${geoData.headLastName || ''}`.trim()
+            ) || 'Unnamed Household';
 
-              const headFullName = capitalizeWords(
-                `${data.headFirstName || ''} ${data.headLastName || ''}`.trim()
-              );
+            // Loop through multiple homes if available
+            if (Array.isArray(geoData.homes)) {
+              geoData.homes.forEach((home, index) => {
+                const lat = Number(home.latitude);
+                const lng = Number(home.longitude);
 
-              if (!isNaN(lat) && !isNaN(lng)) {
-                const membersSnap = await getDocs(
-                  collection(db, 'households', doc.id, 'members')
-                );
-                const memberNames = membersSnap.docs
-                  .map(m => capitalizeWords(`${m.data().firstName || ''} ${m.data().lastName || ''}`.trim()))
-                  .filter(name => name && name !== headFullName);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                  allMarkers.push({
+                    id: `${householdDoc.id}_${geoDoc.id}_${index}`, // unique per home
+                    householdId: householdDoc.id,
+                    geoId: geoDoc.id,
+                    homeLabel: home.label || (index === 0 ? 'Primary Home' : `Home ${index + 1}`),
+                    name: headFullName,
+                    lat,
+                    lng,
+                    barangay: geoData.barangay || householdData.barangay || 'N/A',
+                    contactNumber: geoData.contactNumber || householdData.contactNumber || 'N/A',
+                    members: memberNames,
+                  });
+                }
+              });
+            }
+          }
+        }
 
-                return {
-                  id: `${doc.id}_${geoDoc.id}`,
-                  name: headFullName,
-                  lat,
-                  lng,
-                  barangay: data.barangay || 'N/A',
-                  contactNumber: data.contactNumber || 'N/A',
-                  members: memberNames
-                };
-              }
-
-              return null;
-            })
-          );
-        });
-
-        const results = await Promise.all(promises);
-        setHouseholdMarkers(results.flat().filter(Boolean));
+        setHouseholdMarkers(allMarkers);
       } catch (err) {
-        console.error(err);
+        console.error('Failed to fetch household locations:', err);
+        toast.error('Failed to load household locations');
       }
     };
 
     fetchHouseholds();
   }, []);
+
 
   // Fetch accidents
   useEffect(() => {

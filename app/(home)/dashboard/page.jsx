@@ -10,16 +10,14 @@ import {
   FaUsersCog,
   FaWheelchair,
 } from 'react-icons/fa';
-
-import BottomStat from './components/bottomStats';
 import SummaryCard from './components/summartCard';
+import BottomStat from './components/bottomStats';
 import RoleGuard from '@/components/roleGuard';
 import { db } from '@/firebase/config';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, getDocs, getDoc, onSnapshot, doc } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/context/authContext'; // ✅ import your context hook
+import { useAuth } from '@/context/authContext';
 
 // Lazy-loaded charts
 const BarChartComponent = dynamic(() => import('./components/barchart'), { ssr: false });
@@ -34,189 +32,146 @@ export default function DashboardPageWrapper() {
 }
 
 function DashboardPage() {
-  const router = useRouter();
-  const { profile, loading: authLoading } = useAuth(); // ✅ use profile from context
+  const { user, profile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
 
   const [stats, setStats] = useState({
-    residents: 0,
-    householdHeads: 0,
-    householdMembers: 0,
     households: 0,
+    residents: 0,
     families: 0,
     pwd: 0,
     seniors: 0,
-    ageCount: 0,
     hazards: 0,
     accidents: 0,
     growthRate: '0%',
   });
 
   useEffect(() => {
-    if (authLoading) return;
+  if (!profile) return;
 
-    if (!profile) {
-      router.push('/login');
-      return;
-    }
+  setLoading(true);
 
-    const fetchStats = async () => {
-      try {
-        const [householdSnap, accidentsSnap] = await Promise.all([
-          getDocs(collection(db, 'households')),
-          getDocs(collection(db, 'accidents')),
-        ]);
+  const unsub = onSnapshot(collection(db, 'households'), async (snapshot) => {
+    let totalHouseholds = 0;
+    let totalResidents = 0;
+    let totalFamilies = 0;
+    let totalPWD = 0;
+    let totalSeniors = 0;
 
-        let residentCount = 0;
-        let householdHeads = 0;
-        let householdMembers = 0;
-        let pwdCount = 0;
-        let seniorCount = 0;
-        let ageCount = 0;
-        let actualHouseholds = 0;
+    const userBarangay = profile.role === 'Brgy-Secretary' ? profile.barangay?.toLowerCase() : null;
 
-        const userBarangay = profile?.barangay?.toLowerCase() || '';
+    await Promise.all(
+      snapshot.docs.map(async (hhDoc) => {
+        const hhId = hhDoc.id;
 
-        await Promise.all(
-          householdSnap.docs.map(async (householdDoc) => {
-            const householdId = householdDoc.id;
+        // Geographic info
+        const geoSnap = await getDoc(doc(db, 'households', hhId, 'geographicIdentification', 'main'));
+        const geoData = geoSnap.exists() ? geoSnap.data() : {};
 
-            // ✅ Get barangay of household
-            const geoSnap = await getDoc(
-              doc(db, 'households', householdId, 'geographicIdentification', 'main')
-            );
-            const geoData = geoSnap.exists() ? geoSnap.data() : {};
-            const householdBarangay = geoData.barangay?.toLowerCase() || '';
+        if (userBarangay && (geoData.barangay?.toLowerCase() || '') !== userBarangay) return;
 
-            // ✅ Barangay filter
-            if (profile.role === 'Brgy-Secretary' && householdBarangay !== userBarangay) return;
+        const membersSnap = await getDocs(collection(db, 'households', hhId, 'members'));
+        const uniqueResidentIds = new Set();
+        let headFoundInMembers = false;
 
-            const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-            const healthSnap = await getDocs(collection(db, 'households', householdId, 'health'));
-            const mainHealthDoc = await getDoc(doc(db, 'households', householdId, 'health', 'main'));
+        // Fetch PWD info from health
+        const healthSnap = await getDoc(doc(db, 'households', hhId, 'health', 'main'));
+        const health = healthSnap.exists() ? healthSnap.data() : null;
 
-            const healthMap = new Map(healthSnap.docs.map((h) => [h.id, h.data()]));
+        // Count PWD based on health data
+        if (health?.isPWD && typeof health.pwdLineNumber === 'string') {
+          totalPWD++;
+        }
 
-            if (!membersSnap.empty) {
-              actualHouseholds++;
-              householdHeads++;
-            }
+        for (const m of membersSnap.docs) {
+          const base = m.data();
+          const demoSnap = await getDoc(doc(db, 'households', hhId, 'members', m.id, 'demographicCharacteristics', 'main'));
+          const demo = demoSnap.exists() ? demoSnap.data() : {};
 
-            residentCount += membersSnap.size;
-            householdMembers += membersSnap.size;
+          const rel = (demo.relationshipToHead || base.relationshipToHead || '').toLowerCase();
 
-            const demoSnaps = await Promise.all(
-              membersSnap.docs.map((memberDoc) =>
-                getDoc(
-                  doc(
-                    db,
-                    'households',
-                    householdId,
-                    'members',
-                    memberDoc.id,
-                    'demographicCharacteristics',
-                    'main'
-                  )
-                )
-              )
-            );
+          if (rel === 'head') {
+            headFoundInMembers = true;
+            uniqueResidentIds.add(m.id);
+          } else {
+            uniqueResidentIds.add(m.id);
+          }
 
-            demoSnaps.forEach((demoSnap, idx) => {
-              if (demoSnap.exists()) {
-                const demo = demoSnap.data();
-                const age = parseInt(demo.age);
-                if (!isNaN(age)) {
-                  ageCount += age;
-                  if (age >= 60) seniorCount++; // ✅ Senior
-                }
+          // Seniors
+          if (demo.age >= 60) totalSeniors++;
+        }
 
-                const health = healthMap.get(membersSnap.docs[idx].id);
-                if (health?.isPWD === true) pwdCount++; // ✅ PWD
-              }
-            });
+        if (!headFoundInMembers && geoData?.headFirstName) {
+          uniqueResidentIds.add(`head-${hhId}`);
+        }
 
-            if (mainHealthDoc.exists()) {
-              const mainHealth = mainHealthDoc.data();
-              if (mainHealth?.isPWD === true) pwdCount++;
-            }
-          })
-        );
+        const residentCount = uniqueResidentIds.size;
 
-        // ✅ Hazards (global)
-        const hazardTypes = [
-          'Active Faults',
-          'Earthquake Induced Landslide',
-          'Ground Shaking',
-          'Landslide',
-          'Liquefaction',
-          'Rain Induced Landslide',
-          'Storm Surge',
-          'Tsunami',
-        ];
+        totalHouseholds++;
+        totalResidents += residentCount;
+        totalFamilies++;
+      })
+    );
+      
 
-        let totalHazards = 0;
-        await Promise.all(
-          hazardTypes.map(async (hazardType) => {
-            const snap = await getDocs(collection(db, 'hazards', hazardType, 'hazardInfo'));
-            totalHazards += snap.size;
-          })
-        );
+      // Hazards
+      const hazardTypes = ['Active Faults','Earthquake Induced Landslide','Ground Shaking','Landslide','Liquefaction','Rain Induced Landslide','Storm Surge','Tsunami'];
+      let totalHazards = 0;
+      await Promise.all(
+        hazardTypes.map(async (hazard) => {
+          const snap = await getDocs(collection(db, 'hazards', hazard, 'hazardInfo'));
+          totalHazards += snap.size;
+        })
+      );
 
-        setStats({
-          residents: residentCount,
-          householdHeads,
-          householdMembers,
-          households: actualHouseholds,
-          families: actualHouseholds,
-          pwd: pwdCount,
-          seniors: seniorCount,
-          ageCount,
-          hazards: totalHazards,
-          accidents: accidentsSnap.size,
-          growthRate: '0%',
-        });
-      } catch (err) {
-        console.error('Error fetching dashboard stats:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      // Accidents
+      const accidentsSnap = await getDocs(collection(db, 'accidents'));
 
-    fetchStats();
-  }, [profile, authLoading, router]);
+     
+
+      setStats({
+        households: totalHouseholds,
+        residents: totalResidents,
+        families: totalFamilies,
+        pwd: totalPWD,
+        seniors: totalSeniors,
+        hazards: totalHazards,
+        accidents: accidentsSnap.size,
+        growthRate: '0%',
+      });
+
+      setLoading(false);
+    });
+
+    return () => unsub();
+  }, [user, profile]);
 
   if (authLoading) return <div>Loading authentication...</div>;
 
   return (
     <div className="space-y-6">
       {/* Top Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 ">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <SummaryCard title="Total Residents" value={stats.residents} icon={<FaUsers />} color="bg-blue-500" loading={loading} />
         <SummaryCard title="Total Households" value={stats.households} icon={<FaHome />} color="bg-green-500" loading={loading} />
         <SummaryCard title="Total Families" value={stats.families} icon={<FaUsersCog />} color="bg-yellow-500" loading={loading} />
-        <SummaryCard
-        title="Population Growth Rate"
-        value={stats.growthRate}
-        icon={<FaChartLine />}
-        color="bg-red-500"
-        loading={loading}
-        />
+        <SummaryCard title="Population Growth Rate" value={stats.growthRate} icon={<FaChartLine />} color="bg-red-500" loading={loading} />
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="col-span-2 bg-white rounded-xl shadow p-3">
           <h3 className="text-lg font-semibold mb-4">Residents Data</h3>
-          <BarChartComponent />
+          <BarChartComponent stats={stats} /> {/* Pass stats if needed */}
         </div>
         <div className="bg-white rounded-xl shadow p-3">
           <h3 className="text-lg font-semibold mb-4">Age Bracket</h3>
-          <AgeBracketChart />
+          <AgeBracketChart stats={stats} /> {/* Age brackets for chart */}
         </div>
       </div>
 
       {/* Bottom Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 ">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <BottomStat title="Total PWD" value={stats.pwd} icon={<FaWheelchair />} color="bg-blue-500" loading={loading} />
         <BottomStat title="Total Senior Citizens" value={stats.seniors} icon={<FaUserClock />} color="bg-green-500" loading={loading} />
         <BottomStat title="Total Hazards" value={stats.hazards} icon={<FaExclamationTriangle />} color="bg-yellow-500" loading={loading} />

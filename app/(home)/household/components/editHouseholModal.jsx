@@ -9,9 +9,10 @@ import { toast } from 'react-toastify';
 const MapPopup = dynamic(() => import('../../../../components/mapPopUP'), { ssr: false });
 
 export default function EditHouseholdModal({ open, onClose, householdId, onUpdated }) {
-  const [mapOpen, setMapOpen] = useState(false);
+  const [mapOpenIndex, setMapOpenIndex] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
   const [form, setForm] = useState({
     headFirstName: '',
     headMiddleName: '',
@@ -21,8 +22,7 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
     headSex: '',
     contactNumber: '',
     headAge: '',
-    latitude: '',
-    longitude: '',
+    homes: [{ label: 'Primary Home', latitude: '', longitude: '' }],
   });
 
   const handleChange = (e) => {
@@ -30,15 +30,39 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleHomeChange = (index, key, value) => {
+    setForm((prev) => {
+      const homes = [...prev.homes];
+      homes[index][key] = value;
+      return { ...prev, homes };
+    });
+  };
+
+
+  const handleRemoveHome = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      homes: prev.homes.filter((_, i) => i !== index).map((home, idx) => ({
+        ...home,
+        label: idx === 0 ? 'Primary Home' : `Secondary Home ${idx}`,
+      })),
+    }));
+  };
+
+  const handleSaveLocation = (position) => {
+    if (mapOpenIndex === null) return;
+    handleHomeChange(mapOpenIndex, 'latitude', position.lat.toFixed(6));
+    handleHomeChange(mapOpenIndex, 'longitude', position.lng.toFixed(6));
+    setMapOpenIndex(null);
+  };
+
   useEffect(() => {
     const fetchHousehold = async () => {
       if (!open || !householdId) return;
-
       setLoading(true);
       try {
         const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
         const geoSnap = await getDoc(geoRef);
-
         if (!geoSnap.exists()) {
           toast.error('Household not found');
           onClose();
@@ -48,23 +72,24 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
         const geoData = geoSnap.data();
         const updatedForm = {
           barangay: geoData.barangay || '',
-          latitude: geoData.latitude || '',
-          longitude: geoData.longitude || '',
-
+          homes: geoData.homes && geoData.homes.length
+            ? geoData.homes
+            : [{ label: 'Primary Home', latitude: '', longitude: '' }],
+          headFirstName: geoData.headFirstName || '',
+          headMiddleName: geoData.headMiddleName || '',
+          headLastName: geoData.headLastName || '',
+          headSuffix: geoData.headSuffix || '',
+          headSex: geoData.headSex || '',
+          headAge: geoData.headAge || '',
+          contactNumber: geoData.contactNumber || '',
         };
 
+        // Fetch members to overwrite head if exists
         const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-
-        const demographicPromises = membersSnap.docs.map(async (memberDoc) => {
+        for (const memberDoc of membersSnap.docs) {
           const memberId = memberDoc.id;
           const demoRef = doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main');
           const demoSnap = await getDoc(demoRef);
-          return { demoSnap, memberId };
-        });
-
-        const resolvedDemos = await Promise.all(demographicPromises);
-
-        for (const { demoSnap, memberId } of resolvedDemos) {
           const memberRef = doc(db, 'households', householdId, 'members', memberId);
           const memberSnap = await getDoc(memberRef);
           const baseData = memberSnap.exists() ? memberSnap.data() : {};
@@ -87,7 +112,6 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
           }
         }
 
-
         setForm((prev) => ({ ...prev, ...updatedForm }));
       } catch (err) {
         console.error('Failed to fetch household data:', err);
@@ -103,79 +127,40 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-  
     try {
       const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
-      const {
-        headFirstName,
-        headMiddleName,
-        headLastName,
-        headSuffix,
-        headSex,
-        headAge,
-        contactNumber,
-        ...geoFields
-      } = form;
-  
-      // Update geographic info
-      await updateDoc(geoRef, {
-        ...geoFields,
-        updatedAt: new Date(),
-      });
-  
-      // Find the head member
+      const { headFirstName, headMiddleName, headLastName, headSuffix, headSex, headAge, contactNumber, ...geoFields } = form;
+
+      await updateDoc(geoRef, { ...geoFields, updatedAt: new Date() });
+
+      // Update head member if exists
       const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
-      let headMemberId = null;
-  
+      let headFound = false;
+
       for (const memberDoc of membersSnap.docs) {
         const memberId = memberDoc.id;
         const demoRef = doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main');
         const demoSnap = await getDoc(demoRef);
         const relationship = demoSnap.exists() ? demoSnap.data().relationshipToHead || '' : '';
         if (relationship.toLowerCase() === 'head') {
-          headMemberId = memberId;
-          const headDemoRef = demoRef;
           const headMemberRef = doc(db, 'households', householdId, 'members', memberId);
-  
           await Promise.all([
-            updateDoc(headDemoRef, {
-              contactNumber: contactNumber || '',
-              sex: headSex || '',
-              age: headAge || '',
-              updatedAt: new Date(),
-            }),
-            updateDoc(headMemberRef, {
-              firstName: headFirstName || '',
-              middleName: headMiddleName || '',
-              lastName: headLastName || '',
-              suffix: headSuffix || '',
-              updatedAt: new Date(),
-            }),
+            updateDoc(demoRef, { contactNumber, sex: headSex, age: headAge, updatedAt: new Date() }),
+            updateDoc(headMemberRef, { firstName: headFirstName, middleName: headMiddleName, lastName: headLastName, suffix: headSuffix, updatedAt: new Date() }),
           ]);
+          headFound = true;
           break;
         }
       }
-  
+
+      // If no members exist, save head info in geo doc
+      if (!headFound) {
+        await updateDoc(geoRef, { headFirstName, headMiddleName, headLastName, headSuffix, headSex, headAge, contactNumber, updatedAt: new Date() });
+      }
+
       toast.success('Household updated successfully');
       onClose();
-  
-      // Pass updated household to parent for immediate table refresh
-      const updatedHousehold = {
-        householdId,
-        headFirstName,
-        headMiddleName,
-        headLastName,
-        headSuffix,
-        headSex,
-        headAge,
-        contactNumber,
-        barangay: geoFields.barangay || '',
-        latitude: geoFields.latitude || '',
-        longitude: geoFields.longitude || '',
-      };
-  
-      if (typeof onUpdated === 'function') onUpdated(updatedHousehold);
-  
+      if (typeof onUpdated === 'function') onUpdated(form);
     } catch (err) {
       console.error('Error updating household:', err);
       toast.error('Error updating household');
@@ -183,152 +168,94 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
       setSubmitting(false);
     }
   };
-  
-
-  const handleSaveLocation = (position) => {
-    setForm((prev) => ({
-      ...prev,
-      latitude: position.lat.toFixed(6),
-      longitude: position.lng.toFixed(6),
-    }));
-    setMapOpen(false);
-  };
 
   if (!open) return null;
 
-
-
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg w-full max-w-2xl p-6 relative shadow-lg">
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-4 text-gray-500 hover:text-gray-700 text-xl font-bold"
-        >
-          &times;
-        </button>
+      <div className="bg-white rounded-lg w-full max-w-3xl p-6 relative shadow-lg overflow-y-auto max-h-[90vh]">
+        <button onClick={onClose} className="absolute top-3 right-4 text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
 
         <h2 className="text-xl font-bold mb-4">Edit Household</h2>
 
         {loading ? (
-          <p className="text-center text-gray-500 mb-4 animate-pulse">Loading data...</p>
+          <p className="text-center text-gray-500 animate-pulse">Loading data...</p>
         ) : (
-          <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4 bg-white p-2">
-            {[
-              ['headFirstName', 'First Name'],
-              ['headMiddleName', 'Middle Name'],
-              ['headLastName', 'Last Name'],
-              ['headSuffix', 'Suffix'],
-              ['barangay', 'Barangay'],
-              ['headSex', 'Sex'],
-              ['contactNumber', 'Contact Number'],
-              ['headAge', 'Age'],
-            ].map(([name, label]) => (
-              <div key={name}>
-                <label htmlFor={name} className="block text-sm font-medium text-gray-700">
-                  {label}
-                </label>
-                <input
-                  id={name}
-                  type={name === 'headAge' ? 'number' : 'text'}
-                  name={name}
-                  value={form[name]}
-                  onChange={handleChange}
-                  className="mt-1 p-2 w-full border border-gray-300 rounded"
-                  required={name !== 'headSuffix'}
-                />
-              </div>
-            ))}
-
-            <div className="col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="latitude" className="text-sm font-medium text-gray-700">
-                  Latitude
-                </label>
-                <input
-                  id="latitude"
-                  type="text"
-                  name="latitude"
-                  value={form.latitude}
-                  readOnly
-                  className="mt-1 p-2 w-full bg-gray-100 border rounded"
-                />
-              </div>
-              <div>
-                <label htmlFor="longitude" className="text-sm font-medium text-gray-700">
-                  Longitude
-                </label>
-                <input
-                  id="longitude"
-                  type="text"
-                  name="longitude"
-                  value={form.longitude}
-                  readOnly
-                  className="mt-1 p-2 w-full bg-gray-100 border rounded"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <button
-                  type="button"
-                  onClick={() => setMapOpen(true)}
-                  className="mt-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                >
-                  Pick Location from Map
-                </button>
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Household Head */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                ['headFirstName', 'First Name'],
+                ['headMiddleName', 'Middle Name'],
+                ['headLastName', 'Last Name'],
+                ['headSuffix', 'Suffix'],
+                ['barangay', 'Barangay'],
+                ['headSex', 'Sex'],
+                ['contactNumber', 'Contact Number'],
+                ['headAge', 'Age'],
+              ].map(([name, label]) => (
+                <div key={name}>
+                  <label className="block text-sm font-medium text-gray-700">{label}</label>
+                  <input
+                    type={name === 'headAge' ? 'number' : 'text'}
+                    value={form[name]}
+                    name={name}
+                    onChange={handleChange}
+                    className="mt-1 p-2 w-full border rounded"
+                    required={name !== 'headSuffix'}
+                  />
+                </div>
+              ))}
             </div>
 
-            <div className="col-span-2 flex justify-end gap-3 mt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-[200px] px-4 py-2 bg-gray-300 text-black font-medium rounded hover:bg-gray-400 transition"
-              >
-                Cancel
-              </button>
+            {/* Multiple Homes */}
+            <h3 className="text-lg font-semibold pt-4">Homes</h3>
+            {form.homes.map((home, index) => (
+              <div key={index} className="border p-4 rounded mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium">{home.label}</span>
+                  {index > 0 && (
+                    <button type="button" className="text-red-600" onClick={() => handleRemoveHome(index)}>Remove</button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Latitude</label>
+                    <input type="text" value={home.latitude} readOnly className="mt-1 p-2 w-full border rounded bg-gray-100" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Longitude</label>
+                    <input type="text" value={home.longitude} readOnly className="mt-1 p-2 w-full border rounded bg-gray-100" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <button type="button" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" onClick={() => setMapOpenIndex(index)}>Pick Location from Map</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+           
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className={`w-[200px] px-4 py-2 text-white font-medium rounded transition flex justify-center items-center gap-2 ${
-                  submitting ? 'bg-green-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
-                }`}
-              >
-                {submitting ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-                      />
-                    </svg>
-                    Updating...
-                  </>
-                ) : (
-                  'Save Changes'
-                )}
+            {/* Submit buttons */}
+            <div className="flex justify-end gap-3 mt-4">
+              <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+              <button type="submit" disabled={submitting} className={`px-4 py-2 rounded text-white ${submitting ? 'bg-green-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}>
+                {submitting ? 'Updating...' : 'Save Changes'}
               </button>
             </div>
           </form>
         )}
 
         <MapPopup
-          isOpen={mapOpen}
-          onClose={() => setMapOpen(false)}
+          key={mapOpenIndex ?? 'map'}
+          isOpen={mapOpenIndex !== null}
+          onClose={() => setMapOpenIndex(null)}
           onSave={handleSaveLocation}
           location={
-            form.latitude && form.longitude
-              ? { lat: parseFloat(form.latitude), lng: parseFloat(form.longitude) }
+            mapOpenIndex !== null
+              ? {
+                  lat: parseFloat(form.homes[mapOpenIndex].latitude || 0),
+                  lng: parseFloat(form.homes[mapOpenIndex].longitude || 0),
+                }
               : null
           }
           readOnly={false}

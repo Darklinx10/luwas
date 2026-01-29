@@ -15,11 +15,11 @@ import { fetchHazardFromFirebase } from '@/utils/fetchHazards';
 import { hazardTypes } from '@/utils/hazardTypes';
 
 const titleMap = {
-  pwd: 'List of Persons with Disability (2025)',
-  senior: 'List of Senior Citizens (2025)',
-  accident: 'List of Reported Accidents (2025)',
+  pwd: 'List of Persons with Disability',
+  senior: 'List of Senior Citizens',
+  accident: 'List of Reported Accidents',
   ...hazardTypes.reduce((map, type) => {
-    map[type] = `Reported Hazards: ${type} (2025)`;
+    map[type] = `Reported Hazards: ${type}`;
     return map;
   }, {}),
 };

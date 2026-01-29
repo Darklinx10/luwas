@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -18,6 +17,7 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
+  // Load remembered credentials
   useEffect(() => {
     const savedEmail = localStorage.getItem("savedEmail");
     const savedPassword = localStorage.getItem("savedPassword");
@@ -38,35 +38,48 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
     }
 
     setLoading(true);
-
     try {
+      // 1️⃣ Sign in with Firebase Auth
       const { user } = await signInWithEmailAndPassword(auth, email, password);
       const uid = user.uid;
+
+      // 2️⃣ Fetch Firestore profile
       const docRef = doc(db, "users", uid);
       const docSnap = await getDoc(docRef);
-
       let profile;
 
       if (docSnap.exists()) {
         profile = docSnap.data();
         toast.success("Logged in successfully.");
       } else {
+        // Create profile if it doesn't exist
         profile = {
           uid,
           email: user.email,
           displayName: user.displayName || "",
-          role: "MDRRMC-Admin",
+          role: "MDRRMC-Admin", // default role
           createdAt: new Date().toISOString(),
         };
         await setDoc(docRef, profile);
-        toast.success("Profile created and logged in successfully.");
+      
+        toast.success('Profile created and logged in successfully.');
       }
 
+      // 3️⃣ Create session cookie via API
+      const idToken = await user.getIdToken(true);
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, role: profile.role }),
+      });
+
+      const resBody = await res.json();
+      if (!res.ok) throw new Error(resBody.error || "Failed to create session");
+
+      // 4️⃣ Save profile in localStorage
       localStorage.setItem("userProfile", JSON.stringify(profile));
 
-      // ✅ Show loader with logos/title centered
-      setShowPageLoader(true);
-
+      // 5️⃣ Remember credentials if checked
       if (rememberMe) {
         localStorage.setItem("savedEmail", email);
         localStorage.setItem("savedPassword", password);
@@ -77,49 +90,37 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
         localStorage.removeItem("rememberMe");
       }
 
+      setShowPageLoader && setShowPageLoader(true);
+
+      // 6️⃣ Redirect after login
       setTimeout(() => {
-        const role = profile.role;
-        if (role === "MDRRMC-Admin") {
-          setRedirectMessage("Redirecting to Maps...");
+        if (profile.role === "MDRRMC-Admin") {
+          setRedirectMessage && setRedirectMessage("Redirecting to Maps...");
           router.replace("/maps");
         } else {
-          setRedirectMessage("Redirecting to Dashboard...");
+          setRedirectMessage && setRedirectMessage("Redirecting to Dashboard...");
           router.replace("/dashboard");
         }
       }, 1000);
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("Login failed. Please try again.");
+      toast.error(error.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      className="
-        bg-gradient-to-b from-white to-green-50 border border-gray-200
-        p-6 sm:p-8 md:p-10
-        rounded-2xl shadow-xl
-        w-full max-w-sm sm:max-w-md md:max-w-lg
-        mx-auto
-      "
-    >
-      {/* Logo & Title inside form */}
-      <div className="flex flex-col items-center mb-8">
-        <FiUser className="text-green-600 text-6xl mb-3" />
-        <h2 className="text-2xl font-extrabold text-green-700">Welcome Back</h2>
-        <p className="text-gray-500 text-sm mt-1">Login to continue</p>
+    <div className="w-full max-w-sm sm:max-w-md md:max-w-lg bg-white border border-gray-200 rounded-2xl shadow-xl p-6 sm:p-8 md:p-10 flex flex-col overflow-hidden">
+      {/* Logo */}
+      <div className="flex flex-col items-center mb-6 sm:mb-8">
+        <FiUser className="text-green-600 text-6xl mb-2 sm:mb-3" />
+        <h2 className="text-2xl font-extrabold text-green-700 text-center">Welcome Back</h2>
+        <p className="text-gray-500 text-sm mt-1 text-center">Login to continue</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Email */}
-        <RequiredField
-          htmlFor="email"
-          label="Email"
-          required
-          showError={!email.trim() && loading === false}
-        >
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+        <RequiredField htmlFor="email" label="Email" required showError={!email.trim() && !loading}>
           <div className="flex items-center border border-gray-300 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80 bg-white shadow-sm">
             <FiMail className="text-gray-500 mr-3 text-lg" />
             <input
@@ -135,13 +136,7 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
           </div>
         </RequiredField>
 
-        {/* Password */}
-        <RequiredField
-          htmlFor="password"
-          label="Password"
-          required
-          showError={!password.trim() && loading === false}
-        >
+        <RequiredField htmlFor="password" label="Password" required showError={!password.trim() && !loading}>
           <div className="flex items-center border border-gray-300 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80 bg-white shadow-sm">
             <FiLock className="text-gray-500 mr-3 text-lg" />
             <input
@@ -158,23 +153,16 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="ml-2 text-gray-500 hover:text-gray-700"
-              aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? <FiEye /> : <FiEyeOff />}
             </button>
           </div>
         </RequiredField>
 
-        {/* Options */}
         <div className="flex items-center justify-between text-sm">
-          <label
-            htmlFor="rememberMe"
-            className="flex items-center text-gray-500 cursor-pointer"
-          >
+          <label className="flex items-center text-gray-500 cursor-pointer">
             <input
               type="checkbox"
-              id="rememberMe"
-              name="rememberMe"
               className="mr-2 accent-green-600"
               checked={rememberMe}
               onChange={() => setRememberMe(!rememberMe)}
@@ -182,41 +170,20 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
             Remember me
           </label>
 
-          <a
-            href="/forgotpass"
-            className="text-[#0BAD4A] hover:underline font-medium"
-          >
+          <a href="/forgotpass" className="text-[#0BAD4A] hover:underline font-medium">
             Forgot password?
           </a>
         </div>
 
-        {/* Button */}
         <button
           type="submit"
           className="w-full bg-[#0BAD4A] hover:bg-[#0a9c43] text-white font-semibold py-2.5 sm:py-3 rounded-xl shadow-md transition flex justify-center items-center"
           disabled={loading}
         >
-
-
           {loading ? (
-            <svg
-              className="animate-spin h-5 w-5 text-white"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-                fill="none"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-              />
+            <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
             </svg>
           ) : (
             "Login"

@@ -23,7 +23,7 @@ export default function HouseholdMembersTable({
         ) : members.filter(
             (m) => (m.relationshipToHead || m.nuclearRelation || '').toLowerCase() !== 'head'
           ).length === 0 ? (
-          <p className="text-gray-500 mt-1">No members found...</p>
+          <p className="text-gray-500 mt-1">No household members found...</p>
         ) : (
           <div className="mt-2 overflow-x-auto">
             <table className="w-full text-center text-sm border border-collapse">
