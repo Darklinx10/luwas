@@ -27,25 +27,24 @@ export async function POST(request) {
       .auth()
       .createSessionCookie(idToken, { expiresIn });
 
-    // Get the cookie store first
-    const cookieStore = cookies();  
-    await cookieStore.set('session', sessionCookie, {
+   // Set cookie using NextResponse
+    const response = NextResponse.json({ message: "Logged in successfully" });
+    response.cookies.set({
+      name: "session",
+      value: sessionCookie,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
       maxAge: expiresIn / 1000,
-      path: '/',
+      sameSite: "strict",
+      path: "/",
     });
 
 
-    return NextResponse.json({
-      message: 'Logged in successfully',
-    });
-
+    return response;
   } catch (err) {
-    console.error('Login error:', err);
+    console.error("Login error:", err);
     return NextResponse.json(
-      { error: 'Invalid ID token or session creation failed' },
+      { error: "Invalid ID token or session creation failed" },
       { status: 401 }
     );
   }
