@@ -1,6 +1,6 @@
 'use client';
 
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import { collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
@@ -72,6 +72,7 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
         const geoData = geoSnap.data();
         const updatedForm = {
           barangay: geoData.barangay || '',
+          sitio: geoData.sitio || '',
           homes: geoData.homes && geoData.homes.length
             ? geoData.homes
             : [{ label: 'Primary Home', latitude: '', longitude: '' }],
@@ -190,6 +191,7 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
                 ['headLastName', 'Last Name'],
                 ['headSuffix', 'Suffix'],
                 ['barangay', 'Barangay'],
+                ['sitio', 'sitio'],
                 ['headSex', 'Sex'],
                 ['contactNumber', 'Contact Number'],
                 ['headAge', 'Age'],

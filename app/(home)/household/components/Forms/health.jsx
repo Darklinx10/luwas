@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import { doc, setDoc, getDoc, getDocs, collection } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 

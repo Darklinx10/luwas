@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 

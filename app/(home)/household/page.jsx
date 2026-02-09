@@ -1,7 +1,7 @@
 'use client';
 
 import RoleGuard from '@/components/roleGuard';
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import {
   collection,
   deleteDoc,
@@ -9,6 +9,10 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
+  query,
+  orderBy,
+  startAfter,
+  limit,
 } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
@@ -54,98 +58,134 @@ export default function HouseholdPage() {
   /* =========================
      FETCH HOUSEHOLDS (Reusable)
   ========================== */
+  
+
   const fetchHouseholds = async () => {
     setLoading(true);
+  
     try {
-      const snapshot = await getDocs(collection(db, 'households'));
+      const batchSize = 100; // number of households per batch
+      let lastDoc = null;
       let nonEmptyHouseholdCount = 0;
-
-      const list = await Promise.all(
-        snapshot.docs.map(async (hhDoc) => {
-          const householdId = hhDoc.id;
-
-          // Geographic info
-          const geoSnap = await getDoc(
-            doc(db, 'households', householdId, 'geographicIdentification', 'main')
-          );
-          const geoData = geoSnap.exists() ? geoSnap.data() : {};
-
-          let headData = {};
-          const uniqueResidentIds = new Set();
-          let headFoundInMembers = false;
-
-          // Members
-          const membersSnap = await getDocs(
-            collection(db, 'households', householdId, 'members')
-          );
-
-          for (const m of membersSnap.docs) {
-            const base = m.data();
-            const demoSnap = await getDoc(
-              doc(
-                db,
-                'households',
-                householdId,
-                'members',
-                m.id,
-                'demographicCharacteristics',
-                'main'
-              )
-            );
-            const demo = demoSnap.exists() ? demoSnap.data() : {};
-            const rel = demo.relationshipToHead || base.relationshipToHead || '';
-
-            if (rel.toLowerCase() === 'head') {
-              headData = {
-                headFirstName: base.firstName || '',
-                headMiddleName: base.middleName || '',
-                headLastName: base.lastName || '',
-                headSuffix: base.suffix || '',
-                headSex: demo.sex || '',
-                headAge: demo.age || '',
-                contactNumber: demo.contactNumber || '',
-              };
-              headFoundInMembers = true;
-              uniqueResidentIds.add(m.id);
-            } else {
-              uniqueResidentIds.add(m.id);
+      const allHouseholds = [];
+      let batchNumber = 0;
+  
+      console.log('🔄 Starting to fetch households...');
+  
+      while (true) {
+        batchNumber++;
+        const q = lastDoc
+          ? query(collection(db, 'households'), orderBy('__name__'), startAfter(lastDoc), limit(batchSize))
+          : query(collection(db, 'households'), orderBy('__name__'), limit(batchSize));
+  
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) break;
+  
+        lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        console.log(`➡ Processing batch ${batchNumber}: ${snapshot.docs.length} households`);
+  
+        const batchResults = await Promise.all(
+          snapshot.docs.map(async (hhDoc, idx) => {
+            const householdId = hhDoc.id;
+  
+            // 1️⃣ Fetch geographic info
+            const geoSnap = await getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main'));
+            const geoData = geoSnap.exists() ? geoSnap.data() : {};
+  
+            let headData = {};
+            const uniqueResidentIds = new Set();
+            let headFoundInMembers = false;
+  
+            // 2️⃣ Fetch members
+            const membersSnap = await getDocs(collection(db, 'households', householdId, 'members'));
+            const memberChunks = [];
+            const chunkSize = 20;
+  
+            for (let i = 0; i < membersSnap.docs.length; i += chunkSize) {
+              memberChunks.push(membersSnap.docs.slice(i, i + chunkSize));
             }
-          }
-
-          // If no head in members, use geographicIdentification
-          if (!headFoundInMembers && geoData?.headFirstName) {
-            headData = {
-              headFirstName: geoData.headFirstName,
-              headMiddleName: geoData.headMiddleName,
-              headLastName: geoData.headLastName,
-              headSuffix: geoData.headSuffix,
-              headSex: geoData.headSex,
-              headAge: geoData.headAge,
-              contactNumber: geoData.contactNumber,
-            };
-            uniqueResidentIds.add(`head-${householdId}`); // synthetic ID for head
-          }
-
-          const hasData =
-            headData.headFirstName || headData.headLastName || geoData?.barangay || membersSnap.size > 0;
-
-          if (hasData) nonEmptyHouseholdCount++;
-
-          return { householdId, ...geoData, ...headData, hasData, residentCount: uniqueResidentIds.size };
-        })
-      );
-
-      const valid = list.filter((h) => h.hasData);
-
+  
+            for (const chunk of memberChunks) {
+              const chunkResults = await Promise.allSettled(
+                chunk.map(async (m) => {
+                  const base = m.data();
+                  const demoSnap = await getDoc(
+                    doc(db, 'households', householdId, 'members', m.id, 'demographicCharacteristics', 'main')
+                  );
+                  if (!demoSnap.exists()) return null;
+  
+                  const demo = demoSnap.data();
+                  const rel = demo.relationshipToHead || base.relationshipToHead || '';
+  
+                  if (rel.toLowerCase() === 'head') {
+                    headFoundInMembers = true;
+                    uniqueResidentIds.add(m.id);
+                    return {
+                      headFirstName: base.firstName || '',
+                      headMiddleName: base.middleName || '',
+                      headLastName: base.lastName || '',
+                      headSuffix: base.suffix || '',
+                      headSex: demo.sex || '',
+                      headAge: demo.age || '',
+                      contactNumber: demo.contactNumber || '',
+                    };
+                  } else {
+                    uniqueResidentIds.add(m.id);
+                    return null;
+                  }
+                })
+              );
+  
+              const headInChunk = chunkResults.find((r) => r.status === 'fulfilled' && r.value);
+              if (headInChunk) headData = headInChunk.value;
+            }
+  
+            // 3️⃣ Fallback to geoData if no head found
+            if (!headFoundInMembers && geoData?.headFirstName) {
+              headData = {
+                headFirstName: geoData.headFirstName,
+                headMiddleName: geoData.headMiddleName,
+                headLastName: geoData.headLastName,
+                headSuffix: geoData.headSuffix,
+                headSex: geoData.headSex,
+                headAge: geoData.headAge,
+                contactNumber: geoData.contactNumber,
+              };
+              uniqueResidentIds.add(`head-${householdId}`);
+            }
+  
+            const hasData =
+              headData.headFirstName ||
+              headData.headLastName ||
+              geoData?.barangay ||
+              geoData?.sitio ||
+              membersSnap.size > 0;
+  
+            if (hasData) nonEmptyHouseholdCount++;
+  
+            console.log(`   🏠 Processed household ${idx + 1}/${snapshot.docs.length} (${householdId}) - Residents: ${uniqueResidentIds.size}`);
+  
+            return { householdId, ...geoData, ...headData, hasData, residentCount: uniqueResidentIds.size };
+          })
+        );
+  
+        allHouseholds.push(...batchResults.filter((r) => r.hasData !== false));
+        console.log(`✅ Batch ${batchNumber} processed. Total households so far: ${allHouseholds.length}`);
+      }
+  
+      const valid = allHouseholds.filter((h) => h.hasData);
       setHouseholds(valid);
       setTotalHouseholds(nonEmptyHouseholdCount);
       setTotalResidents(valid.reduce((sum, h) => sum + h.residentCount, 0));
+  
+      console.log(`🎯 Finished fetching households. Total valid households: ${valid.length}`);
     } catch (error) {
-      console.error('Failed to fetch households:', error);
+      console.error('❌ Failed to fetch households:', error);
     } finally {
       setLoading(false);
     }
   };
+
 
   /* =========================
      INITIAL LOAD
@@ -272,57 +312,228 @@ export default function HouseholdPage() {
     }
   };
 
-  const handleImportFile = async (e) => {
-    const file = e.target.files[0];
+  const handleUploadHouseholdData = async (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const text = event.target.result;
-        const rows = text.split('\n').map((r) => r.split(','));
+    setLoading(true);
+    setProgress(0);
 
-        // CSV headers: HouseholdID, HeadName, Barangay, Sex, Age, ContactNumber
-        const headers = rows[0].map((h) => h.trim());
-        const dataRows = rows.slice(1);
+    try {
+      const ext = file.name.split(".").pop().toLowerCase();
 
-        setLoading(true);
+      console.log("File extension:", ext);
 
-        for (const row of dataRows) {
-          if (row.length !== headers.length) continue;
+      let householdRows = [];
+      let memberRows = [];
 
-          const rowData = headers.reduce((acc, key, idx) => {
-            acc[key] = row[idx].trim();
-            return acc;
-          }, {});
+      if (ext === "json") {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        householdRows = data.households || [];
+        memberRows = data.members || [];
+        console.log("Loaded JSON data:", { householdRowsLength: householdRows.length, memberRowsLength: memberRows.length });
+      } else if (["csv", "xlsx", "xls"].includes(ext)) {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array", raw: true });
 
-          // Save household geographic info
-          await setDoc(
-            doc(db, 'households', rowData.HouseholdID, 'geographicIdentification', 'main'),
-            {
-              barangay: rowData.Barangay,
-              headFirstName: rowData.HeadName.split(' ')[0],
-              headLastName: rowData.HeadName.split(' ').slice(1).join(' '),
-              headSex: rowData.Sex,
-              headAge: rowData.Age,
-              contactNumber: rowData.ContactNumber,
-            },
-            { merge: true }
-          );
+        console.log("Workbook sheets:", workbook.SheetNames);
+
+        const householdSheetName = workbook.SheetNames.find((name) =>
+          ["household", "households"].includes(name.trim().toLowerCase())
+        );
+
+        const memberSheetName = workbook.SheetNames.find((name) =>
+          ["member", "members"].includes(name.trim().toLowerCase())
+        );
+        console.log("Household sheet name:", householdSheetName);
+        console.log("Member sheet name:", memberSheetName);
+
+        if (!householdSheetName || !memberSheetName) {
+          toast.error("Workbook must contain sheets: Households and Members");
+          throw new Error("Missing required sheets");
         }
 
-        toast.success('Household data imported successfully!');
-        fetchHouseholds();
-      } catch (error) {
-        console.error('Import failed:', error);
-        toast.error('Failed to import household data.');
-      } finally {
-        setLoading(false);
-      }
-    };
+        householdRows = XLSX.utils.sheet_to_json(workbook.Sheets[householdSheetName], { defval: "" });
+        memberRows = XLSX.utils.sheet_to_json(workbook.Sheets[memberSheetName], { defval: "" });
 
-    reader.readAsText(file);
+        console.log("Household rows loaded:", householdRows.length);
+        console.log("Member rows loaded:", memberRows.length);
+      } else {
+        toast.error("Unsupported file format");
+        return;
+      }
+
+      if (!householdRows.length) {
+        toast.error("Households sheet is empty");
+        return;
+      }
+
+      if (!memberRows.length) {
+        toast.error("Members sheet is empty");
+        return;
+      }
+
+      // Build households map from household sheet
+      const householdsMap = {};
+      householdRows.forEach((row, index) => {
+        const householdId = (row["Household ID"] || "").toString().trim();
+        if (!householdId) {
+          console.warn(`Skipping household row ${index}: Missing householdId`);
+          return;
+        }
+
+        householdsMap[householdId] = {
+          householdId,
+          geoData: {
+            headFirstName: (row.headFirstName || row["Head FirstName"] || "").toString(),
+            headMiddleName: (row.headMiddleName || row["Head MiddleName"] || "").toString(),
+            headLastName: (row.headLastName || row["Head LastName"] || "").toString(),
+            headSuffix: (row.headSuffix || row["Head Suffix"] || "N/A").toString(),
+            headSex: (row.headSex || row["Head Sex"] || "").toString(),
+            headAge: Number(row.headAge || row["Head Age"]) || 0,
+            contactNumber: (row.headContactNumber || row["Contact Number"] || "N/A").toString(),
+            barangay: (row.barangay || row["Barangay"] || "").toString(),
+            sitio: (row.sitio || row["Sitio"]|| "").toString(),
+            
+            homes: [
+              {
+                label: "Primary Home",
+                latitude: row.home1_latitude || row["Home1 Latitude"],
+                longitude: row.home1_longitude || row["Home1 Longitude"],
+              },
+              {
+                label: "Secondary Home 1",
+                latitude: row.home2_latitude || row["Home2 Latitude"],
+                longitude: row.home2_longitude || row["Home2 Longitude"],
+              },
+              {
+                label: "Secondary Home 2",
+                latitude: row.home3_latitude || row["Home3 Latitude"],
+                longitude: row.home3_longitude || row["Home3 Longitude"],
+              },
+              {
+                label: "Secondary Home 3",
+                latitude: row.home4_latitude || row["Home4 Latitude"],
+                longitude: row.home4_longitude || row["Home4 Longitude"],
+              },
+            ].filter((h) => h.latitude && h.longitude),
+          },
+          members: [],
+        };
+      });
+
+      console.log("Built households map:", Object.keys(householdsMap).length);
+
+      // Attach members from member sheet
+      memberRows.forEach((row, index) => {
+        const householdId = (row["Household ID"] || "").toString().trim();
+        const memberId = (row["Member ID"] || "").toString().trim();
+
+        if (!householdId) {
+          console.warn(`Skipping member row ${index}: Missing householdId`);
+          return;
+        }
+        if (!memberId) {
+          console.warn(`Skipping member row ${index}: Missing memberId`);
+          return;
+        }
+        if (!householdsMap[householdId]) {
+          console.warn(`Member row ${index}: Household ID ${householdId} not found in households`);
+          return;
+        }
+
+        const relationshipRaw = (row.relationshipToHead || row["Relationship To Head"] || "").toString();
+        const normalizedRelationship =
+          relationshipRaw.trim().toLowerCase() === "head" ? "Head" : relationshipRaw;
+
+        householdsMap[householdId].members.push({
+          id: memberId,
+          lastName: (row.lastName || row["LastName"] || "").toString(),
+          firstName: (row.firstName || row["FirstName"] || "").toString(),
+          middleName: (row.middleName || row["MiddleName"] || "").toString(),
+          suffix: (row.suffix || row["Suffix"] || "").toString(),
+          relationshipToHead: normalizedRelationship,
+          sex: (row.sex || row["Sex"] || "").toString(),
+          age: Number(row.age || row["Age"]) || 0,
+          contactNumber: (row.memberContactNumber || row["Member Contact Number"] || "").toString(),
+        });
+      });
+
+      console.log("Attached members to households.");
+
+      // Upload to Firestore in batches
+      const batchSize = 400;
+      const allHouseholds = Object.values(householdsMap);
+
+      for (let i = 0; i < allHouseholds.length; i += batchSize) {
+        const batch = writeBatch(db);
+        const chunk = allHouseholds.slice(i, i + batchSize);
+
+        console.log(`Uploading batch: ${i} to ${i + chunk.length} of ${allHouseholds.length}`);
+
+        chunk.forEach(({ householdId, geoData, members }) => {
+          const hhRef = doc(db, "households", householdId);
+          batch.set(hhRef, { createdAt: serverTimestamp(), householdId }, { merge: true });
+
+          if (geoData.headFirstName) {
+            const geoRef = doc(db, "households", householdId, "geographicIdentification", "main");
+            batch.set(geoRef, geoData, { merge: true });
+          }
+
+          members.forEach((member) => {
+            if (!member.id || typeof member.id !== "string" || member.id.trim() === "") {
+              console.warn("Skipping member without valid ID:", member);
+              return;
+            }
+            const memberId = member.id.trim();
+
+            const memberRef = doc(db, "households", householdId, "members", memberId);
+            batch.set(memberRef, member, { merge: true });
+
+            const demoRef = doc(
+              db,
+              "households",
+              householdId,
+              "members",
+              memberId,
+              "demographicCharacteristics",
+              "main"
+            );
+            batch.set(
+              demoRef,
+              {
+                firstName: member.firstName || "",
+                lastName: member.lastName || "",
+                middleName: member.middleName || "",
+                suffix: member.suffix || "",
+                sex: member.sex || "",
+                age: Number(member.age) || 0,
+                relationshipToHead: member.relationshipToHead || "",
+                contactNumber: member.contactNumber || "",
+              },
+              { merge: true }
+            );
+          });
+        });
+
+        await batch.commit();
+        setProgress(Math.min(100, Math.round(((i + chunk.length) / allHouseholds.length) * 100)));
+      }
+
+      toast.success(`Uploaded ${allHouseholds.length} households successfully!`);
+
+      if (fetchHouseholds) await fetchHouseholds();
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error("Failed to upload file");
+    } finally {
+      setLoading(false);
+      e.target.value = "";
+      setProgress(0);
+    }
   };
+
 
 
   // ✅ Download as CSV

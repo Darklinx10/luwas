@@ -1,7 +1,7 @@
 'use client';
 
 import RoleGuard from '@/components/roleGuard';
-import { db, storage } from '@/firebase/config';
+import { db, storage } from '@/lib/firebaseConfig';
 import {
   addDoc,
   collection,

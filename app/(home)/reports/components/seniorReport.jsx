@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { collection, getDocs, getDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import { FiSearch, FiEdit, FiTrash2, FiX } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/authContext';
@@ -16,69 +16,103 @@ export default function SeniorTable({ title, barangay: filterBarangay = null }) 
   const { profile, loading: authLoading } = useAuth();
 
   // Fetch senior citizen data
+  // Fetch senior citizen data
   useEffect(() => {
     const fetchSeniors = async () => {
       setLoading(true);
+      console.log('🔄 Starting to fetch senior citizen data...');
       try {
         const householdsSnap = await getDocs(collection(db, 'households'));
-
-        const allHouseholdData = await Promise.all(
-          householdsSnap.docs.map(async (householdDoc) => {
-            const householdId = householdDoc.id;
-
-            const [geoSnap, membersSnap] = await Promise.all([
-              getDoc(doc(db, 'households', householdId, 'geographicIdentification', 'main')),
-              getDocs(collection(db, 'households', householdId, 'members')),
-            ]);
-
-            const geoData = geoSnap.exists() ? geoSnap.data() : {};
-            const barangay = geoData?.barangay || '—';
-
-            const memberData = await Promise.all(
-              membersSnap.docs.map(async (memberDoc) => {
-                const memberId = memberDoc.id;
-                const demoSnap = await getDoc(
-                  doc(db, 'households', householdId, 'members', memberId, 'demographicCharacteristics', 'main')
-                );
-                if (!demoSnap.exists()) return null;
-
-                const demo = demoSnap.data();
-                const age = parseInt(demo.age);
-                if (!isNaN(age) && age >= 60) {
-                  const fullName = `${demo.firstName || ''} ${demo.middleName || ''} ${demo.lastName || ''} ${
-                    demo.suffix && demo.suffix.trim().toLowerCase() !== 'n/a' ? demo.suffix : ''
-                  }`.trim();
-
-                  return {
-                    id: memberId,
-                    name: fullName,
-                    age,
-                    sex: demo.sex || '—',
-                    barangay,
-                    contact: demo.contactNumber || '—',
+        console.log(`🏠 Total households fetched: ${householdsSnap.docs.length}`);
+  
+        const seniorsList = [];
+        const batchSize = 250; // adjust as needed to prevent overload
+  
+        for (let i = 0; i < householdsSnap.docs.length; i += batchSize) {
+          const batch = householdsSnap.docs.slice(i, i + batchSize);
+          console.log(`➡ Processing batch ${i / batchSize + 1} (${batch.length} households)`);
+  
+          // process all households in this batch concurrently
+          await Promise.all(
+            batch.map(async (householdDoc) => {
+              const householdId = householdDoc.id;
+  
+              try {
+                const geoDocRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
+                const membersColRef = collection(db, 'households', householdId, 'members');
+  
+                const [geoSnap, membersSnap] = await Promise.all([getDoc(geoDocRef), getDocs(membersColRef)]);
+                const geoData = geoSnap.exists() ? geoSnap.data() : {};
+                const barangay = geoData?.barangay || '—';
+  
+                // fetch member demographics concurrently but safely
+                const memberPromises = membersSnap.docs.map(async (memberDoc) => {
+                  const demoRef = doc(
+                    db,
+                    'households',
                     householdId,
-                  };
-                }
-
-                return null;
-              })
-            );
-
-            return memberData.filter(Boolean);
-          })
-        );
-
-        setSeniors(allHouseholdData.flat());
+                    'members',
+                    memberDoc.id,
+                    'demographicCharacteristics',
+                    'main'
+                  );
+                  const demoSnap = await getDoc(demoRef);
+                  if (!demoSnap.exists()) return null;
+  
+                  const demo = demoSnap.data();
+                  const age = parseInt(demo.age);
+                  if (!isNaN(age) && age >= 60) {
+                    const fullName = [
+                      demo.firstName,
+                      demo.middleName,
+                      demo.lastName,
+                      demo.suffix && demo.suffix.trim().toLowerCase() !== 'n/a' ? demo.suffix : null
+                    ].filter(Boolean).join(' ');
+  
+                    return {
+                      id: memberDoc.id,
+                      name: fullName || 'Unnamed',
+                      age,
+                      sex: demo.sex || '—',
+                      barangay,
+                      contact: demo.contactNumber || '—',
+                      householdId,
+                    };
+                  }
+                  return null;
+                });
+  
+                const batchSeniors = (await Promise.allSettled(memberPromises))
+                  .filter(res => res.status === 'fulfilled')
+                  .map(res => res.value)
+                  .filter(Boolean);
+  
+                seniorsList.push(...batchSeniors);
+  
+              } catch (err) {
+                console.warn(`⚠️ Error processing household ${householdId}:`, err);
+              }
+            })
+          );
+  
+          console.log(`✅ Batch processed. Total seniors so far: ${seniorsList.length}`);
+        }
+  
+        console.log(`🎯 Finished fetching seniors. Total seniors: ${seniorsList.length}`);
+        setSeniors(seniorsList);
+  
       } catch (error) {
-        console.error('Error fetching senior citizens:', error);
+        console.error('❌ Error fetching senior citizens:', error);
         toast.error('Failed to fetch senior citizen data.');
       } finally {
         setLoading(false);
       }
     };
-
+  
     fetchSeniors();
   }, []);
+  
+
 
   // Determine effective barangay for filtering
   const effectiveBarangay =
@@ -227,8 +261,8 @@ export default function SeniorTable({ title, barangay: filterBarangay = null }) 
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.sort((a, b) => a.name.localeCompare(b.name)).map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
+                  {filteredData.sort((a, b) => a.name.localeCompare(b.name)).map((item, index) => (
+                    <tr key={`${item.id}-${index}`} className="hover:bg-gray-50">
                       <td className="px-4 py-2 border">{item.name}</td>
                       <td className="px-4 py-2 border">{item.sex}</td>
                       <td className="px-4 py-2 border">{item.age}</td>

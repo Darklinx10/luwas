@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useMap as useLeafletMap } from 'react-leaflet';
 import { useMap as useMapContext } from '@/context/mapContext';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import { toast } from 'react-toastify';
 
 export default function MapClickHandler({ settingDefault, setPlusMarkers, setSettingDefault, fetchMapCenter }) {

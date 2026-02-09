@@ -1,6 +1,6 @@
 'use client';
 
-import { db, storage } from '@/firebase/config';
+import { db, storage } from '@/lib/firebaseConfig';
 import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import dynamic from 'next/dynamic';

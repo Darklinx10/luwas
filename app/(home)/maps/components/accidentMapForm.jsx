@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { db, storage } from '@/firebase/config';
+import { db, storage } from '@/lib/firebaseConfig';
 import { collection, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'react-toastify';

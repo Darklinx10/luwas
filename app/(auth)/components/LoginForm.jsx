@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiUser } from "react-icons/fi";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { auth, db } from "@/firebase/config";
+import { auth, db } from "@/lib/firebaseConfig";
 import RequiredField from "@/components/Required";
 
 export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {

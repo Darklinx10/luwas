@@ -10,7 +10,7 @@ import ConfirmModal from '@/components/LogoutConfirmation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { useAuth } from '@/context/authContext'; // <- use AuthContext here
-import { auth } from '@/firebase/config';
+import { auth } from '@/lib/firebaseConfig';
 
 export default function Topbar({ toggleSidebar, sidebarOpen }) {
   const { profile, user, role, loading } = useAuth(); // consume AuthContext

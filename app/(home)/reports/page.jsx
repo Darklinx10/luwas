@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import * as turf from '@turf/turf';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, startAfter, limit } from 'firebase/firestore';
 
-import AccidentTable from '@/app/(home)/reports/components/accidentReport';
-import HazardTable from '@/app/(home)/reports/components/hazardReport';
-import PWDTable from '@/app/(home)/reports/components/pwdReport';
-import SeniorTable from '@/app/(home)/reports/components/seniorReport';
+import AccidentTable from './components/accidentReport';
+import HazardTable from './components/hazardReport';
+import PWDTable from './components/pwdReport';
+import SeniorTable from './components/seniorReport';
 import RoleGuard from '@/components/roleGuard';
 import { useAuth } from '@/context/authContext';
 import { fetchHazardFromFirebase } from '@/utils/fetchHazards';
@@ -35,9 +35,12 @@ function ReportsPageContent() {
   useEffect(() => {
     const loadAffectedHouseholds = async () => {
       if (!hazardTypes.includes(selectedReport)) return;
-
+  
       setLoading(true);
+  
       try {
+        console.log(`🔄 Loading affected households for ${selectedReport}...`);
+  
         const geojson = await fetchHazardFromFirebase(selectedReport);
         if (!geojson?.features?.length) {
           setAffectedHouseholds([]);
@@ -45,7 +48,8 @@ function ReportsPageContent() {
           setLoading(false);
           return;
         }
-
+  
+        // Detect legend property
         const detectedLegendProp = geojson.legendProp?.key
           ? geojson.legendProp
           : {
@@ -55,47 +59,81 @@ function ReportsPageContent() {
                 : 'categorical',
             };
         setLegendProp(detectedLegendProp);
-
-        const householdsSnap = await getDocs(collection(db, 'households'));
+  
+        // Batch fetching households
+        const batchSize = 100;
+        let lastDoc = null;
         const households = [];
-
-        for (const doc of householdsSnap.docs) {
-          const geoSnap = await getDocs(collection(db, 'households', doc.id, 'geographicIdentification'));
-          geoSnap.forEach((geoDoc) => {
-            const data = geoDoc.data();
-            const lat = Number(data.latitude);
-            const lng = Number(data.longitude);
-
-            if (!isNaN(lat) && !isNaN(lng)) {
-              households.push({
-                name: `${data.headFirstName || ''} ${data.headLastName || ''}`.trim(),
-                barangay: data.barangay || 'N/A',
-                contactNumber: data.contactNumber || 'N/A',
-                location: { lat, lng },
+  
+        while (true) {
+          const q = lastDoc
+            ? query(collection(db, 'households'), orderBy('__name__'), startAfter(lastDoc), limit(batchSize))
+            : query(collection(db, 'households'), orderBy('__name__'), limit(batchSize));
+  
+          const snapshot = await getDocs(q);
+          if (snapshot.empty) break;
+  
+          lastDoc = snapshot.docs[snapshot.docs.length - 1];
+          console.log(`➡ Processing batch of ${snapshot.docs.length} households`);
+  
+          await Promise.all(snapshot.docs.map(async (hhDoc) => {
+            const geoSnap = await getDocs(collection(db, 'households', hhDoc.id, 'geographicIdentification'));
+  
+            geoSnap.forEach((geoDoc) => {
+              const data = geoDoc.data();
+              const homes = Array.isArray(data.homes)
+                ? data.homes
+                : [{ latitude: data.latitude, longitude: data.longitude }];
+  
+              homes.forEach((home, index) => {
+                const lat = Number(home.latitude);
+                const lng = Number(home.longitude);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                  households.push({
+                    name: `${data.headFirstName || ''} ${data.headLastName || ''}`.trim(),
+                    barangay: data.barangay || 'N/A',
+                    contactNumber: data.contactNumber || 'N/A',
+                    location: { lat, lng },
+                    homeLabel: home.label || (index === 0 ? 'Primary Home' : `Secondary Home ${index + 1}`),
+                  });
+                }
               });
-            }
-          });
+            });
+          }));
         }
-
-        const affected = households.filter((h) => {
-          const point = turf.point([h.location.lng, h.location.lat]);
-          return geojson.features.some((feature) =>
-            turf.booleanPointInPolygon(point, turf.feature(feature.geometry))
-          );
-        });
-
+  
+        console.log(`✅ All households fetched: ${households.length}`);
+  
+        // Filter households affected by hazard polygons
+        const affected = households
+          .map((h) => {
+            const point = turf.point([h.location.lng, h.location.lat]);
+            const matchingFeature = geojson.features.find((feature) =>
+              turf.booleanPointInPolygon(point, turf.feature(feature.geometry))
+            );
+            if (!matchingFeature) return null;
+            return {
+              ...h,
+              [detectedLegendProp.key]: matchingFeature.properties[detectedLegendProp.key] ?? 'N/A',
+            };
+          })
+          .filter(Boolean);
+  
+        console.log(`🎯 Affected households: ${affected.length}`);
         setAffectedHouseholds(affected);
       } catch (err) {
-        console.error('Error loading hazard data:', err);
+        console.error('❌ Error loading hazard data:', err);
         setAffectedHouseholds([]);
         setLegendProp(null);
       } finally {
         setLoading(false);
       }
     };
-
+  
     loadAffectedHouseholds();
   }, [selectedReport]);
+  
+
 
   const renderTable = () => {
     const title = titleMap[selectedReport];

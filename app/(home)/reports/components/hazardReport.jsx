@@ -186,6 +186,7 @@ export default function HazardTable({
                     <th className="px-4 py-2 border">Household</th>
                     <th className="px-4 py-2 border">Barangay</th>
                     <th className="px-4 py-2 border">Contact Number</th>
+                    <th className="px-4 py-2 border">Home</th>
                     <th className="px-4 py-2 border">{legendProp?.key || 'Value'}</th>
                   </tr>
                 </thead>
@@ -195,18 +196,22 @@ export default function HazardTable({
                       <td className="px-4 py-2 border">{capitalizeWords(h.name)}</td>
                       <td className="px-4 py-2 border">{capitalizeWords(h.barangay)}</td>
                       <td className="px-4 py-2 border">{h.contactNumber}</td>
-                      <td className="px-4 py-2 border">{formatValue(h[legendProp?.key])}</td>
+                      <td className="px-4 py-2 border">{h.homeLabel ?? 'Primary Home'}</td>
+                      <td className="px-4 py-2 border">
+                        {legendProp?.key ? formatValue(h[legendProp.key]) : 'N/A'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              <p className="text-sm text-gray-700 mt-4 print:hidden">
-                <strong>Total Records:</strong> {filteredData.length}
-              </p>
+              
             </>
           )}
         </div>
+        <p className="text-sm text-gray-700 mt-4 print:hidden">
+                <strong>Total Records:</strong> {filteredData.length}
+              </p>
       </div>
     </div>
   );

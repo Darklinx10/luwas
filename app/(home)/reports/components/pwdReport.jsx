@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { collection, getDocs, getDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import { FiSearch, FiEdit, FiTrash2, FiX } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/authContext';

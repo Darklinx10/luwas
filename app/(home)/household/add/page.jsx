@@ -12,7 +12,7 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { db, auth } from '@/firebase/config';
+import { db, auth } from '@/lib/firebaseConfig';
 import { useAuth } from '@/context/authContext';
 
 // Components

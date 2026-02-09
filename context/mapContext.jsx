@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import { useAuth } from './authContext';
 
 const MapContext = createContext();

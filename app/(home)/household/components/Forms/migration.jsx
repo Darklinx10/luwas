@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import geoData from '@/utils/geoData-ph.json';

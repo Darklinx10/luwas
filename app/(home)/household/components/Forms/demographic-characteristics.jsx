@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { db, auth } from '@/firebase/config';
+import { db, auth } from '@/lib/firebaseConfig';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import { v4 as uuidv4 } from 'uuid';

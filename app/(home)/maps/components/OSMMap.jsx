@@ -1,7 +1,7 @@
 
 'use client';
 
-import { db, storage } from '@/firebase/config';
+import { db, storage } from '@/lib/firebaseConfig';
 import { capitalizeWords } from '@/utils/capitalize';
 import * as turf from '@turf/turf';
 import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
@@ -81,69 +81,83 @@ export default function OSMMapPage() {
   useEffect(() => {
     const fetchHouseholds = async () => {
       try {
+        console.log('Fetching households...');
         const snapshot = await getDocs(collection(db, 'households'));
         const allMarkers = [];
-
-        for (const householdDoc of snapshot.docs) {
-          const householdData = householdDoc.data();
-
-          // Fetch members once per household
-          const membersSnap = await getDocs(
-            collection(db, 'households', householdDoc.id, 'members')
-          );
-          const memberNames = membersSnap.docs
-            .map(m =>
-              capitalizeWords(
-                `${m.data().firstName || ''} ${m.data().lastName || ''}`.trim()
-              )
-            )
-            .filter(name => name);
-
-          // Fetch geographic identifications (homes)
-          const geoSnap = await getDocs(
-            collection(db, 'households', householdDoc.id, 'geographicIdentification')
-          );
-
-          for (const geoDoc of geoSnap.docs) {
-            const geoData = geoDoc.data();
-            const headFullName = capitalizeWords(
-              `${geoData.headFirstName || ''} ${geoData.headLastName || ''}`.trim()
-            ) || 'Unnamed Household';
-
-            // Loop through multiple homes if available
-            if (Array.isArray(geoData.homes)) {
-              geoData.homes.forEach((home, index) => {
-                const lat = Number(home.latitude);
-                const lng = Number(home.longitude);
-
-                if (!isNaN(lat) && !isNaN(lng)) {
-                  allMarkers.push({
-                    id: `${householdDoc.id}_${geoDoc.id}_${index}`, // unique per home
-                    householdId: householdDoc.id,
-                    geoId: geoDoc.id,
-                    homeLabel: home.label || (index === 0 ? 'Primary Home' : `Home ${index + 1}`),
-                    name: headFullName,
-                    lat,
-                    lng,
-                    barangay: geoData.barangay || householdData.barangay || 'N/A',
-                    contactNumber: geoData.contactNumber || householdData.contactNumber || 'N/A',
-                    members: memberNames,
-                  });
+        const docs = snapshot.docs;
+        const batchSize = 250; // process 50 households at a time
+  
+        console.log(`Total households: ${docs.length}`);
+  
+        for (let i = 0; i < docs.length; i += batchSize) {
+          const batch = docs.slice(i, i + batchSize);
+  
+          // Process batch in parallel
+          await Promise.all(
+            batch.map(async (householdDoc) => {
+              const householdData = householdDoc.data();
+              try {
+                const [membersSnap, geoSnap] = await Promise.all([
+                  getDocs(collection(db, 'households', householdDoc.id, 'members')),
+                  getDocs(collection(db, 'households', householdDoc.id, 'geographicIdentification')),
+                ]);
+  
+                const memberNames = membersSnap.docs
+                  .map(m =>
+                    capitalizeWords(
+                      `${m.data().firstName || ''} ${m.data().lastName || ''}`.trim()
+                    )
+                  )
+                  .filter(name => name);
+  
+                for (const geoDoc of geoSnap.docs) {
+                  const geoData = geoDoc.data();
+                  const headFullName = capitalizeWords(
+                    `${geoData.headFirstName || ''} ${geoData.headLastName || ''}`.trim()
+                  ) || 'Unnamed Household';
+  
+                  if (Array.isArray(geoData.homes)) {
+                    geoData.homes.forEach((home, index) => {
+                      const lat = Number(home.latitude);
+                      const lng = Number(home.longitude);
+  
+                      if (!isNaN(lat) && !isNaN(lng)) {
+                        allMarkers.push({
+                          id: `${householdDoc.id}_${geoDoc.id}_${index}`,
+                          householdId: householdDoc.id,
+                          geoId: geoDoc.id,
+                          homeLabel: home.label || (index === 0 ? 'Primary Home' : `Home ${index + 1}`),
+                          name: headFullName,
+                          lat,
+                          lng,
+                          barangay: geoData.barangay || householdData.barangay || 'N/A',
+                          contactNumber: geoData.contactNumber || householdData.contactNumber || 'N/A',
+                          members: memberNames,
+                        });
+                      }
+                    });
+                  }
                 }
-              });
-            }
-          }
+              } catch (err) {
+                console.warn(`Failed household ${householdDoc.id}`, err);
+              }
+            })
+          );
+  
+          console.log(`Processed batch ${i} to ${i + batch.length}`);
         }
-
+  
+        console.log(`Finished fetching households. Total markers: ${allMarkers.length}`);
         setHouseholdMarkers(allMarkers);
       } catch (err) {
         console.error('Failed to fetch household locations:', err);
         toast.error('Failed to load household locations');
       }
     };
-
+  
     fetchHouseholds();
   }, []);
+  
 
 
   // Fetch accidents

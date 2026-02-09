@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { FiMail, FiUser } from "react-icons/fi";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/firebase/config";
+import { auth } from "@/lib/firebaseConfig";
 import RequiredField from "@/components/Required";
 
 export default function ForgotPassForm() {

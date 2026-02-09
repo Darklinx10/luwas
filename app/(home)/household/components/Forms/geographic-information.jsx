@@ -1,7 +1,7 @@
 'use client';
 
 import RequiredField from '@/components/Required';
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import geoData from '@/utils/geoData-ph.json';
 import { getAuth } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';

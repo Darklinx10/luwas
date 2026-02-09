@@ -1,11 +1,27 @@
 import { NextResponse } from 'next/server';
 import admin from '@/lib/firebaseAdmin';
 
-export async function middleware(req) {
+export async function proxy(req) {
   const url = req.nextUrl.clone();
   const pathname = url.pathname;
 
-  console.log('[Middleware] Incoming URL:', pathname);
+  // Skip Next.js internals
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon.ico') ||
+    pathname.startsWith('/assets')
+  ) {
+    return NextResponse.next();
+  }
+
+  const sessionCookie = req.cookies.get('session')?.value;
+
+  console.log('[Proxy] Incoming URL:', pathname);
+
+  const redirect = (path) => {
+    url.pathname = path;
+    return NextResponse.redirect(url);
+  };
 
   /* =====================
      PUBLIC ROUTES
@@ -13,17 +29,18 @@ export async function middleware(req) {
   const publicPaths = ['/login', '/forgotpass'];
 
   if (publicPaths.some(path => pathname.startsWith(path))) {
-    const sessionCookie = req.cookies.get('session')?.value;
-
     if (!sessionCookie) return NextResponse.next();
 
     try {
-      const decoded = await admin.auth().verifySessionCookie(sessionCookie, true);
+      const decoded = await admin
+        .auth()
+        .verifySessionCookie(sessionCookie, true);
 
-      url.pathname =
-        decoded.role === 'MDRRMC-Admin' ? '/household' : '/dashboard';
-
-      return NextResponse.redirect(url);
+      return redirect(
+        decoded.role === 'MDRRMC-Admin'
+          ? '/household'
+          : '/dashboard'
+      );
     } catch {
       return NextResponse.next();
     }
@@ -32,19 +49,16 @@ export async function middleware(req) {
   /* =====================
      PROTECTED ROUTES
   ====================== */
-  const sessionCookie = req.cookies.get('session')?.value;
-
   if (!sessionCookie) {
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
+    return redirect('/login');
   }
 
   try {
-    const decoded = await admin.auth().verifySessionCookie(sessionCookie, true);
-    const role = decoded.role;
-    console.log('Decoded token:', decoded);
-    console.log('Decoded role:', decoded.role);
+    const decoded = await admin
+      .auth()
+      .verifySessionCookie(sessionCookie, true);
 
+    const role = decoded.role ?? 'user';
 
     /* =====================
        ADMIN-ONLY ROUTES
@@ -55,8 +69,7 @@ export async function middleware(req) {
       adminOnly.some(path => pathname.startsWith(path)) &&
       role !== 'MDRRMC-Admin'
     ) {
-      url.pathname = '/unauthorized';
-      return NextResponse.redirect(url);
+      return redirect('/unauthorized');
     }
 
     /* =====================
@@ -68,14 +81,12 @@ export async function middleware(req) {
       adminBlocked.some(path => pathname.startsWith(path)) &&
       role === 'MDRRMC-Admin'
     ) {
-      url.pathname = '/household';
-      return NextResponse.redirect(url);
+      return redirect('/household');
     }
 
     return NextResponse.next();
   } catch {
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
+    return redirect('/login');
   }
 }
 

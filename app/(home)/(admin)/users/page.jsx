@@ -9,7 +9,7 @@ import {
   updateDoc,
   setDoc,
 } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { db } from '@/lib/firebaseConfig';
 import { FiSearch, FiPlus } from 'react-icons/fi';
 import RoleGuard from '@/components/roleGuard';
 import { toast } from 'react-toastify';
