@@ -666,14 +666,15 @@ export default function HouseholdPage() {
                 <input
                   type="file"
                   accept=".csv"
-                  onChange={handleImportFile}
+                  onChange={handleUploadHouseholdData}
                   className="hidden"
                   id="importFileInput"
                 />
                 <label
                   htmlFor="importFileInput"
                   className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 cursor-pointer flex items-center gap-2"
-                >
+                  disabled={loading}
+               >
                   <FiUpload />
                   Import Household Data
                 </label>

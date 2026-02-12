@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import admin from '@/lib/firebaseAdmin';
 
-export async function proxy(req) {
+export async function middleware(req) {
   const url = req.nextUrl.clone();
   const pathname = url.pathname;
 
@@ -16,7 +16,7 @@ export async function proxy(req) {
 
   const sessionCookie = req.cookies.get('session')?.value;
 
-  console.log('[Proxy] Incoming URL:', pathname);
+  console.log('[Middleware] Incoming URL:', pathname);
 
   const redirect = (path) => {
     url.pathname = path;
