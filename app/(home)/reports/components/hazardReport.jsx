@@ -183,19 +183,25 @@ export default function HazardTable({
               <table className="w-full text-sm text-center print:text-xs print:border print:border-gray-400">
                 <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
                   <tr>
+                    <th className="px-4 py-2 border">No.</th>
                     <th className="px-4 py-2 border">Household</th>
                     <th className="px-4 py-2 border">Barangay</th>
+                    <th className="px-4 py-2 border">Sitio</th>
                     <th className="px-4 py-2 border">Contact Number</th>
                     <th className="px-4 py-2 border">Home</th>
-                    <th className="px-4 py-2 border">{legendProp?.key || 'Value'}</th>
+                    <th className="px-4 py-2 border">
+                      {legendProp?.key || 'Value'}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredData.map((h, i) => (
-                    <tr key={i}>
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 border">{i + 1}</td>
                       <td className="px-4 py-2 border">{capitalizeWords(h.name)}</td>
                       <td className="px-4 py-2 border">{capitalizeWords(h.barangay)}</td>
-                      <td className="px-4 py-2 border">{h.contactNumber}</td>
+                      <td className="px-4 py-2 border">{capitalizeWords(h.sitio || '-')}</td> {/* ✅ Sitio value */}
+                      <td className="px-4 py-2 border">{h.contactNumber || 'N/A'}</td>
                       <td className="px-4 py-2 border">{h.homeLabel ?? 'Primary Home'}</td>
                       <td className="px-4 py-2 border">
                         {legendProp?.key ? formatValue(h[legendProp.key]) : 'N/A'}
@@ -204,8 +210,6 @@ export default function HazardTable({
                   ))}
                 </tbody>
               </table>
-
-              
             </>
           )}
         </div>

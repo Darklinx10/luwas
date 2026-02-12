@@ -247,24 +247,29 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
             <>
             <table className="w-full text-sm text-center print:text-xs print:w-full print:border print:border-gray-400">
               <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
-              <tr>
-                {[
-                  <th key="img" className="px-4 py-2 border">Image</th>,
-                  <th key="type" className="px-4 py-2 border">Type</th>,
-                  <th key="sev" className="px-4 py-2 border">Severity</th>,
-                  <th key="desc" className="px-4 py-2 border">Description</th>,
-                  <th key="dt" className="px-4 py-2 border">Date &amp; Time</th>,
-                  <th key="map" className="px-4 py-2 border print:hidden">Map</th>,
-                  <th key="act" className="px-4 py-2 border print:hidden">Action</th>,
-                ]}
-              </tr>
+                <tr>
+                  <th className="px-4 py-2 border">No.</th>
+                  <th className="px-4 py-2 border">Image</th>
+                  <th className="px-4 py-2 border">Type</th>
+                  <th className="px-4 py-2 border">Severity</th>
+                  <th className="px-4 py-2 border">Description</th>
+                  <th className="px-4 py-2 border">Date &amp; Time</th>
+                  <th className="px-4 py-2 border print:hidden">Map</th>
+                  <th className="px-4 py-2 border print:hidden">Action</th>
+                </tr>
               </thead>
-              <tbody>
+                <tbody>
                 {filteredAccidents
                   .sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
-                  .map((accident) => (
+                  .map((accident, index) => (
                     <tr key={accident.id} className="hover:bg-gray-50">
-                      {/* ✅ Accident Image */}
+                          
+                      {/* ✅ Row Number */}
+                      <td className="px-4 py-2 border">
+                        {index + 1}
+                      </td>
+
+                      {/* Image */}
                       <td className="px-4 py-2 border">
                         {accident.imageUrl ? (
                           <Image
@@ -287,6 +292,7 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
                           ? new Date(accident.datetime).toLocaleString()
                           : '—'}
                       </td>
+
                       <td className="px-4 py-2 border print:hidden">
                         <button
                           onClick={() =>
@@ -297,6 +303,7 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
                           Map
                         </button>
                       </td>
+
                       <td className="px-4 py-2 border space-x-2 print:hidden">
                         <button
                           onClick={() => handleEdit(accident.id)}
@@ -316,6 +323,7 @@ export default function AccidentTable({ title = 'Accident Reports (2025)' }) {
                     </tr>
                   ))}
               </tbody>
+
             </table>
 
               {/* Record Count */}

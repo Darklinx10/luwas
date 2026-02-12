@@ -389,7 +389,7 @@ export default function HouseholdPage() {
             headFirstName: (row.headFirstName || row["Head FirstName"] || "").toString(),
             headMiddleName: (row.headMiddleName || row["Head MiddleName"] || "").toString(),
             headLastName: (row.headLastName || row["Head LastName"] || "").toString(),
-            headSuffix: (row.headSuffix || row["Head Suffix"] || "N/A").toString(),
+            headSuffix: (row.headSuffix || row["Head Suffix"] || "").toString(),
             headSex: (row.headSex || row["Head Sex"] || "").toString(),
             headAge: Number(row.headAge || row["Head Age"]) || 0,
             contactNumber: (row.headContactNumber || row["Contact Number"] || "N/A").toString(),
@@ -538,13 +538,14 @@ export default function HouseholdPage() {
 
   // ✅ Download as CSV
   const downloadCSV = () => {
-    const csvHeaders = ['Household ID', 'Family Head', 'Barangay', 'Sex', 'Age', 'Contact Number'];
+    const csvHeaders = ['Household ID', 'Family Head', 'Barangay', 'Sitio', 'Sex', 'Age', 'Contact Number'];
     const rows = households.map((h) => [
       h.householdId,
-      [h.headFirstName, h.headMiddleName, h.headLastName, h.headSuffix !== 'n/a' ? h.headSuffix : '']
+      [h.headFirstName, h.headMiddleName, h.headLastName, h.headSuffix !== 'N/A' ? h.headSuffix : '']
         .filter(Boolean)
         .join(' '),
       h.barangay,
+      h.sitio,
       h.headSex,
       h.headAge,
       h.contactNumber,

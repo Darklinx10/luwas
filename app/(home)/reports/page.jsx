@@ -31,7 +31,6 @@ function ReportsPageContent() {
   const [legendProp, setLegendProp] = useState(null);
   const profile = useAuth();
 
-  // Load hazards if selected
   useEffect(() => {
     const loadAffectedHouseholds = async () => {
       if (!hazardTypes.includes(selectedReport)) return;
@@ -83,7 +82,7 @@ function ReportsPageContent() {
               const data = geoDoc.data();
               const homes = Array.isArray(data.homes)
                 ? data.homes
-                : [{ latitude: data.latitude, longitude: data.longitude }];
+                : [{ latitude: data.latitude, longitude: data.longitude, sitio: data.sitio }];
   
               homes.forEach((home, index) => {
                 const lat = Number(home.latitude);
@@ -92,6 +91,7 @@ function ReportsPageContent() {
                   households.push({
                     name: `${data.headFirstName || ''} ${data.headLastName || ''}`.trim(),
                     barangay: data.barangay || 'N/A',
+                    sitio: home.sitio || data.sitio || 'N/A',
                     contactNumber: data.contactNumber || 'N/A',
                     location: { lat, lng },
                     homeLabel: home.label || (index === 0 ? 'Primary Home' : `Secondary Home ${index + 1}`),
@@ -132,6 +132,7 @@ function ReportsPageContent() {
   
     loadAffectedHouseholds();
   }, [selectedReport]);
+  
   
 
 

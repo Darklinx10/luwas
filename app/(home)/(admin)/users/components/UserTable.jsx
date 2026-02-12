@@ -42,6 +42,7 @@ export default function UserTable({
         <table className="w-full text-sm text-center">
           <thead className="bg-gray-100 text-gray-600">
             <tr>
+              <th className="p-2 border">No.</th> {/* ✅ Added */}
               <th className="p-2 border">Name</th>
               <th className="p-2 border">Email</th>
               <th className="p-2 border">Barangay</th>
@@ -50,9 +51,14 @@ export default function UserTable({
               <th className="p-2 border">Actions</th>
             </tr>
           </thead>
+
           <tbody>
-            {filteredUsers.map((user) => (
+            {filteredUsers.map((user, index) => (
               <tr key={user.id} className="hover:bg-gray-50">
+                {/* ✅ Row Number */}
+                <td className="p-2 border">
+                  {index + 1}
+                </td>
                 <td className="p-2 border">{user.fullName || 'N/A'}</td>
                 <td className="p-2 border">{user.email}</td>
                 <td className="p-2 border">{user.barangay || 'N/A'}</td>

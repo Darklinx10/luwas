@@ -13,7 +13,7 @@ export default function HouseholdMembersTable({
 
   return (
     <tr>
-      <td colSpan="8" className="p-4 border bg-gray-50 text-left text-sm">
+      <td colSpan="10" className="p-4 border bg-gray-50 text-left text-sm">
         <strong>Household Members:</strong>
 
         {loadingMembers[data.householdId] ? (
@@ -55,7 +55,7 @@ export default function HouseholdMembersTable({
                         <td className="p-2 border">{name || 'Unnamed'}</td>
                         <td className="p-2 border">{relationLabel}</td>
                         <td className="p-2 border">{ageStr}</td>
-                        <td className="p-2 border">{contactNumber}</td>
+                        <td className="p-2 border">{contactNumber || "N/A"}</td>
                         <td className="p-2 border text-center space-x-2">
                           <button
                             onClick={() => handleEditMember(m, data.householdId)}

@@ -9,11 +9,11 @@ import { toast } from 'react-toastify';
 import ConfirmModal from '@/components/LogoutConfirmation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import { useAuth } from '@/context/authContext'; // <- use AuthContext here
+import { useAuth } from '@/context/authContext';
 import { auth } from '@/lib/firebaseConfig';
 
 export default function Topbar({ toggleSidebar, sidebarOpen }) {
-  const { profile, user, role, loading } = useAuth(); // consume AuthContext
+  const { profile, role, loading } = useAuth(); 
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef();
   const router = useRouter();
@@ -33,19 +33,27 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
   // Logout
   const handleLogout = async () => {
     try {
+      // 🔐 Sign out from Firebase
       await signOut(auth);
-      const res = await fetch('/api/auth/logout', {
+  
+      // 🗑 Clear server session / cookie
+      await fetch('/api/auth/logout', {
         method: 'POST',
       });
-      if (!res.ok) throw new Error('Logout failed');
-
+  
       toast.success("Logged out successfully.");
-      router.replace("/login");
+  
+      // Small delay so toast can be seen (optional)
+      setTimeout(() => {
+        router.replace("/login");
+      }, 1000);
+  
     } catch (error) {
       console.error("Logout failed:", error);
       toast.error("Failed to log out. Please try again.");
     }
   };
+  
 
   // Render loading state if needed
   if (loading) return null;

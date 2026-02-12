@@ -44,6 +44,7 @@ export default function SeniorTable({ title, barangay: filterBarangay = null }) 
                 const [geoSnap, membersSnap] = await Promise.all([getDoc(geoDocRef), getDocs(membersColRef)]);
                 const geoData = geoSnap.exists() ? geoSnap.data() : {};
                 const barangay = geoData?.barangay || '—';
+                const sitio = geoData?.sitio || '—';
   
                 // fetch member demographics concurrently but safely
                 const memberPromises = membersSnap.docs.map(async (memberDoc) => {
@@ -75,6 +76,7 @@ export default function SeniorTable({ title, barangay: filterBarangay = null }) 
                       age,
                       sex: demo.sex || '—',
                       barangay,
+                      sitio,
                       contact: demo.contactNumber || '—',
                       householdId,
                     };
@@ -155,17 +157,17 @@ export default function SeniorTable({ title, barangay: filterBarangay = null }) 
     if (!selectedSenior) return;
 
     setLoading(true);
-    const { householdId, id, name, sex, age, contact, barangay } = selectedSenior;
+    const { householdId, id, name, sex, age, contact, barangay, sitio } = selectedSenior;
 
     try {
       const demographicRef = doc(db, 'households', householdId, 'members', id, 'demographicCharacteristics', 'main');
       const geoRef = doc(db, 'households', householdId, 'geographicIdentification', 'main');
 
       await updateDoc(demographicRef, { name, sex, age, contactNumber: contact });
-      await updateDoc(geoRef, { barangay });
+      await updateDoc(geoRef, { barangay, sitio});
 
       setSeniors((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, name, sex, age, contact, barangay } : item))
+        prev.map((item) => (item.id === id ? { ...item, name, sex, age, contact, barangay, sitio } : item))
       );
 
       setShowModal(false);
@@ -252,43 +254,49 @@ export default function SeniorTable({ title, barangay: filterBarangay = null }) 
               <table className="w-full text-sm text-center print:text-xs print:w-full print:border print:border-gray-400">
                 <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
                   <tr>
+                    <th className="px-4 py-2 border">No.</th> {/* ✅ Added */}
                     <th className="px-4 py-2 border">Name</th>
                     <th className="px-4 py-2 border">Sex</th>
                     <th className="px-4 py-2 border">Age</th>
                     <th className="px-4 py-2 border">Barangay</th>
+                    <th className="px-4 py-2 border">Sitio</th>
                     <th className="px-4 py-2 border">Contact</th>
                     <th className="px-4 py-2 border print:hidden">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.sort((a, b) => a.name.localeCompare(b.name)).map((item, index) => (
-                    <tr key={`${item.id}-${index}`} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 border">{item.name}</td>
-                      <td className="px-4 py-2 border">{item.sex}</td>
-                      <td className="px-4 py-2 border">{item.age}</td>
-                      <td className="px-4 py-2 border">{item.barangay}</td>
-                      <td className="px-4 py-2 border">{item.contact}</td>
-                      <td className="px-4 py-2 border print:hidden">
-                        <div className="flex justify-center gap-3">
-                          <button
-                            onClick={() => {
-                              setSelectedSenior(item);
-                              setShowModal(true);
-                            }}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            <FiEdit />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredData
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((item, index) => (
+                      <tr key={`${item.id}-${index}`} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 border">{index + 1}</td> {/* ✅ Added */}
+                        <td className="px-4 py-2 border">{item.name}</td>
+                        <td className="px-4 py-2 border">{item.sex}</td>
+                        <td className="px-4 py-2 border">{item.age}</td>
+                        <td className="px-4 py-2 border">{item.barangay}</td>
+                        <td className="px-4 py-2 border">{item.sitio}</td>
+                        <td className="px-4 py-2 border">{item.contact}</td>
+                        <td className="px-4 py-2 border print:hidden">
+                          <div className="flex justify-center gap-3">
+                            <button
+                              onClick={() => {
+                                setSelectedSenior(item);
+                                setShowModal(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              <FiEdit />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(item)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
 
@@ -347,6 +355,15 @@ export default function SeniorTable({ title, barangay: filterBarangay = null }) 
                 <input
                   type="text"
                   value={selectedSenior.barangay}
+                  onChange={(e) => setSelectedSenior((prev) => ({ ...prev, barangay: e.target.value }))}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Sitio</label>
+                <input
+                  type="text"
+                  value={selectedSenior.sitio}
                   onChange={(e) => setSelectedSenior((prev) => ({ ...prev, barangay: e.target.value }))}
                   className="w-full border rounded px-3 py-2"
                 />
