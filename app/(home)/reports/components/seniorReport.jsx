@@ -254,7 +254,7 @@ export default function SeniorTable({ title, barangay: filterBarangay = null }) 
               <table className="w-full text-sm text-center print:text-xs print:w-full print:border print:border-gray-400">
                 <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
                   <tr>
-                    <th className="px-4 py-2 border">No.</th> {/* ✅ Added */}
+                    <th className="px-4 py-2 border">No.</th> 
                     <th className="px-4 py-2 border">Name</th>
                     <th className="px-4 py-2 border">Sex</th>
                     <th className="px-4 py-2 border">Age</th>
@@ -269,7 +269,7 @@ export default function SeniorTable({ title, barangay: filterBarangay = null }) 
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((item, index) => (
                       <tr key={`${item.id}-${index}`} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 border">{index + 1}</td> {/* ✅ Added */}
+                        <td className="px-4 py-2 border">{index + 1}</td> 
                         <td className="px-4 py-2 border">{item.name}</td>
                         <td className="px-4 py-2 border">{item.sex}</td>
                         <td className="px-4 py-2 border">{item.age}</td>

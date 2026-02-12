@@ -37,6 +37,7 @@ function EditProfileContent() {
     gender: '',
     contactNumber: '',
     email: '',
+    barangay: '',
   });
 
   // Holds the new uploaded file (if any)
@@ -68,6 +69,7 @@ function EditProfileContent() {
               gender: data.gender || '',
               contactNumber: data.contactNumber || '',
               email: data.email || '',
+              barangay: data.barangay || '',
             });
             // Set profile photo if it exists
             if (data.profilePhoto) {
@@ -219,6 +221,9 @@ function EditProfileContent() {
         <InputField name="contactNumber" label="Contact Number" value={form.contactNumber} onChange={handleChange} required />
         <div className="col-span-2">
           <InputField type="email" name="email" label="Email Address" value={form.email} onChange={handleChange} required />
+        </div>
+        <div className="col-span-2">
+          <InputField type="barangay" name="barangay" label="Barangay" value={form.barangay} onChange={handleChange} required />
         </div>
 
         <div className="col-span-2 mt-4 flex justify-end">

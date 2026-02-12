@@ -1,4 +1,5 @@
 'use client';
+import { capitalizeWords } from "@/utils/capitalize";
 
 export default function EditMemberModal({
   isOpen,
@@ -70,6 +71,7 @@ export default function EditMemberModal({
               name="age"
               type="number"
               value={member.age || ''}
+              onChange={onChange}
               readOnly
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
             />

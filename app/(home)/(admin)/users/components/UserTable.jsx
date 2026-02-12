@@ -42,7 +42,7 @@ export default function UserTable({
         <table className="w-full text-sm text-center">
           <thead className="bg-gray-100 text-gray-600">
             <tr>
-              <th className="p-2 border">No.</th> {/* ✅ Added */}
+              <th className="p-2 border">No.</th>
               <th className="p-2 border">Name</th>
               <th className="p-2 border">Email</th>
               <th className="p-2 border">Barangay</th>
