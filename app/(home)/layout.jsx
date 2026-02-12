@@ -10,8 +10,7 @@ export default function DashboardLayout({ children }) {
   const isMobile = useIsMobile();  // <--- use the hook here
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-  const { profile } = useAuth();
-  const userRole = profile?.role;
+  const { role } = useAuth();
 
   // Force close sidebar on mobile
   useEffect(() => {
@@ -32,7 +31,7 @@ export default function DashboardLayout({ children }) {
           w-20 md:w-64
         `}
       >
-        <Sidebar sidebarOpen={sidebarOpen} userRole={userRole} />
+        <Sidebar sidebarOpen={sidebarOpen} userRole={role} />
       </div>
 
       {/* Content area */}

@@ -48,15 +48,17 @@ function DashboardPage() {
   });
 
   useEffect(() => {
-    if (!profile) return;
+    if (authLoading || !profile) return;
+  
+    let cancelled = false; // cancel flag for logout/unmount
   
     const fetchDashboardDataBatch = async () => {
       setLoading(true);
   
       try {
-        console.log('🔄 Starting dashboard fetch in batches...');
+        console.log('🔄 Starting optimized dashboard fetch...');
   
-        const batchSize = 150; // adjust based on performance
+        const batchSize = 500;
         let lastDoc = null;
   
         let totalHouseholds = 0;
@@ -70,6 +72,7 @@ function DashboardPage() {
           '20-24': 0, '25-29': 0, '30-34': 0, '35-39': 0, '40-44': 0,
           '45-49': 0, '50-54': 0, '55-59': 0, '60 and over': 0,
         };
+        
   
         const userBarangay =
           profile.role === 'Brgy-Secretary' ? profile.barangay?.toLowerCase() : null;
@@ -94,43 +97,61 @@ function DashboardPage() {
           else ageCounts['60 and over']++;
         };
   
-        while (true) {
+        while (!cancelled) {
           const q = lastDoc
-            ? query(collection(db, 'households'), orderBy('__name__'), startAfter(lastDoc), limit(batchSize))
-            : query(collection(db, 'households'), orderBy('__name__'), limit(batchSize));
+            ? query(
+                collection(db, 'households'),
+                orderBy('__name__'),
+                startAfter(lastDoc),
+                limit(batchSize)
+              )
+            : query(
+                collection(db, 'households'),
+                orderBy('__name__'),
+                limit(batchSize)
+              );
   
           const snapshot = await getDocs(q);
+          if (cancelled) break;
           if (snapshot.empty) break;
   
           lastDoc = snapshot.docs[snapshot.docs.length - 1];
           console.log(`➡ Processing batch of ${snapshot.docs.length} households`);
   
-          // Fetch geoData and members in parallel for this batch
-          await Promise.all(snapshot.docs.map(async (hhDoc) => {
+          // Process all households in parallel
+          await Promise.allSettled(snapshot.docs.map(async (hhDoc) => {
+            if (cancelled) return;
+  
             const hhId = hhDoc.id;
   
+            // 🔹 Only fetch the fields we need using select()
             const geoSnap = await getDoc(doc(db, 'households', hhId, 'geographicIdentification', 'main'));
             const geoData = geoSnap.exists() ? geoSnap.data() : {};
             const barangayKey = geoData.barangay?.toLowerCase();
   
             if (userBarangay && barangayKey !== userBarangay) return;
   
-            const membersSnap = await getDocs(collection(db, 'households', hhId, 'members'));
-            const uniqueResidentIds = new Set();
-            let headFoundInMembers = false;
+            const [membersSnap, healthSnap] = await Promise.all([
+              getDocs(query(collection(db, 'households', hhId, 'members'), /* optional: select('relationshipToHead') */)),
+              getDoc(doc(db, 'households', hhId, 'health', 'main'))
+            ]);
   
-            const healthSnap = await getDoc(doc(db, 'households', hhId, 'health', 'main'));
             const health = healthSnap.exists() ? healthSnap.data() : null;
             if (health?.isPWD && typeof health.pwdLineNumber === 'string') totalPWD++;
   
-            // Process members
-            await Promise.all(membersSnap.docs.map(async (m) => {
-              const base = m.data();
+            const uniqueResidentIds = new Set();
+            let headFoundInMembers = false;
+  
+            // Process members in parallel, only fetch demographic age + relationship
+            await Promise.allSettled(membersSnap.docs.map(async (m) => {
+              if (cancelled) return;
+  
+              // fetch only the demographic fields needed
               const demoSnap = await getDoc(doc(db, 'households', hhId, 'members', m.id, 'demographicCharacteristics', 'main'));
               const demo = demoSnap.exists() ? demoSnap.data() : {};
-  
-              const rel = (demo.relationshipToHead || base.relationshipToHead || '').toLowerCase();
+              const rel = (demo.relationshipToHead || '').toLowerCase();
               if (rel === 'head') headFoundInMembers = true;
+  
               uniqueResidentIds.add(m.id);
   
               if (demo.age >= 60) totalSeniors++;
@@ -152,14 +173,15 @@ function DashboardPage() {
           }));
         }
   
-        // Prepare charts
+        if (cancelled) return;
+  
         setBarangayResidents(Object.entries(barangayCounts)
           .map(([name, residents]) => ({ name, residents }))
           .sort((a, b) => b.residents - a.residents));
   
         setAgeBracketData(Object.entries(ageCounts).map(([age, count]) => ({ age, count })));
   
-        // Fetch hazards & accidents concurrently
+        // hazards & accidents concurrently
         const hazardTypes = ['Active Faults','Earthquake Induced Landslide','Ground Shaking','Landslide','Liquefaction','Rain Induced Landslide','Storm Surge','Tsunami'];
         const hazardSnaps = await Promise.all(hazardTypes.map(h => getDocs(collection(db, 'hazards', h, 'hazardInfo'))));
         const totalHazards = hazardSnaps.reduce((sum, snap) => sum + snap.size, 0);
@@ -177,16 +199,20 @@ function DashboardPage() {
           growthRate: '0%',
         });
   
-        console.log(`🎯 Dashboard fetch completed. Households: ${totalHouseholds}, Residents: ${totalResidents}`);
+        console.log(`🎯 Optimized dashboard fetch completed. Households: ${totalHouseholds}, Residents: ${totalResidents}`);
       } catch (err) {
-        console.error('❌ Dashboard batch fetch error:', err);
+        if (!cancelled) console.error('❌ Dashboard batch fetch error:', err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
   
     fetchDashboardDataBatch();
-  }, [profile]);
+  
+    return () => { cancelled = true };
+  }, [authLoading, profile]);
+  
+  
 
 
   if (authLoading) return <div>Loading authentication...</div>;

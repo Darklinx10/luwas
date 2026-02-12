@@ -4,25 +4,24 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FaUserCircle } from 'react-icons/fa';
 import { GiHamburgerMenu } from 'react-icons/gi';
-import { signOut } from 'firebase/auth';
 import { toast } from 'react-toastify';
 import ConfirmModal from '@/components/LogoutConfirmation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { useAuth } from '@/context/authContext';
-import { auth } from '@/lib/firebaseConfig';
+import Link from 'next/link';
 
 export default function Topbar({ toggleSidebar, sidebarOpen }) {
-  const { profile, role, loading } = useAuth(); 
+  const { profile, role, loading, logout } = useAuth(); 
   const [showMenu, setShowMenu] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const menuRef = useRef();
   const router = useRouter();
-  const [showModal, setShowModal] = useState(false);
 
-  // Close dropdown when clicking outside
+  // Close dropdown on outside click
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
         setShowMenu(false);
       }
     };
@@ -30,32 +29,17 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Logout
   const handleLogout = async () => {
     try {
-      // 🔐 Sign out from Firebase
-      await signOut(auth);
-  
-      // 🗑 Clear server session / cookie
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-      });
-  
+      await logout();
       toast.success("Logged out successfully.");
-  
-      // Small delay so toast can be seen (optional)
-      setTimeout(() => {
-        router.replace("/login");
-      }, 1000);
-  
+      router.replace("/login");
     } catch (error) {
       console.error("Logout failed:", error);
-      toast.error("Failed to log out. Please try again.");
+      toast.error("Failed to log out.");
     }
   };
-  
 
-  // Render loading state if needed
   if (loading) return null;
 
   const userName = profile
@@ -82,12 +66,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
           className="w-10 h-10 rounded-full overflow-hidden cursor-pointer border border-gray-200 shadow-sm"
         >
           {userPhoto ? (
-            <Image
-              src={userPhoto} 
-              alt="Profile"
-              width={40}
-              height={40}
-              className="object-cover w-full h-full" />
+            <Image src={userPhoto} alt="Profile" width={40} height={40} className="object-cover w-full h-full" />
           ) : (
             <FaUserCircle className="w-full h-full text-gray-400" />
           )}
@@ -100,17 +79,12 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="absolute right-0 mt-2 bg-white rounded-2xl border-gray- shadow-xl z-[5000] w-56 p-4"
+              className="absolute right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-xl z-[5000] w-56 p-4"
             >
               {/* User Info */}
               <div className="flex flex-col items-center mb-3">
                 {userPhoto ? (
-                  <Image
-                    src={userPhoto} 
-                    alt="Profile" 
-                    width={48}
-                    height={48}
-                    className="w-12 h-12 rounded-full border border-gray-200" />
+                  <Image src={userPhoto} alt="Profile" width={48} height={48} className="w-12 h-12 rounded-full border border-gray-200" />
                 ) : (
                   <FaUserCircle className="text-6xl text-gray-400" />
                 )}
@@ -120,12 +94,12 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
 
               <div className="border-t border-gray-200 my-2" />
 
-              <a
+              <Link
                 href="/profile"
                 className="block text-center px-4 py-2 text-sm text-gray-700 rounded-lg hover:bg-green-50 transition"
               >
                 Profile
-              </a>
+              </Link>
 
               <button
                 onClick={() => setShowModal(true)}

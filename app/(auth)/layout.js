@@ -10,7 +10,7 @@ export default function AuthLayout({ children }) {
       <AppHeader />
 
       {/* Main: center content */}
-      <main className="flex-1 flex items-center justify-center px-4">
+      <main className="flex-1 flex items-center justify-center px-2">
         <div className="w-full max-w-md">{children}</div>
       </main>
 

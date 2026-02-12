@@ -1,28 +1,28 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from 'react';
 import { auth, db } from '@/lib/firebaseConfig';
-import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
+import { onAuthStateChanged, getIdTokenResult, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-/**
- * AuthProvider wraps your app and provides:
- * - user: Firebase user object
- * - profile: Firestore user profile
- * - role: role from custom claims or Firestore
- * - loading: boolean while checking auth
- */
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);       // Firebase user
-  const [profile, setProfile] = useState(null); // Firestore profile
-  const [role, setRole] = useState(null);       // Role from claims or profile
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loggedOut, setLoggedOut] = useState(false);
 
-  const loadUserData = async (firebaseUser) => {
+  const loadUserData = useCallback(async (firebaseUser) => {
     if (!firebaseUser) {
-      // User logged out → clear state
       setUser(null);
       setProfile(null);
       setRole(null);
@@ -32,26 +32,14 @@ export const AuthProvider = ({ children }) => {
 
     try {
       setLoading(true);
-      // Force refresh the token to include latest custom claims
-      await firebaseUser.getIdToken(true);
 
-      // 1️⃣ Get custom claims from ID token
+      // Get latest token + claims
       const tokenResult = await getIdTokenResult(firebaseUser, true);
       const claimRole = tokenResult.claims.role || null;
 
-      // 2️⃣ Get Firestore user profile
+      // Get Firestore profile
       const docRef = doc(db, 'users', firebaseUser.uid);
-      let docSnap = await getDoc(docRef);
-
-      // Retry if profile not yet created
-      let retries = 2;
-      let wait = 300;
-      while (!docSnap.exists() && retries > 0) {
-        await new Promise((res) => setTimeout(res, wait));
-        docSnap = await getDoc(docRef);
-        retries--;
-        wait *= 2;
-      }
+      const docSnap = await getDoc(docRef);
 
       let userProfile = null;
       if (docSnap.exists()) {
@@ -60,7 +48,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       setUser(firebaseUser);
-      setRole(claimRole || userProfile?.role || 'user'); // fallback to 'user'
+      setRole(claimRole || userProfile?.role || 'user');
     } catch (error) {
       console.error('[Auth] Error loading user data:', error);
       setUser(null);
@@ -69,22 +57,48 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+      setProfile(null); // ⚡ triggers cleanup in useEffect
+      setRole(null);
+      setLoggedOut(true);
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('[Auth] Logout error:', error);
+      throw error;
+    }
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      console.log('[Auth] onAuthStateChanged fired', firebaseUser);
       loadUserData(firebaseUser);
     });
 
-    return () => unsubscribe();
-  }, []);
+    return unsubscribe;
+  }, [loadUserData]);
 
-  return (
-    <AuthContext.Provider value={{ user, profile, role, loading, setProfile, setRole }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      profile,
+      role,
+      loading,
+      logout,
+    }),
+    [user, profile, role, loading, logout]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
