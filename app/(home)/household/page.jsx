@@ -117,7 +117,7 @@ export default function HouseholdPage() {
             downloadCSV={vm.downloadCSV}
             setLoading={vm.setLoading}
           />
-          </div>
+        </div>
 
           <EditMemberModal
             isOpen={vm.editMemberModal.isOpen}
@@ -142,7 +142,7 @@ export default function HouseholdPage() {
             onClose={vm.closeMapPopup}
             location={vm.mapPopup.location}
           />
-        </div>
+      </div>
     </RoleGuard>
   );
 }

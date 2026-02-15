@@ -72,6 +72,14 @@ export function useHouseholdViewModel(profile) {
     memberListeners.current[householdId] = householdService.listenMembers(householdId, (members) => {
       setMembersData((p) => ({ ...p, [householdId]: members }));
       setLoadingMembers((p) => ({ ...p, [householdId]: false }));
+      // 🔹 Update residentCount for this household
+      setHouseholds((prev) =>
+        prev.map((hh) =>
+          hh.householdId === householdId
+            ? { ...hh, residentCount: members.length } 
+            : hh
+        )
+      );
     });
   };
 

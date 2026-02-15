@@ -12,8 +12,8 @@ export default function AppHeader() {
           <Image
             src="/clarinLogo.png"
             alt="Clarin Logo"
-            width={80}
-            height={70}
+            width={75}
+            height={65}
             className="drop-shadow-lg "
           />
         </div>

@@ -138,7 +138,6 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
 
         <RequiredField htmlFor="password" label="Password" required showError={!password.trim() && !loading}>
           <div className="flex items-center border border-gray-300 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80 bg-white shadow-sm">
-            <FiLock className="text-gray-500 mr-3 text-lg" />
             <input
               type={showPassword ? "text" : "password"}
               id="password"
