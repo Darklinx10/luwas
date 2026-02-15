@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { getUsers, updateUser, createUserProfile, deleteUserById } from '@/services/userService';
+import { getUsers, updateUser, createUserProfile, deleteUserById } from '@/services/userServices';
 
 export const useUserViewModel = () => {
   const [users, setUsers] = useState([]);
