@@ -53,6 +53,7 @@ function DashboardPage() {
     let cancelled = false;
 
     const fetchDashboardData = async () => {
+      console.log('🚀 Starting dashboard fetch...');
       setLoading(true);
       try {
         const batchSize = 500;
@@ -104,6 +105,8 @@ function DashboardPage() {
 
           lastDoc = snapshot.docs[snapshot.docs.length - 1];
 
+          console.log(`📦 Processing batch of ${snapshot.docs.length} households...`);
+
           await Promise.all(snapshot.docs.map(async (hhDoc) => {
             if (cancelled) return;
 
@@ -123,6 +126,7 @@ function DashboardPage() {
             await Promise.all(membersSnap.docs.map(async (mDoc) => {
               if (cancelled) return;
               const memberId = mDoc.id;
+              console.log(`  Member: ${memberId} of Household: ${hhId}`); // ✅ log each member
               const base = mDoc.data();
               const demoSnap = await getDoc(doc(db, 'households', hhId, 'members', memberId, 'demographicCharacteristics', 'main'));
               const demo = demoSnap.exists() ? demoSnap.data() : {};
@@ -154,11 +158,22 @@ function DashboardPage() {
           }));
         }
 
+        console.log('⚡ Dashboard totals:', {
+          totalHouseholds,
+          totalResidents,
+          totalFamilies,
+          totalPWD,
+          totalSeniors,
+        });
+
         // Fetch hazards & accidents concurrently
         const hazardTypes = ['Active Faults','Earthquake Induced Landslide','Ground Shaking','Landslide','Liquefaction','Rain Induced Landslide','Storm Surge','Tsunami'];
         const hazardSnaps = await Promise.all(hazardTypes.map(h => getDocs(collection(db, 'hazards', h, 'hazardInfo'))));
         const totalHazards = hazardSnaps.reduce((sum, snap) => sum + snap.size, 0);
         const accidentsSnap = await getDocs(collection(db, 'accidents'));
+
+        console.log('⚠️ Hazards total:', totalHazards);
+        console.log('🚨 Accidents total:', accidentsSnap.size);
 
         setStats({
           households: totalHouseholds,

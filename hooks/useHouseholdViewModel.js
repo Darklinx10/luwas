@@ -72,20 +72,11 @@ export function useHouseholdViewModel(profile) {
     memberListeners.current[householdId] = householdService.listenMembers(householdId, (members) => {
       setMembersData((p) => ({ ...p, [householdId]: members }));
       setLoadingMembers((p) => ({ ...p, [householdId]: false }));
-      // 🔹 Update residentCount for this household
-      setHouseholds((prev) =>
-        prev.map((hh) =>
-          hh.householdId === householdId
-            ? { ...hh, residentCount: members.length } 
-            : hh
-        )
-      );
     });
   };
 
   /** MEMBER CRUD */
-  const handleEditMember = (member) =>
-    setEditMemberModal({ isOpen: true, member, updating: false });
+  
 
   const handleDeleteMember = async (memberId) => {
     if (!confirm('Delete this member?')) return;
@@ -134,27 +125,62 @@ export function useHouseholdViewModel(profile) {
   };
   
   
-  const handleSaveEditMember = async () => {
-    if (!editMemberModal.member) return;
+  /** OPEN EDIT MEMBER MODAL */
+const handleEditMember = (member, householdId) => {
+  setEditMemberModal({
+    isOpen: true,
+    member: { ...member, householdId }, // include householdId for save
+    updating: false,
+    originalMember: member, // store original for comparison
+  });
+};
 
-    setUpdating(true); // start updating
-    try {
-      
-      const { householdId, id, ...data } = editMemberModal.member;
-      await householdService.updateMember(householdId, id, data);
-      toast.success('Member updated');
-      setEditMemberModal({ isOpen: false, member: null});
-    } catch {
-      toast.error('Update failed');
-    } finally {
-      setUpdating(false); // stop updating
-    }
-  };
+/** HANDLE FIELD CHANGE IN MODAL */
+const handleEditFieldChange = (e) => {
+  const { name, value } = e.target;
+  setEditMemberModal((p) => ({
+    ...p,
+    member: { ...p.member, [name]: value.trim() },
+  }));
+};
 
-  const handleEditFieldChange = (e) => {
-    const { name, value } = e.target;
-    setEditMemberModal((p) => ({ ...p, member: { ...p.member, [name]: value } }));
-  };
+/** SAVE MEMBER */
+const handleSaveEditMember = async () => {
+  if (!editMemberModal.member) return;
+
+  const { householdId, id, ...updatedData } = editMemberModal.member;
+  const { originalMember } = editMemberModal;
+
+  // Prevent saving if nothing changed
+  if (JSON.stringify(originalMember) === JSON.stringify(editMemberModal.member)) {
+    toast.info('No changes detected.');
+    setEditMemberModal((p) => ({ ...p, isOpen: false, member: null }));
+    return;
+  }
+
+  setEditMemberModal((p) => ({ ...p, updating: true }));
+
+  try {
+    await householdService.updateMember(householdId, id, updatedData);
+    
+    toast.success('Member updated successfully');
+
+    // ✅ Optimistic update
+    setMembersData((prev) => ({
+      ...prev,
+      [householdId]: prev[householdId].map((m) =>
+        m.id === id ? { ...m, ...updatedData } : m
+      ),
+    }));
+
+    setEditMemberModal({ isOpen: false, member: null });
+  } catch (err) {
+    console.error('Update failed:', err);
+    toast.error('Failed to update member');
+  } finally {
+    setEditMemberModal((p) => ({ ...p, updating: false }));
+  }
+};
 
   /** FILTERING */
   const filteredByRole = useMemo(() => {

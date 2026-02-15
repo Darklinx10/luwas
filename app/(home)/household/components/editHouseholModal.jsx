@@ -5,6 +5,7 @@ import { collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore'
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import { capitalizeWords } from '@/utils/capitalize';
 
 const MapPopup = dynamic(() => import('../../../../components/mapPopUP'), { ssr: false });
 
@@ -19,15 +20,20 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
     headLastName: '',
     headSuffix: '',
     barangay: '',
+    sitio: '',
     headSex: '',
     contactNumber: '',
     headAge: '',
     homes: [{ label: 'Primary Home', latitude: '', longitude: '' }],
   });
 
+  // Capitalize relevant fields
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const capitalizedValue = ['headFirstName', 'headMiddleName', 'headLastName', 'headSuffix', 'barangay', 'sitio'].includes(name)
+      ? capitalizeWords(value)
+      : value;
+    setForm((prev) => ({ ...prev, [name]: capitalizedValue }));
   };
 
   const handleHomeChange = (index, key, value) => {
@@ -37,7 +43,6 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
       return { ...prev, homes };
     });
   };
-
 
   const handleRemoveHome = (index) => {
     setForm((prev) => ({
@@ -147,7 +152,13 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
           const headMemberRef = doc(db, 'households', householdId, 'members', memberId);
           await Promise.all([
             updateDoc(demoRef, { contactNumber, sex: headSex, age: headAge, updatedAt: new Date() }),
-            updateDoc(headMemberRef, { firstName: headFirstName, middleName: headMiddleName, lastName: headLastName, suffix: headSuffix, updatedAt: new Date() }),
+            updateDoc(headMemberRef, {
+              firstName: capitalizeWords(headFirstName),
+              middleName: capitalizeWords(headMiddleName),
+              lastName: capitalizeWords(headLastName),
+              suffix: capitalizeWords(headSuffix),
+              updatedAt: new Date()
+            }),
           ]);
           headFound = true;
           break;
@@ -156,7 +167,16 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
 
       // If no members exist, save head info in geo doc
       if (!headFound) {
-        await updateDoc(geoRef, { headFirstName, headMiddleName, headLastName, headSuffix, headSex, headAge, contactNumber, updatedAt: new Date() });
+        await updateDoc(geoRef, {
+          headFirstName: capitalizeWords(headFirstName),
+          headMiddleName: capitalizeWords(headMiddleName),
+          headLastName: capitalizeWords(headLastName),
+          headSuffix: capitalizeWords(headSuffix),
+          headSex,
+          headAge,
+          contactNumber,
+          updatedAt: new Date()
+        });
       }
 
       toast.success('Household updated successfully');
@@ -191,7 +211,7 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
                 ['headLastName', 'Last Name'],
                 ['headSuffix', 'Suffix'],
                 ['barangay', 'Barangay'],
-                ['sitio', 'sitio'],
+                ['sitio', 'Sitio'],
                 ['headSex', 'Sex'],
                 ['contactNumber', 'Contact Number'],
                 ['headAge', 'Age'],
@@ -235,7 +255,6 @@ export default function EditHouseholdModal({ open, onClose, householdId, onUpdat
                 </div>
               </div>
             ))}
-           
 
             {/* Submit buttons */}
             <div className="flex justify-end gap-3 mt-4">

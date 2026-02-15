@@ -141,10 +141,11 @@ export default function PWDTable({ title, barangay }) {
           </table>
         )}
 
-        <p className="text-sm text-gray-700 mt-4">
+        
+      </div>
+      <p className="text-sm text-gray-700 mt-4">
           <strong>Total PWDs:</strong> {pwds.length}
         </p>
-      </div>
 
       {/* Modal */}
       {showModal && selectedPWD && (

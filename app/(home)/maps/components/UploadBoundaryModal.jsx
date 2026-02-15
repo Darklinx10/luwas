@@ -3,6 +3,7 @@
 import React from 'react';
 import { FiUploadCloud } from 'react-icons/fi';
 
+
 const GeojsonUploadModal = ({
   isOpen,
   isMDRRMCAdmin,

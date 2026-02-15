@@ -11,8 +11,19 @@ import {
   Cell,
 } from 'recharts';
 
-export default function AgeBracketChart({ data, loading }) {
+export default function AgeBracketChart({ data = [], loading }) {
   if (loading) return <Spinner />;
+
+  // Check if there is any data with count > 0
+  const hasData = data.some((item) => item.count > 0);
+
+  if (!hasData) {
+    return (
+      <div className="flex justify-center items-center h-[500px] text-gray-500">
+        No Age data available
+      </div>
+    );
+  }
 
   const COLORS = [
     '#0ea5e9',

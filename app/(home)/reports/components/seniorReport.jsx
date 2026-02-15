@@ -10,6 +10,7 @@ export default function SeniorTable({ title, barangay }) {
   const [showModal, setShowModal] = useState(false);
 
   const {
+    totalSeniors,
     seniors,
     searchTerm,
     setSearchTerm,
@@ -64,7 +65,7 @@ export default function SeniorTable({ title, barangay }) {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto max-h-[500px] overflow-y-auto shadow border-t-0 rounded-b-md bg-white p-4 scrollbar-thin
+        <div className="overflow-x-auto max-h-[500px] overflow-y-auto shadow border-t-0 mb-4 rounded-b-md bg-white p-4 scrollbar-thin
                   print:max-h-auto print:overflow-visible">
           {loading ? (
             <div className="flex items-center justify-center py-10">
@@ -95,7 +96,7 @@ export default function SeniorTable({ title, barangay }) {
           ) : seniors.length === 0 ? (
             <p className="text-center py-6 text-gray-500">No senior citizen records found.</p>
           ) : (
-            <table className="w-full text-sm text-center print:text-xs print:w-full print:border print:border-gray-400">
+            <table className="w-full text-sm text-center mb-4 print:text-xs print:w-full print:border print:border-gray-400">
               <thead className="bg-gray-100 text-gray-600 print:bg-white print:text-black">
                 <tr>
                   <th className="px-4 py-2 border">No.</th>
@@ -138,9 +139,15 @@ export default function SeniorTable({ title, barangay }) {
                 ))}
               </tbody>
             </table>
-          )}
+            
+          )}          
+
+          
         </div>
+        
       </div>
+      <span className="text-sm text-gray-700 mt-4"><strong>Total Seniors:</strong> {totalSeniors}</span>
+      
 
       {/* Modal */}
       {showModal && selectedSenior && (

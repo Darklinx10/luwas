@@ -13,7 +13,6 @@ const MapPopup = dynamic(() => import('../../../components/mapPopUP'), { ssr: fa
 
 export default function HouseholdPage() {
   const { profile, loading: authLoading } = useAuth();
-
   const vm = useHouseholdViewModel(profile);
 
   if (authLoading) {
@@ -34,6 +33,7 @@ export default function HouseholdPage() {
       </div>
     );
   }
+
   return (
     <RoleGuard allowedRoles={['Brgy-Secretary', 'MDRRMC-Personnel', 'MDRRMC-Admin']}>
       <div className="p-4">
@@ -70,10 +70,18 @@ export default function HouseholdPage() {
 
             {profile?.role === 'MDRRMC-Personnel' && (
               <div className="flex gap-2">
-                <button onClick={() => window.print()} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"  disabled={vm.loading}>
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  disabled={vm.loading}
+                >
                   Print
                 </button>
-                <button onClick={vm.downloadCSV} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"  disabled={vm.loading}>
+                <button
+                  onClick={vm.downloadCSV}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  disabled={vm.loading}
+                >
                   Download CSV
                 </button>
               </div>
@@ -81,7 +89,14 @@ export default function HouseholdPage() {
 
             {profile?.role === 'MDRRMC-Admin' && (
               <>
-                <input type="file" accept=".csv, .json, .xlsx" onChange={vm.handleUploadHouseholdData} className="hidden" id="importFileInput" disabled={vm.loading} />
+                <input
+                  type="file"
+                  accept=".csv, .json, .xlsx"
+                  onChange={vm.handleUploadHouseholdData}
+                  className="hidden"
+                  id="importFileInput"
+                  disabled={vm.loading}
+                />
                 <label
                   htmlFor="importFileInput"
                   className={`px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 cursor-pointer flex items-center gap-2 ${
@@ -95,6 +110,28 @@ export default function HouseholdPage() {
             )}
           </div>
 
+          {/* Upload Progress Bar */}
+          {vm.progress > 0 && (
+            <div className="px-4 py-2 bg-white border-t print:hidden mt-2 rounded">
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden relative">
+                {/* Animated bar */}
+                <div
+                  className={`h-3 rounded-full transition-all duration-300 ${
+                    vm.progress === 100 ? 'bg-green-700' : 'bg-green-600 animate-[progress-stripes_1s_linear_infinite]'
+                  }`}
+                  style={{ width: `${vm.progress}%` }}
+                >
+                  {/* Optional: subtle inner glow */}
+                  <div className="absolute top-0 left-0 h-3 w-full opacity-30 bg-white blur-sm" />
+                </div>
+              </div>
+              <div className="flex justify-between text-xs text-gray-600 mt-1">
+                <span>Uploading household data...</span>
+                <span>{vm.progress}%</span>
+              </div>
+            </div>
+          )}
+
           {/* Table */}
           <HouseholdTable
             loading={vm.loading}
@@ -105,13 +142,13 @@ export default function HouseholdPage() {
             toggleExpanded={vm.toggleExpanded}
             handleEditMember={vm.handleEditMember}
             handleDeleteMember={vm.handleDeleteMember}
-            handleDeleteHousehold = {vm.handleDeleteHousehold}
+            handleDeleteHousehold={vm.handleDeleteHousehold}
             openMapWithLocation={vm.openMapWithLocation}
             loadingMembers={vm.loadingMembers}
             totalHouseholds={vm.totalHouseholds}
             totalResidents={vm.totalResidents}
-            setSelectedHouseholdId={vm.setSelectedHouseholdId} // ✅ VM helper
-            setEditModalOpen={vm.setEditModalOpen} // ✅ VM helper
+            setSelectedHouseholdId={vm.setSelectedHouseholdId}
+            setEditModalOpen={vm.setEditModalOpen}
             fetchHouseholds={vm.fetchHouseholds}
             handleUploadHouseholdData={vm.handleUploadHouseholdData}
             downloadCSV={vm.downloadCSV}
@@ -119,29 +156,29 @@ export default function HouseholdPage() {
           />
         </div>
 
-          <EditMemberModal
-            isOpen={vm.editMemberModal.isOpen}
-            member={vm.editMemberModal.member}
-            onClose={vm.closeEditMemberModal}
-            
-            onChange={vm.handleEditFieldChange}
-            onSave={vm.handleSaveEditMember}
-            updating={vm.fetchHouseholds}
-            mapRelationToCategory={vm.mapRelationToCategory}
-          />
+        {/* Modals */}
+        <EditMemberModal
+          isOpen={vm.editMemberModal.isOpen}
+          member={vm.editMemberModal.member}
+          onClose={vm.closeEditMemberModal}
+          onChange={vm.handleEditFieldChange}
+          onSave={vm.handleSaveEditMember}
+          updating={vm.editMemberModal.updating} // ✅ modal-specific
+          mapRelationToCategory={vm.mapRelationToCategory}
+        />
 
-          <EditHouseholdModal
-            open={vm.editHouseholdModal.open}
-            householdId={vm.editHouseholdModal.householdId}
-            onClose={() => vm.setEditModalOpen(false)}
-            onUpdated={vm.fetchHouseholds}
-          />
+        <EditHouseholdModal
+          open={vm.editHouseholdModal.open}
+          householdId={vm.editHouseholdModal.householdId}
+          onClose={() => vm.setEditModalOpen(false)}
+          onUpdated={vm.fetchHouseholds}
+        />
 
-          <MapPopup
-            isOpen={vm.mapPopup.isOpen}
-            onClose={vm.closeMapPopup}
-            location={vm.mapPopup.location}
-          />
+        <MapPopup
+          isOpen={vm.mapPopup.isOpen}
+          onClose={vm.closeMapPopup}
+          location={vm.mapPopup.location}
+        />
       </div>
     </RoleGuard>
   );

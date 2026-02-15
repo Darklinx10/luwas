@@ -10,6 +10,7 @@ import { useMap } from '@/context/mapContext';
 import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
 import { useCallback } from 'react';
+import { hazardTypes } from '@/utils/hazardTypes';
 
 // Fix Leaflet default icon issue
 delete L.Icon.Default.prototype._getIconUrl;
@@ -217,17 +218,14 @@ export default function AddHazardModal({
                 onChange={(e) => setHazardType(e.target.value)}
                 className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               >
-                <option value="">Select type</option>
-                <option value="Active Faults">Active Faults</option>
-                <option value="Landslide">Landslide</option>
-                <option value="Earthquake Induced Landslide">Earthquake Induced Landslide</option>
-                <option value="Storm Surge">Storm Surge</option>
-                <option value="Tsunami">Tsunami</option>
-                <option value="Rain Induced Landslide">Rain Induced Landslide</option>
-                <option value="Ground Shaking">Ground Shaking</option>
-                <option value="Liquefaction">Liquefaction</option>
-              </select>
-            </div>
+                <option value="">Select a hazard type</option>
+                  {hazardTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
             {/* Description */}
             <div>

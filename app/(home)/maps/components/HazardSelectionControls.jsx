@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { hazardTypes } from '@/utils/hazardTypes';
 
 export default function HazardSelectControls({
   isHouseholdMap,
@@ -60,18 +61,14 @@ export default function HazardSelectControls({
           value={activeHazard}
           onChange={(e) => setActiveHazard(e.target.value)}
         >
-          <option value="">Select Hazard</option>
-          <option value="Active Faults">Active Faults Susceptibility Map</option>
-          <option value="Liquefaction">Liquefaction Susceptibility Map</option>
-          <option value="Rain Induced Landslide">Rain Induced Landslide Susceptibility Map</option>
-          <option value="Earthquake Induced Landslide">Earthquake Induced Landslide Susceptibility Map</option>
-          <option value="Ground Shaking">Ground Shaking Susceptibility Map</option>
-          <option value="Storm Surge">Storm Surge Susceptibility Map</option>
-          <option value="Tsunami">Tsunami Susceptibility Map</option>
-          <option value="Landslide">Landslide Susceptibility Map</option>
-        </select>
-
-      </div>
+         <option value="">Select a hazard type</option>
+            {hazardTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </div>
     </div>
   );
 }

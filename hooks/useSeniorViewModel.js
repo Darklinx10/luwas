@@ -47,6 +47,9 @@ export const useSeniors = (filterBarangay = null) => {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [seniors, searchTerm, effectiveBarangay]);
 
+  // Total seniors (after filtering)
+  const totalSeniors = filteredSeniors.length;
+
   // Actions
   const saveSenior = async (senior) => {
     setLoading(true);
@@ -80,7 +83,7 @@ export const useSeniors = (filterBarangay = null) => {
   // CSV download
   const handleDownloadCSV = () => {
     if (!seniors.length) return;
-    const headers = 'Name,Sex,Age,Barangay,Contact';
+    const headers = 'Name,Sex,Age,Barangay,Sitio,Contact';
     const rows = seniors.map(p => [
       capitalizeWords(p.name),
       p.sex,
@@ -100,12 +103,13 @@ export const useSeniors = (filterBarangay = null) => {
 
   return {
     seniors: filteredSeniors,
+    totalSeniors,           // <-- add this
     searchTerm,
     setSearchTerm,
     loading,
     authLoading,
     saveSenior,
     deleteSenior,
-    downloadCSV:handleDownloadCSV,
+    downloadCSV: handleDownloadCSV,
   };
 };

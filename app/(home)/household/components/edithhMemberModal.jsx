@@ -12,6 +12,14 @@ export default function EditMemberModal({
 }) {
   if (!isOpen || !member) return null;
 
+  // Helper wrapper for capitalizing on input change
+  const handleCapitalChange = (e) => {
+    const { name, value } = e.target;
+    const fieldsToCapitalize = ['firstName', 'middleName', 'lastName', 'suffix'];
+    const newValue = fieldsToCapitalize.includes(name) ? capitalizeWords(value.trim()) : value;
+    onChange({ target: { name, value: newValue } });
+  };
+
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 w-[90%] max-w-lg">
@@ -27,7 +35,7 @@ export default function EditMemberModal({
               id="firstName"
               name="firstName"
               value={member.firstName || ''}
-              onChange={onChange}
+              onChange={handleCapitalChange} // ✅ capitalize
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
@@ -41,7 +49,7 @@ export default function EditMemberModal({
               id="lastName"
               name="lastName"
               value={member.lastName || ''}
-              onChange={onChange}
+              onChange={handleCapitalChange} // ✅ capitalize
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
@@ -55,7 +63,7 @@ export default function EditMemberModal({
               type="text"
               name="middleName"
               value={member.middleName || ''}
-              onChange={onChange}
+              onChange={handleCapitalChange} // ✅ capitalize
               placeholder="Middle Name"
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
             />

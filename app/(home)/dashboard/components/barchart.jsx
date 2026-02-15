@@ -17,7 +17,7 @@ export default function BarChartComponent({ data = [], loading }) {
   if (!data.length) {
     return (
       <div className="flex justify-center items-center h-[500px] text-gray-500">
-        No resident data available
+        No Residents data available
       </div>
     );
   }

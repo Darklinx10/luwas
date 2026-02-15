@@ -250,7 +250,7 @@ export default function OSMMapPage() {
   
         // Save metadata to Firestore
         await setDoc(doc(db, 'settings', 'boundaryFile'), {
-          name: geojsonFile.name,
+          name: geojsonFile.name, 
           data: JSON.stringify(geojson),
           url: downloadURL,
           uploadedAt: new Date(),
@@ -319,7 +319,7 @@ export default function OSMMapPage() {
       <MapContainer
         key={profile?.role}
         center={defaultCenter}
-        zoom={14}
+        zoom={12.5}
         scrollWheelZoom
         style={{
           height: profile?.role === 'MDRRMC-Admin' ? '810px' : '750px',
@@ -379,7 +379,7 @@ export default function OSMMapPage() {
         />
 
         <HouseholdMarkers
-          isHouseholdMap={isHouseholdMap}
+          isHouseholdMap={true}
           isMDRRMCAdmin={isMDRRMCAdmin}
           householdMarkers={householdMarkers}
           affectedHouseholds={affectedHouseholds}

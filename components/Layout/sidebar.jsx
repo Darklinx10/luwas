@@ -36,7 +36,7 @@ export default function Sidebar({ sidebarOpen }) {
   return (
     <aside
       className={`flex flex-col h-full transform transition-all duration-300 ease-in-out
-        ${effectiveSidebarOpen ? "w-64" : "w-20"} bg-gradient-to-b from-green-50 to-white border-r border-gray-200 shadow-xl`}
+        ${effectiveSidebarOpen ? "w-62" : "w-18"} bg-gradient-to-b from-green-50 to-white border-r border-gray-200 shadow-xl`}
     >
       {/* Logo & Title */}
       <div className="flex flex-col items-center mb-8 mt-4 transition-all duration-300">
