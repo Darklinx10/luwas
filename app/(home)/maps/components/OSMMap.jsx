@@ -379,7 +379,7 @@ export default function OSMMapPage() {
         />
 
         <HouseholdMarkers
-          isHouseholdMap={true}
+          isHouseholdMap={isHouseholdMap}
           isMDRRMCAdmin={isMDRRMCAdmin}
           householdMarkers={householdMarkers}
           affectedHouseholds={affectedHouseholds}
