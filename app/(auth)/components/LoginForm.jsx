@@ -104,7 +104,30 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
       }, 1000);
     } catch (error) {
       console.error("Login error:", error);
-      toast.error(error.message || "Login failed. Please try again.");
+    
+      // Map Firebase error codes to friendly messages
+      let message = "Login failed. Please try again.";
+    
+      if (error.code) {
+        switch (error.code) {
+          case "auth/user-not-found":
+          case "auth/wrong-password":
+          case "auth/invalid-credential": // ✅ handle this
+            message = "Invalid credentials! Incorrect email or password.";
+            break;
+          case "auth/invalid-email":
+            message = "Invalid email format.";
+            break;
+          case "auth/user-disabled":
+            message = "This account has been disabled.";
+            break;
+          case "auth/too-many-requests":
+            message = "Too many login attempts. Please try again later.";
+            break;
+        }
+      }
+    
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -137,7 +160,7 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
         </RequiredField>
 
         <RequiredField htmlFor="password" label="Password" required showError={!password.trim() && !loading}>
-          <div className="flex items-center border border-gray-300 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80 bg-white shadow-sm">
+          <div className="relative flex items-center border border-gray-300 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80 bg-white shadow-sm">
             <FiLock className="text-gray-500 mr-3 text-lg" />
             <input
               type={showPassword ? "text" : "password"}
@@ -145,14 +168,14 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full outline-none text-sm bg-transparent"
+              className="w-full outline-none text-sm bg-transparent "
               required
               autoComplete="current-password"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="ml-2 text-gray-500 hover:text-gray-700"
+              className="absolute right-3 top-1/2 -translate-1/2 text-gray-500 hover:text-gray-700"
             >
               {showPassword ? <FiEye /> : <FiEyeOff />}
             </button>

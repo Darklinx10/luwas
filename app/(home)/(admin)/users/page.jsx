@@ -62,7 +62,7 @@ const UserManagementPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this user?')) return;
+    if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) return;
     await deleteUser(id);
   };
 
