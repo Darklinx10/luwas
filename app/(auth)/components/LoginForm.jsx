@@ -8,9 +8,11 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
 import RequiredField from "@/components/Required";
+import { useAuth } from "@/context/authContext";
 
 export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
   const router = useRouter();
+  const authContext = useAuth(); // ✅ Get auth context
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -47,6 +49,7 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
       const docRef = doc(db, "users", uid);
       const docSnap = await getDoc(docRef);
       let profile;
+      let isNewUser = false;
 
       if (docSnap.exists()) {
         profile = docSnap.data();
@@ -61,8 +64,14 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
           createdAt: new Date().toISOString(),
         };
         await setDoc(docRef, profile);
-      
-        toast.success('Profile created and logged in successfully.');
+        toast.success("Profile created successfully. Please complete your profile.");
+
+        isNewUser = true; // mark that this is a new user
+
+        // ⚡ Update auth context immediately
+        if (authContext && authContext.setProfile) {
+          authContext.setProfile(profile);
+        }
       }
 
       // 3️⃣ Create session cookie via API
@@ -94,7 +103,10 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
 
       // 6️⃣ Redirect after login
       setTimeout(() => {
-        if (profile.role === "MDRRMC-Admin") {
+        if (isNewUser) {
+          setRedirectMessage && setRedirectMessage("Redirecting to complete your profile...");
+          router.replace("/profile/edit-profile"); // redirect new user to edit profile
+        } else if (profile.role === "MDRRMC-Admin") {
           setRedirectMessage && setRedirectMessage("Redirecting to Households...");
           router.replace("/household");
         } else {
@@ -104,15 +116,14 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
       }, 1000);
     } catch (error) {
       console.error("Login error:", error);
-    
-      // Map Firebase error codes to friendly messages
+
       let message = "Login failed. Please try again.";
-    
+
       if (error.code) {
         switch (error.code) {
           case "auth/user-not-found":
           case "auth/wrong-password":
-          case "auth/invalid-credential": // ✅ handle this
+          case "auth/invalid-credential":
             message = "Invalid credentials! Incorrect email or password.";
             break;
           case "auth/invalid-email":
@@ -126,7 +137,7 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
             break;
         }
       }
-    
+
       toast.error(message);
     } finally {
       setLoading(false);
@@ -168,7 +179,7 @@ export default function LoginForm({ setShowPageLoader, setRedirectMessage }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full outline-none text-sm bg-transparent "
+              className="w-full outline-none text-sm bg-transparent"
               required
               autoComplete="current-password"
             />

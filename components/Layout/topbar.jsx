@@ -31,6 +31,7 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
 
   const handleLogout = async () => {
     try {
+        
       await logout();
       toast.success("Logged out successfully.");
       router.replace("/login");

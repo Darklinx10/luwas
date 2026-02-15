@@ -1,28 +1,29 @@
 'use client';
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useMemo,
-  useCallback,
-} from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { auth, db } from '@/lib/firebaseConfig';
 import { onAuthStateChanged, getIdTokenResult, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
+// Create the AuthContext
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [role, setRole] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loggedOut, setLoggedOut] = useState(false);
+  // -------------------------
+  // States
+  // -------------------------
+  const [user, setUser] = useState(null);        // Firebase user object
+  const [profile, setProfile] = useState(null);  // Firestore profile document
+  const [role, setRole] = useState(null);        // User role from Firestore or token
+  const [loading, setLoading] = useState(true);  // Loading state for auth/profile
+  const [skipProfileRedirectToast, setSkipProfileRedirectToast] = useState(false);
 
+  // -------------------------
+  // Load user + profile data
+  // -------------------------
   const loadUserData = useCallback(async (firebaseUser) => {
     if (!firebaseUser) {
+      // No user logged in
       setUser(null);
       setProfile(null);
       setRole(null);
@@ -33,7 +34,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
 
-      // Get latest token + claims
+      // Get latest ID token + custom claims
       const tokenResult = await getIdTokenResult(firebaseUser, true);
       const claimRole = tokenResult.claims.role || null;
 
@@ -44,11 +45,11 @@ export const AuthProvider = ({ children }) => {
       let userProfile = null;
       if (docSnap.exists()) {
         userProfile = docSnap.data();
-        setProfile(userProfile);
+        setProfile(userProfile); // ✅ set profile in context
       }
 
       setUser(firebaseUser);
-      setRole(claimRole || userProfile?.role || 'user');
+      setRole(claimRole || userProfile?.role || 'user'); // default role 'user'
     } catch (error) {
       console.error('[Auth] Error loading user data:', error);
       setUser(null);
@@ -59,13 +60,16 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // -------------------------
+  // Logout function
+  // -------------------------
   const logout = useCallback(async () => {
     try {
+      setSkipProfileRedirectToast(true); // ✅ skip toast when logging out
       await signOut(auth);
       setUser(null);
-      setProfile(null); // ⚡ triggers cleanup in useEffect
+      setProfile(null);
       setRole(null);
-      setLoggedOut(true);
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch (error) {
       console.error('[Auth] Logout error:', error);
@@ -73,28 +77,37 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // -------------------------
+  // Watch auth state changes
+  // -------------------------
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       loadUserData(firebaseUser);
     });
 
-    return unsubscribe;
+    return () => unsubscribe();
   }, [loadUserData]);
 
-  const value = useMemo(
-    () => ({
-      user,
-      profile,
-      role,
-      loading,
-      logout,
-    }),
-    [user, profile, role, loading, logout]
-  );
+  // -------------------------
+  // Context value
+  // -------------------------
+  const value = useMemo(() => ({
+    user,
+    profile,
+    setProfile,  // ✅ provide setProfile for EditProfilePage
+    role,
+    loading,
+    logout,
+    skipProfileRedirectToast,
+    setSkipProfileRedirectToast,
+  }), [user, profile, role, loading, logout, skipProfileRedirectToast]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// -------------------------
+// Custom hook
+// -------------------------
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
