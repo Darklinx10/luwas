@@ -23,17 +23,13 @@ export default function HouseholdTable({
   handleDeleteHousehold,
   loadingMembers,
   setLoading,
+  handleAddMember,
+  userRole,
 }) {
   
 
   const sortedHouseholds = useMemo(() => {
-    if (!filteredHouseholds || !Array.isArray(filteredHouseholds)) return [];
-    
-    return [...filteredHouseholds].sort((a, b) =>
-      [a.headFirstName, a.headMiddleName, a.headLastName]
-        .join(' ')
-        .localeCompare([b.headFirstName, b.headMiddleName, b.headLastName].join(' '))
-    );
+    return Array.isArray(filteredHouseholds) ? filteredHouseholds : [];
   }, [filteredHouseholds]);
   
 
@@ -56,7 +52,7 @@ export default function HouseholdTable({
     );
   }
 
-  if (!filteredHouseholds.length) {
+  if (!sortedHouseholds.length) {
     return <p className="text-center text-gray-500 py-6">No household records found.</p>;
   }
 
@@ -82,13 +78,12 @@ export default function HouseholdTable({
           <tbody>
             {sortedHouseholds.map((hh, index) => {
               const fullName = [
-                hh.headFirstName,
-                hh.headMiddleName,
                 hh.headLastName,
+                [hh.headFirstName, hh.headMiddleName].filter(Boolean).join(' '),
                 hh.headSuffix && hh.headSuffix !== 'N/A' ? hh.headSuffix : '',
               ]
                 .filter(Boolean)
-                .join(' ');
+                .join(', ');
 
               const isExpanded = expandedHouseholds[hh.householdId];
               const members = membersData[hh.householdId] || [];
@@ -183,6 +178,8 @@ export default function HouseholdTable({
                     loadingMembers={loadingMembers}
                     handleEditMember={handleEditMember}
                     handleDeleteMember={handleDeleteMember}
+                    handleAddMember={handleAddMember}
+                    userRole={userRole}
                   />
                 </React.Fragment>
               );

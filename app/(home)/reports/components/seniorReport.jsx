@@ -25,15 +25,28 @@ export default function SeniorTable({ title, barangay }) {
 
 
 
+  const formatNameLastFirst = (fullName) => {
+    const cleaned = String(fullName || '').trim().replace(/\s+/g, ' ');
+    if (!cleaned) return '-';
+
+    const parts = cleaned.split(' ').filter(Boolean);
+    if (parts.length === 1) return capitalizeWords(parts[0]);
+
+    const lastName = parts[parts.length - 1];
+    const firstMiddle = parts.slice(0, -1).join(' ');
+
+    return capitalizeWords(`${lastName}, ${firstMiddle}`);
+  };
+
   if (authLoading) return <p className="text-center py-6 text-gray-600">Loading user profile...</p>;
 
   return (
     <div className="p-4">
       <div id="print-section">
-        {/* Header + Controls */}
         <div className="bg-green-600 text-white px-4 py-3 rounded-t-md font-semibold text-lg print:text-black print:bg-white print:text-center">
           {title}
         </div>
+
         <div className="flex flex-wrap items-center justify-between gap-2 bg-white shadow border-t-0 px-4 py-3 print:hidden">
           <div className="relative w-full max-w-xs">
             <FiSearch className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
@@ -45,18 +58,18 @@ export default function SeniorTable({ title, barangay }) {
               className="pl-10 pr-4 py-2 border border-gray-300 rounded w-full focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
+
           <div className="flex gap-2">
             <button
-            
               onClick={() => window.print()}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" 
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
               Print
             </button>
             <button
               onClick={downloadCSV}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" 
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
               Download CSV
@@ -64,35 +77,33 @@ export default function SeniorTable({ title, barangay }) {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto max-h-[500px] overflow-y-auto shadow border-t-0 mb-4 rounded-b-md bg-white p-4 scrollbar-thin
-                  print:max-h-auto print:overflow-visible">
+        <div className="overflow-x-auto max-h-[500px] overflow-y-auto shadow border-t-0 mb-4 rounded-b-md bg-white p-4 scrollbar-thin print:max-h-auto print:overflow-visible">
           {loading ? (
             <div className="flex items-center justify-center py-10">
-            <div className="flex flex-col items-center">
-              <svg
-                className="animate-spin h-10 w-10 text-green-500 mb-3"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8z"
-                />
-              </svg>
-              <p className="text-gray-600 text-sm">Loading Senior Citizen records...</p>
+              <div className="flex flex-col items-center">
+                <svg
+                  className="animate-spin h-10 w-10 text-green-500 mb-3"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8z"
+                  />
+                </svg>
+                <p className="text-gray-600 text-sm">Loading Senior Citizen records...</p>
+              </div>
             </div>
-          </div>
           ) : seniors.length === 0 ? (
             <p className="text-center py-6 text-gray-500">No senior citizen records found.</p>
           ) : (
@@ -113,7 +124,7 @@ export default function SeniorTable({ title, barangay }) {
                 {seniors.map((item, idx) => (
                   <tr key={`${item.id}-${idx}`} className="hover:bg-gray-50">
                     <td className="px-4 py-2 border">{idx + 1}</td>
-                    <td className="px-4 py-2 border">{capitalizeWords(item.name)}</td>
+                    <td className="px-4 py-2 border">{formatNameLastFirst(item.name)}</td>
                     <td className="px-4 py-2 border">{item.sex}</td>
                     <td className="px-4 py-2 border">{item.age}</td>
                     <td className="px-4 py-2 border">{capitalizeWords(item.barangay)}</td>
@@ -127,24 +138,20 @@ export default function SeniorTable({ title, barangay }) {
                         >
                           <FiEdit />
                         </button>
-                        <button
+                        {/* <button
                           onClick={() => deleteSenior(item)}
                           className="text-red-600 hover:text-red-800"
                         >
                           <FiTrash2 />
-                        </button>
+                        </button> */}
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            
-          )}          
-
-          
+          )}
         </div>
-        
       </div>
       <span className="text-sm text-gray-700 mt-4"><strong>Total Seniors:</strong> {totalSeniors}</span>
       

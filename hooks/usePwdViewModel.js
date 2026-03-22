@@ -31,21 +31,43 @@ export const usePWDs = (filterBarangay) => {
     profile?.role === 'Brgy-Secretary'
       ? profile?.barangay
       : filterBarangay;
-
+  
   const filteredPWDs = useMemo(() => {
-    return pwds
-      .filter(
-        (item) =>
-          !effectiveBarangay ||
-          item.barangay?.toLowerCase().trim() ===
-            effectiveBarangay?.toLowerCase().trim()
-      )
-      .filter((item) =>
-        Object.values(item).some((val) =>
-          String(val).toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
-  }, [pwds, searchTerm, effectiveBarangay]);
+  const normalize = (value) =>
+    String(value || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+
+  const getLastName = (fullName) => {
+    const cleaned = normalize(fullName);
+    if (!cleaned) return '';
+    const parts = cleaned.split(' ').filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : '';
+  };
+
+  const term = normalize(searchTerm);
+  const barangayFilter = normalize(effectiveBarangay);
+
+  return [...pwds]
+    .filter((item) => {
+      if (!barangayFilter) return true;
+      return normalize(item.barangay) === barangayFilter;
+    })
+    .filter((item) => {
+      if (!term) return true;
+      return getLastName(item.name).includes(term);
+    })
+    .sort((a, b) => {
+      const lastA = getLastName(a.name);
+      const lastB = getLastName(b.name);
+
+      const fullA = normalize(a.name);
+      const fullB = normalize(b.name);
+
+      return lastA.localeCompare(lastB) || fullA.localeCompare(fullB);
+    });
+}, [pwds, searchTerm, effectiveBarangay]);
 
   const savePWD = async (item) => {
     try {

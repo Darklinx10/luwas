@@ -8,12 +8,20 @@ import dynamic from 'next/dynamic';
 import { useHouseholdViewModel } from '@/hooks/useHouseholdViewModel';
 import { useAuth } from '@/context/authContext';
 import { FiSearch, FiPlus, FiUpload } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
 
 const MapPopup = dynamic(() => import('../../../components/mapPopUP'), { ssr: false });
 
 export default function HouseholdPage() {
   const { profile, loading: authLoading } = useAuth();
   const vm = useHouseholdViewModel(profile);
+  const router = useRouter();
+
+  const handleAddMember = (householdId) => {
+    router.push(
+      // `/add-household-form?householdId=${householdId}&section=Demographic%20Characteristics&mode=add-member`
+    );
+  };
 
   if (authLoading) {
     return (
@@ -36,7 +44,7 @@ export default function HouseholdPage() {
 
   return (
     <RoleGuard allowedRoles={['Brgy-Secretary', 'MDRRMC-Personnel', 'MDRRMC-Admin']}>
-      <div className="p-4">
+      <div className="p-2">
         <div className="text-sm text-left text-gray-500 mb-2 print:hidden">Home / Households</div>
 
         <div id="print-section">
@@ -72,14 +80,14 @@ export default function HouseholdPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => window.print()}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={vm.loading}
                 >
                   Print
                 </button>
                 <button
                   onClick={vm.downloadCSV}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={vm.loading}
                 >
                   Download CSV
@@ -153,6 +161,8 @@ export default function HouseholdPage() {
             handleUploadHouseholdData={vm.handleUploadHouseholdData}
             downloadCSV={vm.downloadCSV}
             setLoading={vm.setLoading}
+            handleAddMember={handleAddMember}
+            userRole={profile?.role}
           />
         </div>
 

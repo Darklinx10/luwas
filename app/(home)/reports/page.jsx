@@ -29,7 +29,7 @@ function ReportsPageContent() {
   const [affectedHouseholds, setAffectedHouseholds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [legendProp, setLegendProp] = useState(null);
-  const profile = useAuth();
+  const {profile} = useAuth();
 
   useEffect(() => {
     const loadAffectedHouseholds = async () => {

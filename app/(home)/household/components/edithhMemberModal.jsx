@@ -20,6 +20,21 @@ export default function EditMemberModal({
     onChange({ target: { name, value: newValue } });
   };
 
+  const handleAgeChange = (e) => {
+    const value = e.target.value;
+
+    if (value === '') {
+      onChange({ target: { name: 'age', value: '' } });
+      return;
+    }
+
+    const numericValue = Number(value);
+
+    if (!Number.isNaN(numericValue) && numericValue >= 0 && numericValue <= 150) {
+      onChange({ target: { name: 'age', value: numericValue } });
+    }
+  };
+  
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 w-[90%] max-w-lg">
@@ -115,13 +130,42 @@ export default function EditMemberModal({
               className="w-full border rounded px-3 py-2"
             >
               <option value="" disabled>Select relation</option>
-              <option value="Head">Head</option>
               <option value="Spouse">Spouse</option>
               <option value="Partner">Partner</option>
+
+              <option value="Son">Son</option>
+              <option value="Daughter">Daughter</option>
               <option value="Child">Child</option>
+              <option value="Stepchild">Stepchild</option>
+              <option value="Adopted Child">Adopted Child</option>
+              <option value="Grandson">Grandson</option>
+              <option value="Granddaughter">Granddaughter</option>
+              <option value="Grandchild">Grandchild</option>
+
+              <option value="Father">Father</option>
+              <option value="Mother">Mother</option>
               <option value="Parent">Parent</option>
+              <option value="Father-in-law">Father-in-law</option>
+              <option value="Mother-in-law">Mother-in-law</option>
+
+              <option value="Brother">Brother</option>
+              <option value="Sister">Sister</option>
               <option value="Sibling">Sibling</option>
+              <option value="Brother-in-law">Brother-in-law</option>
+              <option value="Sister-in-law">Sister-in-law</option>
+
+              <option value="Uncle">Uncle</option>
+              <option value="Aunt">Aunt</option>
+              <option value="Nephew">Nephew</option>
+              <option value="Niece">Niece</option>
+              <option value="Cousin">Cousin</option>
+
+              <option value="Grandfather">Grandfather</option>
+              <option value="Grandmother">Grandmother</option>
+              <option value="Grandparent">Grandparent</option>
+
               <option value="Relative">Relative</option>
+              <option value="Other Relative">Other Relative</option>
               <option value="Other">Other</option>
             </select>
           </div>

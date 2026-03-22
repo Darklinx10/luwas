@@ -37,14 +37,40 @@ export const useSeniors = (filterBarangay = null) => {
 
   // Filtered seniors
   const filteredSeniors = useMemo(() => {
-    return seniors
-      .filter(item =>
-        !effectiveBarangay || item.barangay?.trim().toLowerCase() === effectiveBarangay?.trim().toLowerCase()
-      )
-      .filter(item =>
-        Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const normalize = (value) =>
+      String(value || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+  
+    const getLastName = (fullName) => {
+      const cleaned = normalize(fullName);
+      if (!cleaned) return '';
+      const parts = cleaned.split(' ').filter(Boolean);
+      return parts.length ? parts[parts.length - 1] : '';
+    };
+  
+    const term = normalize(searchTerm);
+    const barangayFilter = normalize(effectiveBarangay);
+  
+    return [...seniors]
+      .filter((item) => {
+        if (!barangayFilter) return true;
+        return normalize(item.barangay) === barangayFilter;
+      })
+      .filter((item) => {
+        if (!term) return true;
+        return getLastName(item.name).includes(term);
+      })
+      .sort((a, b) => {
+        const lastA = getLastName(a.name);
+        const lastB = getLastName(b.name);
+  
+        const fullA = normalize(a.name);
+        const fullB = normalize(b.name);
+  
+        return lastA.localeCompare(lastB) || fullA.localeCompare(fullB);
+      });
   }, [seniors, searchTerm, effectiveBarangay]);
 
   // Total seniors (after filtering)

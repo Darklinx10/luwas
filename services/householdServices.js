@@ -97,10 +97,42 @@ export async function fetchHouseholdsBatch(batchSize = 400) {
     allHouseholds.push(...batchResults.filter((r) => r.hasData !== false));
   }
 
+  const normalize = (value) =>
+    String(value || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+  
   const validHouseholds = allHouseholds.filter((h) => h.hasData);
-  const totalResidents = validHouseholds.reduce((sum, h) => sum + h.residentCount, 0);
-
-  return { households: validHouseholds, totalHouseholds: nonEmptyHouseholdCount, totalResidents };
+  
+  const sortedHouseholds = [...validHouseholds].sort((a, b) => {
+    const lastA = normalize(a.headLastName);
+    const lastB = normalize(b.headLastName);
+  
+    const firstA = normalize(a.headFirstName);
+    const firstB = normalize(b.headFirstName);
+  
+    const middleA = normalize(a.headMiddleName);
+    const middleB = normalize(b.headMiddleName);
+  
+    const suffixA = normalize(a.headSuffix === 'N/A' ? '' : a.headSuffix);
+    const suffixB = normalize(b.headSuffix === 'N/A' ? '' : b.headSuffix);
+  
+    return (
+      lastA.localeCompare(lastB) ||
+      firstA.localeCompare(firstB) ||
+      middleA.localeCompare(middleB) ||
+      suffixA.localeCompare(suffixB)
+    );
+  });
+  
+  const totalResidents = sortedHouseholds.reduce((sum, h) => sum + h.residentCount, 0);
+  
+  return {
+    households: sortedHouseholds,
+    totalHouseholds: nonEmptyHouseholdCount,
+    totalResidents,
+  };
 }
 
 /**

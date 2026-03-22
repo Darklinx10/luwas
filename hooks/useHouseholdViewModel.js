@@ -194,11 +194,39 @@ const handleSaveEditMember = async () => {
   }, [households, profile]);
 
   const filteredHouseholds = useMemo(() => {
-    return filteredByRole.filter((h) =>
-      `${h.headFirstName} ${h.headMiddleName} ${h.headLastName}`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
-    );
+    const normalize = (value) =>
+      String(value || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+  
+    const term = normalize(searchTerm);
+  
+    return [...filteredByRole]
+      .filter((h) => {
+        if (!term) return true;
+        return normalize(h.headLastName).includes(term);
+      })
+      .sort((a, b) => {
+        const lastA = normalize(a.headLastName);
+        const lastB = normalize(b.headLastName);
+  
+        const firstA = normalize(a.headFirstName);
+        const firstB = normalize(b.headFirstName);
+  
+        const middleA = normalize(a.headMiddleName);
+        const middleB = normalize(b.headMiddleName);
+  
+        const suffixA = normalize(a.headSuffix === 'N/A' ? '' : a.headSuffix);
+        const suffixB = normalize(b.headSuffix === 'N/A' ? '' : b.headSuffix);
+  
+        return (
+          lastA.localeCompare(lastB) ||
+          firstA.localeCompare(firstB) ||
+          middleA.localeCompare(middleB) ||
+          suffixA.localeCompare(suffixB)
+        );
+      });
   }, [filteredByRole, searchTerm]);
 
   useEffect(() => {

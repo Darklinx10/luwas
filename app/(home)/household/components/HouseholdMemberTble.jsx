@@ -9,6 +9,8 @@ export default function HouseholdMembersTable({
   loadingMembers,
   handleEditMember,
   handleDeleteMember,
+  handleAddMember,
+  userRole,
 }) {
   if (!isExpanded) return null;
 
@@ -19,7 +21,17 @@ export default function HouseholdMembersTable({
   return (
     <tr>
       <td colSpan="10" className="p-4 border bg-gray-50 text-left text-sm">
-        <strong>Household Members:</strong>
+      <div className="flex items-center justify-between mb-2">
+            <strong>Household Members:</strong>
+            {userRole === 'Brgy-Secretary' && (
+            <button
+              onClick={() => handleAddMember(data.householdId)}
+              className="inline-flex items-center text-xs gap-2 px-2 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            >
+              Add Member
+            </button>
+          )}
+          </div>
 
         {loadingMembers[data.householdId] ? (
           <p className="text-gray-500 mt-1 animate-pulse">Loading household members...</p>
@@ -38,16 +50,21 @@ export default function HouseholdMembersTable({
                 </tr>
               </thead>
               <tbody>
-                {nonHeadMembers.map((m) => {
-                  const name = capitalizeWords(
-                    [m.firstName, m.middleName, m.lastName].filter(Boolean).join(' ')
-                  ) || 'Unnamed';
+              {nonHeadMembers.map((m) => {
+                const name = capitalizeWords(
+                  [
+                    m.lastName,
+                    [m.firstName, m.middleName].filter(Boolean).join(' '),
+                    m.suffix && m.suffix !== 'N/A' ? m.suffix : '',
+                  ]
+                    .filter(Boolean)
+                    .join(', ')
+                ) || 'Unnamed';
 
-                  const rawRelation = m.nuclearRelation || m.relationshipToHead || 'Unspecified';
-                  const relationLabel = capitalizeWords(
-                    rawRelation.includes(' - ') ? rawRelation.split(' - ')[1].trim() : rawRelation.trim()
-                  );
-
+                const rawRelation = m.nuclearRelation || m.relationshipToHead || 'Unspecified';
+                const relationLabel = capitalizeWords(
+                  rawRelation.includes(' - ') ? rawRelation.split(' - ')[1].trim() : rawRelation.trim()
+                );
                   return (
                     <tr key={m.id} className="hover:bg-gray-100">
                       <td className="p-2 border">{name}</td>
