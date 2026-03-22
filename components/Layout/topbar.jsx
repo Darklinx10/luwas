@@ -82,21 +82,38 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
               transition={{ duration: 0.2 }}
               className="absolute right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-xl z-[5000] w-56 p-4"
             >
-              {/* User Info */}
+
               <div className="flex flex-col items-center mb-3">
+
                 {userPhoto ? (
-                  <Image src={userPhoto} alt="Profile" width={48} height={48} className="w-12 h-12 rounded-full border border-gray-200" />
+                  <Image
+                    src={userPhoto}
+                    alt="Profile"
+                    width={48}
+                    height={48}
+                    className="w-12 h-12 rounded-full border border-gray-200"
+                  />
                 ) : (
                   <FaUserCircle className="text-6xl text-gray-400" />
                 )}
-                <span className="mt-2 text-sm font-semibold text-gray-800 text-center">{userName}</span>
-                {userRole && <p className="text-xs text-gray-500 mt-1">{userRole}</p>}
+
+                <span className="mt-2 text-sm font-semibold text-gray-800 text-center">
+                  {userName}
+                </span>
+
+                {userRole && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {userRole}
+                  </p>
+                )}
+
               </div>
 
               <div className="border-t border-gray-200 my-2" />
 
               <Link
                 href="/profile"
+                onClick={() => setShowMenu(false)}
                 className="block text-center px-4 py-2 text-sm text-gray-700 rounded-lg hover:bg-green-50 transition"
               >
                 Profile
@@ -117,8 +134,10 @@ export default function Topbar({ toggleSidebar, sidebarOpen }) {
                 onConfirm={() => {
                   handleLogout();
                   setShowModal(false);
+                  setShowMenu(false);
                 }}
               />
+
             </motion.div>
           )}
         </AnimatePresence>
