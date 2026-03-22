@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { PAGE_SIZE } from '@/constant/pagination';
 import { userService } from '../services/userService';
@@ -17,8 +18,18 @@ const defaultNewUser = {
 };
 
 export function useUsers() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const page = Math.max(1, Number(searchParams.get('page') || 1));
+  const urlSearchTerm = searchParams.get('search') || '';
+
+  const [searchInput, setSearchInput] = useState(urlSearchTerm);
+
   const [users, setUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,54 +41,84 @@ export function useUsers() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [newUser, setNewUser] = useState(defaultNewUser);
 
-  const [page, setPage] = useState(1);
+  const updateUrlParams = useCallback(
+    (updates = {}) => {
+      const params = new URLSearchParams(searchParams.toString());
 
-  const fetchUsers = async () => {
+      Object.entries(updates).forEach(([key, value]) => {
+        if (
+          value === undefined ||
+          value === null ||
+          value === '' ||
+          value === 1
+        ) {
+          params.delete(key);
+        } else {
+          params.set(key, String(value));
+        }
+      });
+
+      const queryString = params.toString();
+      router.replace(queryString ? `${pathname}?${queryString}` : pathname);
+    },
+    [router, pathname, searchParams]
+  );
+
+  const setPage = useCallback(
+    (value) => {
+      const nextPage = typeof value === 'function' ? value(page) : value;
+      updateUrlParams({ page: Math.max(1, nextPage) });
+    },
+    [page, updateUrlParams]
+  );
+
+  useEffect(() => {
+    setSearchInput(urlSearchTerm);
+  }, [urlSearchTerm]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (searchInput !== urlSearchTerm) {
+        updateUrlParams({
+          search: searchInput.trim(),
+          page: 1,
+        });
+      }
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [searchInput, urlSearchTerm, updateUrlParams]);
+
+  const fetchUsers = useCallback(async () => {
     try {
-      setLoading(true);
-      const data = await userService.fetchUsers();
-      setUsers(data);
+     
+
+      const result = await userService.fetchUsers({
+        page,
+        limitSize: PAGE_SIZE,
+        search: urlSearchTerm,
+      });
+
+      setUsers(result.users);
+      setTotalPages(result.totalPages);
+      setTotalCount(result.totalCount);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to fetch users.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, urlSearchTerm]);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
-
-  const filteredUsers = useMemo(() => {
-    const keyword = searchTerm.trim().toLowerCase();
-
-    if (!keyword) return users;
-
-    return users.filter((user) =>
-      `${user.fullName} ${user.email} ${user.contactNumber || ''} ${user.barangay || ''} ${user.role || ''}`
-        .toLowerCase()
-        .includes(keyword)
-    );
-  }, [users, searchTerm]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
-
-  const paginatedUsers = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-    return filteredUsers.slice(start, end);
-  }, [filteredUsers, page]);
+  }, [fetchUsers]);
 
   useEffect(() => {
-    setPage(1);
-  }, [searchTerm]);
-
-  useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
+    if (page > totalPages && totalPages > 0) {
+      updateUrlParams({ page: totalPages });
     }
-  }, [page, totalPages]);
+  }, [page, totalPages, updateUrlParams]);
 
   const handleEdit = (user) => {
     setSelectedUser({ ...user });
@@ -115,9 +156,9 @@ export function useUsers() {
       toast.success('User created successfully!');
 
       closeAddModal();
-      setSearchTerm('');
+      setSearchInput('');
+      updateUrlParams({ search: '', page: 1 });
       await fetchUsers();
-      setPage(1);
     } catch (error) {
       console.error('Error creating user:', error);
       toast.error(error.message || 'Something went wrong.');
@@ -151,18 +192,18 @@ export function useUsers() {
       await userService.deleteUser(userId);
       toast.success('User deleted successfully.');
 
-      const updatedUsers = users.filter((user) => user.id !== userId);
-      setUsers(updatedUsers);
+      const result = await userService.fetchUsers({
+        page,
+        limitSize: PAGE_SIZE,
+        search: urlSearchTerm,
+      });
 
-      const updatedFiltered = updatedUsers.filter((user) =>
-        `${user.fullName} ${user.email} ${user.contactNumber || ''} ${user.barangay || ''} ${user.role || ''}`
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())
-      );
-
-      const updatedTotalPages = Math.max(1, Math.ceil(updatedFiltered.length / PAGE_SIZE));
-      if (page > updatedTotalPages) {
-        setPage(updatedTotalPages);
+      if (page > result.totalPages) {
+        updateUrlParams({ page: result.totalPages });
+      } else {
+        setUsers(result.users);
+        setTotalPages(result.totalPages);
+        setTotalCount(result.totalCount);
       }
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -172,8 +213,8 @@ export function useUsers() {
 
   return {
     users,
-    searchTerm,
-    setSearchTerm,
+    searchTerm: searchInput,
+    setSearchTerm: setSearchInput,
 
     loading,
     saving,
@@ -191,8 +232,8 @@ export function useUsers() {
 
     page,
     totalPages,
-    paginatedUsers,
-    filteredUsers,
+    totalCount,
+    paginatedUsers: users,
 
     handleEdit,
     openAddModal,

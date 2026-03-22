@@ -26,6 +26,7 @@ export default function UserManagement() {
 
     page,
     totalPages,
+    totalCount,
     paginatedUsers,
     filteredUsers,
 
@@ -112,16 +113,16 @@ export default function UserManagement() {
 
       <div className="rounded-b-md bg-white px-4 pb-4 shadow">
         <div className="pt-2 text-sm text-gray-500">
-          Showing{' '}
+        Showing{' '}
           <span className="font-medium">
-            {filteredUsers.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
+            {totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
           </span>
           {' '}to{' '}
           <span className="font-medium">
-            {Math.min(page * PAGE_SIZE, filteredUsers.length)}
+            {Math.min(page * PAGE_SIZE, totalCount)}
           </span>
           {' '}of{' '}
-          <span className="font-medium">{filteredUsers.length}</span> users
+          <span className="font-medium">{totalCount}</span> users
         </div>
 
         <Pagination

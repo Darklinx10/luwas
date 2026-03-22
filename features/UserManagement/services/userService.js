@@ -3,6 +3,7 @@ import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore'
 
 const USERS_COLLECTION = 'users';
 const ALLOWED_ROLES = ['Brgy-Secretary', 'MDRRMC-Personnel'];
+const DEFAULT_PAGE_SIZE = 10;
 
 const buildFullName = (data) => {
   const { lastName, firstName, middleName } = data;
@@ -12,10 +13,12 @@ const buildFullName = (data) => {
 };
 
 export const userService = {
-  async fetchUsers() {
+  async fetchUsers({ page = 1, limitSize = DEFAULT_PAGE_SIZE, search = '' } = {}) {
     const snapshot = await getDocs(collection(db, USERS_COLLECTION));
 
-    const users = snapshot.docs
+    const normalizedSearch = search.trim().toLowerCase();
+
+    let users = snapshot.docs
       .map((docSnap) => ({
         id: docSnap.id,
         ...docSnap.data(),
@@ -24,23 +27,63 @@ export const userService = {
       .map((user) => ({
         ...user,
         fullName: buildFullName(user),
-      }))
-      .sort((a, b) => {
-        const lastA = (a.lastName || '').toLowerCase();
-        const lastB = (b.lastName || '').toLowerCase();
+      }));
 
-        if (lastA < lastB) return -1;
-        if (lastA > lastB) return 1;
+    if (normalizedSearch) {
+      users = users.filter((user) => {
+        const fullName = (user.fullName || '').toLowerCase();
+        const firstName = (user.firstName || '').toLowerCase();
+        const middleName = (user.middleName || '').toLowerCase();
+        const lastName = (user.lastName || '').toLowerCase();
+        const email = (user.email || '').toLowerCase();
+        const barangay = (user.barangay || '').toLowerCase();
+        const role = (user.role || '').toLowerCase();
 
-        const firstA = (a.firstName || '').toLowerCase();
-        const firstB = (b.firstName || '').toLowerCase();
-
-        if (firstA < firstB) return -1;
-        if (firstA > firstB) return 1;
-        return 0;
+        return (
+          fullName.includes(normalizedSearch) ||
+          firstName.includes(normalizedSearch) ||
+          middleName.includes(normalizedSearch) ||
+          lastName.includes(normalizedSearch) ||
+          email.includes(normalizedSearch) ||
+          barangay.includes(normalizedSearch) ||
+          role.includes(normalizedSearch)
+        );
       });
+    }
 
-    return users;
+    users.sort((a, b) => {
+      const lastA = (a.lastName || '').toLowerCase();
+      const lastB = (b.lastName || '').toLowerCase();
+
+      if (lastA < lastB) return -1;
+      if (lastA > lastB) return 1;
+
+      const firstA = (a.firstName || '').toLowerCase();
+      const firstB = (b.firstName || '').toLowerCase();
+
+      if (firstA < firstB) return -1;
+      if (firstA > firstB) return 1;
+
+      return 0;
+    });
+
+    const safePage = Number(page) > 0 ? Number(page) : 1;
+    const safeLimit = Number(limitSize) > 0 ? Number(limitSize) : DEFAULT_PAGE_SIZE;
+
+    const totalCount = users.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / safeLimit));
+    const startIndex = (safePage - 1) * safeLimit;
+    const paginatedUsers = users.slice(startIndex, startIndex + safeLimit);
+
+    return {
+      users: paginatedUsers,
+      page: safePage,
+      limitSize: safeLimit,
+      totalCount,
+      totalPages,
+      hasPrevPage: safePage > 1,
+      hasNextPage: safePage < totalPages,
+    };
   },
 
   async createUser(user) {
