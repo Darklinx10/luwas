@@ -1,6 +1,6 @@
 "use client";
 
-import ForgotPassForm from "../components/ForgotPasswordForm";
+import ForgotPassForm from "@/features/Authentication/components/ForgotPasswordForm";
 
 export default function ForgotPasswordPage() {
   return (

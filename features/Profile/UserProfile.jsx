@@ -15,7 +15,7 @@ export default function UserProfile() {
   useEffect(() => {
     if (!loading && !profile) {
       toast.error('You must be logged in to view this page.');
-      router.push('/');
+      router.push('/dashboard');
     }
   }, [loading, profile, router]);
 

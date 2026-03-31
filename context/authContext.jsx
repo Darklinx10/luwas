@@ -1,117 +1,140 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import { auth, db } from '@/lib/firebaseConfig';
-import { onAuthStateChanged, getIdTokenResult, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebaseConfig';
+import {
+  fetchCurrentSession,
+  logoutClient,
+  logoutFromServer,
+} from '@/features/Authentication/services/authService';
 
-// Create the AuthContext
 const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
-  // -------------------------
-  // States
-  // -------------------------
-  const [user, setUser] = useState(null);        // Firebase user object
-  const [profile, setProfile] = useState(null);  // Firestore profile document
-  const [role, setRole] = useState(null);        // User role from Firestore or token
-  const [loading, setLoading] = useState(true);  // Loading state for auth/profile
-  const [skipProfileRedirectToast, setSkipProfileRedirectToast] = useState(false);
+export function AuthProvider({ children }) {
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [user, setUser] = useState(null);
+  const [profile, setProfileState] = useState(null);
+  const [role, setRole] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // -------------------------
-  // Load user + profile data
-  // -------------------------
-  const loadUserData = useCallback(async (firebaseUser) => {
-    if (!firebaseUser) {
-      // No user logged in
-      setUser(null);
-      setProfile(null);
-      setRole(null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // Get latest ID token + custom claims
-      const tokenResult = await getIdTokenResult(firebaseUser, true);
-      const claimRole = tokenResult.claims.role || null;
-
-      // Get Firestore profile
-      const docRef = doc(db, 'users', firebaseUser.uid);
-      const docSnap = await getDoc(docRef);
-
-      let userProfile = null;
-      if (docSnap.exists()) {
-        userProfile = docSnap.data();
-        setProfile(userProfile); // ✅ set profile in context
-      }
-
-      setUser(firebaseUser);
-      setRole(claimRole || userProfile?.role || 'user'); // default role 'user'
-    } catch (error) {
-      console.error('[Auth] Error loading user data:', error);
-      setUser(null);
-      setProfile(null);
-      setRole(null);
-    } finally {
-      setLoading(false);
-    }
+  const clearAuthState = useCallback(() => {
+    setUser(null);
+    setProfileState(null);
+    setRole(null);
   }, []);
 
-  // -------------------------
-  // Logout function
-  // -------------------------
-  const logout = useCallback(async () => {
-    try {
-      setSkipProfileRedirectToast(true); // ✅ skip toast when logging out
-      await signOut(auth);
-      setUser(null);
-      setProfile(null);
-      setRole(null);
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch (error) {
-      console.error('[Auth] Logout error:', error);
-      throw error;
-    }
+  const setAuthState = useCallback(({ user, profile, role }) => {
+    setUser(user || null);
+    setProfileState(profile || null);
+    setRole(role || null);
   }, []);
 
-  // -------------------------
-  // Watch auth state changes
-  // -------------------------
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      loadUserData(firebaseUser);
+  const refreshSession = useCallback(async () => {
+    const data = await fetchCurrentSession();
+
+    // ✅ Use entire user object as profile since it contains all fields now
+    const userData = data.user || null;
+    setAuthState({
+      user: userData,
+      profile: userData, // Full profile with all fields
+      role: userData?.role || null,
     });
 
-    return () => unsubscribe();
-  }, [loadUserData]);
+    return data;
+  }, [setAuthState]);
 
-  // -------------------------
-  // Context value
-  // -------------------------
-  const value = useMemo(() => ({
-    user,
-    profile,
-    setProfile,  // ✅ provide setProfile for EditProfilePage
-    role,
-    loading,
-    logout,
-    skipProfileRedirectToast,
-    setSkipProfileRedirectToast,
-  }), [user, profile, role, loading, logout, skipProfileRedirectToast]);
+  const setProfile = useCallback((nextProfile) => {
+    setProfileState(nextProfile || null);
+    setRole(nextProfile?.role || null);
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await logoutFromServer();
+    } finally {
+      try {
+        await logoutClient();
+      } finally {
+        clearAuthState();
+        setFirebaseUser(null);
+      }
+    }
+  }, [clearAuthState]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (!mounted) return;
+
+      setFirebaseUser(fbUser || null);
+
+      try {
+        if (fbUser) {
+          await refreshSession();
+        } else {
+          clearAuthState();
+        }
+      } catch (error) {
+        clearAuthState();
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [clearAuthState, refreshSession]);
+
+  const value = useMemo(
+    () => ({
+      firebaseUser,
+      user,
+      profile,
+      role,
+      loading,
+      isAuthenticated: !!user, // 🔐 Added for cleaner auth checking
+      refreshSession,
+      logout,
+      setProfile,
+      setAuthState,
+      clearAuthState,
+    }),
+    [
+      firebaseUser,
+      user,
+      profile,
+      role,
+      loading,
+      refreshSession,
+      logout,
+      setProfile,
+      setAuthState,
+      clearAuthState,
+    ]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+}
 
-// -------------------------
-// Custom hook
-// -------------------------
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
+
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
+
   return context;
-};
+}

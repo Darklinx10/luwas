@@ -1,5 +1,6 @@
 'use client';
 
+import { useAuth } from '@/context/authContext';
 import { capitalizeWords } from '@/utils/capitalize';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -8,6 +9,7 @@ import { useUserProfile } from '../hooks/useUserProfile';
 
 export default function EditProfilePageContent() {
   const router = useRouter();
+  const { role } = useAuth();  // Get user's role
 
   const {
     form,
@@ -30,6 +32,9 @@ export default function EditProfilePageContent() {
       handleChange(name, value);
     }
   };
+
+  // Check if user can edit barangay (Secretaries cannot change their barangay)
+  const canEditBarangay = role !== 'Brgy-Secretary';
 
   return (
     <div className="w-full max-w-8xl mx-auto p-4 sm:p-6 md:p-10 mt-10">
@@ -121,11 +126,38 @@ export default function EditProfilePageContent() {
             </div>
 
             <FormField label="Contact Number" name="contactNumber" value={form.contactNumber} onChange={handleCapitalizedChange} required />
-            <FormField label="Barangay" name="barangay" value={form.barangay} onChange={handleCapitalizedChange} required />
-            <FormField label="Email Address" name="email" type="email" value={form.email} onChange={handleCapitalizedChange} required />
+            
+            {/* Barangay field - read-only for Secretaries */}
+            {canEditBarangay ? (
+              <FormField label="Barangay" name="barangay" value={form.barangay} onChange={handleCapitalizedChange} required />
+            ) : (
+              <FormField 
+                label="Barangay (Read-Only)" 
+                name="barangay" 
+                value={form.barangay} 
+                onChange={() => {}}  // No-op for secretaries
+                disabled={true}
+                required 
+              />
+            )}
+
+            {/* Email field - read-only (use Firebase Auth to change) */}
+            <FormField 
+              label="Email (Read-Only)" 
+              name="email" 
+              type="email" 
+              value={form.email || ''} 
+              onChange={() => {}}  // No-op
+              disabled={true}
+            />
           </div>
 
-          {/* Buttons Inline */}
+          {/* Info: Email cannot be changed here */}
+          <p className="mt-4 text-xs text-gray-500 italic">
+            💡 To change your email, please use the account settings in your profile.
+          </p>
+
+          {/* Buttons */}
           <div className="mt-6 flex justify-between gap-4">
             <button
               onClick={() => router.back()}
@@ -141,7 +173,7 @@ export default function EditProfilePageContent() {
                 loading ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
-              Save Changes
+              {loading ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>
@@ -151,7 +183,7 @@ export default function EditProfilePageContent() {
 }
 
 // Form Field Component
-function FormField({ label, name, value, onChange, required = false, type = 'text' }) {
+function FormField({ label, name, value, onChange, required = false, type = 'text', disabled = false }) {
   return (
     <div className="flex flex-col">
       <label className="text-sm font-medium text-gray-700 mb-1">{label}</label>
@@ -161,7 +193,10 @@ function FormField({ label, name, value, onChange, required = false, type = 'tex
         value={value}
         onChange={(e) => onChange(name, e.target.value)}
         required={required}
-        className="w-full border border-gray-500 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-gray-100 focus:outline-none transition"
+        disabled={disabled}
+        className={`w-full border border-gray-500 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-gray-100 focus:outline-none transition ${
+          disabled ? 'bg-gray-100 cursor-not-allowed' : ''
+        }`}
       />
     </div>
   );

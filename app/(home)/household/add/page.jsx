@@ -14,29 +14,28 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '@/lib/firebaseConfig';
 import { useAuth } from '@/context/authContext';
-
-// Components
-import FormSectionSidebar from '../components/formSectionSidebar';
-import GeographicIdentification from '../components/Forms/geographic-information';
-import DemographicCharacteristics from '../components/Forms/demographic-characteristics';
-import Migration from '../components/Forms/migration';
-import Education from '../components/Forms/education';
-import Community from '../components/Forms/community';
-import Economic from '../components/Forms/economic';
-import Entreprenuerialship from '../components/Forms/entreprenuerial';
-import Agriculture from '../components/Forms/agriculture';
-import FamilyIncome from '../components/Forms/family-income';
-import FoodConsumption from '../components/Forms/food-consumption';
-import FoodSecurity from '../components/Forms/food-security';
-import FinancialInclusion from '../components/Forms/financial-inclusion';
-import Health from '../components/Forms/health';
-import ClimateChange from '../components/Forms/disasterpreparedness';
-import Environmental from '../components/Forms/ecommerce';
-import CrimeVictimization from '../components/Forms/crime-victimization';
-import SocialProtection from '../components/Forms/social-protection';
-import WaterSanitation from '../components/Forms/water-sanitation';
-import HousingCharacteristics from '../components/Forms/housing-characteristics';
-import Refusal from '../components/Forms/refusal-specialcases';
+    
+import FormSectionSidebar from '@/features/Households/components/formSectionSidebar';
+import GeographicIdentification from '@/features/Households/components/Forms/geographic-information';
+import DemographicCharacteristics from '@/features/Households/components/Forms/demographic-characteristics';
+import Migration from '@/features/Households/components/Forms/migration';
+import Education from '@/features/Households/components/Forms/education';
+import Community from '@/features/Households/components/Forms/community';
+import Economic from '@/features/Households/components/Forms/economic';
+import Entreprenuerialship from '@/features/Households/components/Forms/entreprenuerial';
+import Agriculture from '@/features/Households/components/Forms/agriculture';
+import FamilyIncome from '@/features/Households/components/Forms/family-income';
+import FoodConsumption from '@/features/Households/components/Forms/food-consumption';
+import FoodSecurity from '@/features/Households/components/Forms/food-security';
+import FinancialInclusion from '@/features/Households/components/Forms/financial-inclusion';
+import Health from '@/features/Households/components/Forms/health';
+import ClimateChange from '@/features/Households/components/Forms/disasterpreparedness';
+import Environmental from '@/features/Households/components/Forms/ecommerce';
+import CrimeVictimization from '@/features/Households/components/Forms/crime-victimization';
+import SocialProtection from '@/features/Households/components/Forms/social-protection';
+import WaterSanitation from '@/features/Households/components/Forms/water-sanitation';
+import HousingCharacteristics from '@/features/Households/components/Forms/housing-characteristics';
+import Refusal from '@/features/Households/components/Forms/refusal-specialcases';
 
 const formSections = {
   'Geographic Identification': GeographicIdentification,

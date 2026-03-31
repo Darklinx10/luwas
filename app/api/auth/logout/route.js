@@ -1,21 +1,55 @@
+// src/app/api/auth/logout/route.js
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 
+export const runtime = 'nodejs';
 
 export async function POST() {
-  const response = NextResponse.json({
-    message: 'Logged out successfully',
-  });
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('session')?.value;
 
-  // Remove the session cookie
-  response.cookies.set({
-    name: 'session',
-    value: '',
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 0, // expires immediately
-    path: '/',
-  });
+    if (sessionCookie) {
+      try {
+        const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
 
-  return response;
+        await adminDb.collection('users').doc(decoded.uid).update({
+          activeSessionToken: null,
+        });
+      } catch (error) {
+        console.error('Logout verification warning:', error);
+      }
+    }
+
+    const response = NextResponse.json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+
+    response.cookies.set('session', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: new Date(0),
+    });
+
+    response.cookies.set('sessionToken', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: new Date(0),
+    });
+
+    return response;
+  } catch (error) {
+    console.error('POST /api/auth/logout error:', error);
+
+    return NextResponse.json(
+      { error: 'Logout failed' },
+      { status: 500 }
+    );
+  }
 }

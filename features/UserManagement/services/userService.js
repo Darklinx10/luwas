@@ -1,147 +1,180 @@
-import { db } from '@/lib/firebaseConfig';
-import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+/**
+ * /features/UserManagement/services/userService.js
+ *
+ * User Management API Client
+ * Provides methods to interact with protected /api/users endpoints
+ *
+ * All operations are server-protected:
+ * - Admin-only access verified on server
+ * - Comprehensive input validation on server
+ * - Atomic operations (create/delete)
+ * - Server-side pagination and search
+ *
+ * This service NEVER uses Firebase Client SDK for admin operations.
+ * All data flows through protected APIs.
+ */
 
-const USERS_COLLECTION = 'users';
-const ALLOWED_ROLES = ['Brgy-Secretary', 'MDRRMC-Personnel'];
 const DEFAULT_PAGE_SIZE = 10;
 
-const buildFullName = (data) => {
-  const { lastName, firstName, middleName } = data;
-
-  const firstPart = [firstName, middleName].filter(Boolean).join(' ');
-  return [lastName, firstPart].filter(Boolean).join(', ').trim();
-};
-
+/**
+ * Fetch users with server-side pagination and search
+ * GET /api/users?page=1&limit=10&search=term
+ */
 export const userService = {
   async fetchUsers({ page = 1, limitSize = DEFAULT_PAGE_SIZE, search = '' } = {}) {
-    const snapshot = await getDocs(collection(db, USERS_COLLECTION));
-
-    const normalizedSearch = search.trim().toLowerCase();
-
-    let users = snapshot.docs
-      .map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      }))
-      .filter((user) => ALLOWED_ROLES.includes(user.role))
-      .map((user) => ({
-        ...user,
-        fullName: buildFullName(user),
-      }));
-
-    if (normalizedSearch) {
-      users = users.filter((user) => {
-        const fullName = (user.fullName || '').toLowerCase();
-        const firstName = (user.firstName || '').toLowerCase();
-        const middleName = (user.middleName || '').toLowerCase();
-        const lastName = (user.lastName || '').toLowerCase();
-        const email = (user.email || '').toLowerCase();
-        const barangay = (user.barangay || '').toLowerCase();
-        const role = (user.role || '').toLowerCase();
-
-        return (
-          fullName.includes(normalizedSearch) ||
-          firstName.includes(normalizedSearch) ||
-          middleName.includes(normalizedSearch) ||
-          lastName.includes(normalizedSearch) ||
-          email.includes(normalizedSearch) ||
-          barangay.includes(normalizedSearch) ||
-          role.includes(normalizedSearch)
-        );
+    try {
+      const params = new URLSearchParams({
+        page: Math.max(1, Number(page) || 1),
+        limit: Math.min(Number(limitSize) || DEFAULT_PAGE_SIZE, 100),
+        ...(search && { search: search.trim() }),
       });
+
+      const response = await fetch(`/api/users?${params}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch users');
+      }
+
+      const data = await response.json();
+      return {
+        users: data.users || [],
+        page: data.page,
+        limitSize: data.limit,
+        totalCount: data.totalCount,
+        totalPages: data.totalPages,
+        hasPrevPage: data.hasPrevPage,
+        hasNextPage: data.hasNextPage,
+      };
+    } catch (error) {
+      console.error('fetchUsers error:', error);
+      throw error;
     }
-
-    users.sort((a, b) => {
-      const lastA = (a.lastName || '').toLowerCase();
-      const lastB = (b.lastName || '').toLowerCase();
-
-      if (lastA < lastB) return -1;
-      if (lastA > lastB) return 1;
-
-      const firstA = (a.firstName || '').toLowerCase();
-      const firstB = (b.firstName || '').toLowerCase();
-
-      if (firstA < firstB) return -1;
-      if (firstA > firstB) return 1;
-
-      return 0;
-    });
-
-    const safePage = Number(page) > 0 ? Number(page) : 1;
-    const safeLimit = Number(limitSize) > 0 ? Number(limitSize) : DEFAULT_PAGE_SIZE;
-
-    const totalCount = users.length;
-    const totalPages = Math.max(1, Math.ceil(totalCount / safeLimit));
-    const startIndex = (safePage - 1) * safeLimit;
-    const paginatedUsers = users.slice(startIndex, startIndex + safeLimit);
-
-    return {
-      users: paginatedUsers,
-      page: safePage,
-      limitSize: safeLimit,
-      totalCount,
-      totalPages,
-      hasPrevPage: safePage > 1,
-      hasNextPage: safePage < totalPages,
-    };
   },
 
-  async createUser(user) {
-    const res = await fetch('/api/createUser', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: user.email,
-        password: user.password,
-        displayName: [user.firstName, user.middleName, user.lastName]
-          .filter(Boolean)
-          .join(' ')
-          .trim(),
-        role: user.role,
-      }),
-    });
+  /**
+   * Get single user details
+   * GET /api/users/[userId]
+   */
+  async getUser(userId) {
+    try {
+      if (!userId) throw new Error('User ID is required');
 
-    const data = await res.json();
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
 
-    if (!res.ok) {
-      throw new Error(data?.error || 'Failed to create user.');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch user');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('getUser error:', error);
+      throw error;
     }
-
-    await setDoc(doc(db, USERS_COLLECTION, data.uid), {
-      firstName: user.firstName,
-      middleName: user.middleName,
-      lastName: user.lastName,
-      email: user.email,
-      contactNumber: user.contactNumber,
-      barangay: user.barangay,
-      role: user.role,
-    });
-
-    return data;
   },
 
+  /**
+   * Create new user (Auth + Firestore)
+   * POST /api/users
+   */
+  async createUser(userData) {
+    try {
+      // Validate required fields on client first
+      if (!userData.email || !userData.password || !userData.firstName || !userData.lastName) {
+        throw new Error('Missing required fields');
+      }
+
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: userData.firstName,
+          middleName: userData.middleName || '',
+          lastName: userData.lastName,
+          email: userData.email,
+          password: userData.password,
+          role: userData.role,
+          barangay: userData.barangay || '',
+          municipality: userData.municipality || '',
+          contactNumber: userData.contactNumber || '',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create user');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('createUser error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update user profile
+   * PATCH /api/users/[userId]
+   * Editable fields: firstName, lastName, middleName, contactNumber, barangay, municipality
+   */
   async updateUser(user) {
-    if (!user?.id) throw new Error('User ID is required.');
+    try {
+      if (!user?.id) throw new Error('User ID is required');
 
-    const userRef = doc(db, USERS_COLLECTION, user.id);
-    const { id, fullName, password, ...dataToUpdate } = user;
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: user.firstName,
+          middleName: user.middleName || '',
+          lastName: user.lastName,
+          contactNumber: user.contactNumber || '',
+          barangay: user.barangay || '',
+          municipality: user.municipality || '',
+        }),
+      });
 
-    await updateDoc(userRef, dataToUpdate);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update user');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('updateUser error:', error);
+      throw error;
+    }
   },
 
+  /**
+   * Delete user (Auth + Firestore atomically)
+   * DELETE /api/users/[userId]
+   */
   async deleteUser(userId) {
-    const res = await fetch('/api/deleteUser', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId }),
-    });
+    try {
+      if (!userId) throw new Error('User ID is required');
 
-    const data = await res.json();
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
 
-    if (!res.ok) {
-      throw new Error(data?.error || 'Failed to delete user.');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete user');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('deleteUser error:', error);
+      throw error;
     }
-
-    return data;
   },
 };

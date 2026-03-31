@@ -1,21 +1,19 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import crypto from 'node:crypto';
 import admin from 'firebase-admin';
+import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    }),
-  });
-}
+export const runtime = 'nodejs';
 
+const SESSION_EXPIRES_IN = 60 * 60 * 24 * 5 * 1000; // 5 days
+
+// Handle POST requests to /api/auth/login
 export async function POST(request) {
   try {
-    const { idToken, role } = await request.json();
+    // Parse ID token from request body
+    const { idToken } = await request.json();
 
+    // Validate input
     if (!idToken) {
       return NextResponse.json(
         { error: 'ID token is required' },
@@ -23,38 +21,90 @@ export async function POST(request) {
       );
     }
 
-    // Decode token to get uid
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    // Verify Firebase ID token (checks authenticity + revocation)
+    const decodedToken = await adminAuth.verifyIdToken(idToken, true);
     const uid = decodedToken.uid;
 
-    // 1️⃣ Set custom claim (role) on the user
-    // This ensures role is included in session cookie and ID token
-    await admin.auth().setCustomUserClaims(uid, { role: role || 'MDRRMC-Admin' });
+    // Reference to user document in Firestore
+    const userRef = adminDb.collection('users').doc(uid);
+    const userSnap = await userRef.get();
 
-    // Create a session cookie valid for 5 days
-    const expiresIn = 5 * 24 * 60 * 60 * 1000; // ms
-    const sessionCookie = await admin
-      .auth()
-      .createSessionCookie(idToken, { expiresIn });
+    // Ensure user profile exists in database
+    if (!userSnap.exists) {
+      return NextResponse.json(
+        { error: 'User profile not found. Please contact admin.' },
+        { status: 403 }
+      );
+    }
 
-   // Set cookie using NextResponse
-    const response = NextResponse.json({ message: "Logged in successfully" });
-    response.cookies.set({
-      name: "session",
-      value: sessionCookie,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: expiresIn / 1000,
-      sameSite: "strict",
-      path: "/",
+    // Extract user data and role
+    const userData = userSnap.data() || {};
+    const role = userData.role || null;
+
+    // Ensure user has an assigned role
+    if (!role) {
+      return NextResponse.json(
+        { error: 'User role is missing. Please contact admin.' },
+        { status: 403 }
+      );
+    }
+
+    // Create a Firebase session cookie (long-lived authentication)
+    const sessionCookie = await adminAuth.createSessionCookie(idToken, {
+      expiresIn: SESSION_EXPIRES_IN,
     });
 
+    // Generate a custom session token for tracking/logging sessions
+    const sessionToken = crypto.randomUUID();
 
+    console.log('📝 Setting session token:', sessionToken);
+
+    // Update user document with session info
+    try {
+      await userRef.update({
+        activeSessionToken: sessionToken, // track active session
+        lastLoginAt: admin.firestore.FieldValue.serverTimestamp(), // record login time
+      });
+      console.log('✅ Session token saved to Firestore for uid:', uid);
+    } catch (updateError) {
+      console.error('❌ Failed to update activeSessionToken:', updateError);
+      throw updateError;
+    }
+
+    // Prepare success response
+    const response = NextResponse.json({
+      success: true,
+      message: 'Session created successfully',
+    });
+
+    // Set secure HTTP-only cookie for Firebase session
+    response.cookies.set('session', sessionCookie, {
+      httpOnly: true, // prevents access via JavaScript (security)
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in prod
+      sameSite: 'lax', // CSRF protection
+      path: '/', // available across entire site
+      maxAge: SESSION_EXPIRES_IN / 1000, // convert ms to seconds
+    });
+
+    // Set additional session token cookie (for custom validation)
+    response.cookies.set('sessionToken', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: SESSION_EXPIRES_IN / 1000,
+    });
+
+    // Return response with cookies
     return response;
-  } catch (err) {
-    console.error("Login error:", err);
+
+  } catch (error) {
+    // Log error for debugging
+    console.error('POST /api/auth/login error:', error);
+
+    // Return generic authentication failure
     return NextResponse.json(
-      { error: "Invalid ID token or session creation failed" },
+      { error: 'Invalid ID token or session creation failed' },
       { status: 401 }
     );
   }

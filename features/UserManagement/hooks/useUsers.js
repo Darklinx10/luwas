@@ -1,5 +1,13 @@
 'use client';
 
+/**
+ * /features/UserManagement/hooks/useUsers.js
+ *
+ * User Management Hook
+ * Handles state for user listing, creation, editing, and deletion
+ * All operations use protected server APIs
+ */
+
 import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
@@ -13,6 +21,7 @@ const defaultNewUser = {
   email: '',
   password: '',
   contactNumber: '',
+  municipality: '',
   barangay: '',
   role: 'Brgy-Secretary',
 };
@@ -22,36 +31,40 @@ export function useUsers() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // URL state for pagination and search
   const page = Math.max(1, Number(searchParams.get('page') || 1));
   const urlSearchTerm = searchParams.get('search') || '';
 
+  // Local state for input control (debounced)
   const [searchInput, setSearchInput] = useState(urlSearchTerm);
 
+  // User data state
   const [users, setUsers] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  // Loading states
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadingAddModal, setLoadingAddModal] = useState(false);
 
+  // Modal states
   const [showModal, setShowModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
+  // Form states
   const [selectedUser, setSelectedUser] = useState(null);
   const [newUser, setNewUser] = useState(defaultNewUser);
 
+  /**
+   * Update URL parameters for pagination and search
+   */
   const updateUrlParams = useCallback(
     (updates = {}) => {
       const params = new URLSearchParams(searchParams.toString());
 
       Object.entries(updates).forEach(([key, value]) => {
-        if (
-          value === undefined ||
-          value === null ||
-          value === '' ||
-          value === 1
-        ) {
+        if (value === undefined || value === null || value === '' || value === 1) {
           params.delete(key);
         } else {
           params.set(key, String(value));
@@ -64,6 +77,9 @@ export function useUsers() {
     [router, pathname, searchParams]
   );
 
+  /**
+   * Set current page
+   */
   const setPage = useCallback(
     (value) => {
       const nextPage = typeof value === 'function' ? value(page) : value;
@@ -72,10 +88,16 @@ export function useUsers() {
     [page, updateUrlParams]
   );
 
+  /**
+   * Sync search input with URL
+   */
   useEffect(() => {
     setSearchInput(urlSearchTerm);
   }, [urlSearchTerm]);
 
+  /**
+   * Debounce search input changes
+   */
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (searchInput !== urlSearchTerm) {
@@ -89,10 +111,12 @@ export function useUsers() {
     return () => clearTimeout(timeout);
   }, [searchInput, urlSearchTerm, updateUrlParams]);
 
+  /**
+   * Fetch users from server API
+   */
   const fetchUsers = useCallback(async () => {
     try {
-     
-
+      setLoading(true);
       const result = await userService.fetchUsers({
         page,
         limitSize: PAGE_SIZE,
@@ -110,21 +134,33 @@ export function useUsers() {
     }
   }, [page, urlSearchTerm]);
 
+  /**
+   * Fetch users when page or search changes
+   */
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
+  /**
+   * Reset to last valid page if current page exceeds totalPages
+   */
   useEffect(() => {
     if (page > totalPages && totalPages > 0) {
       updateUrlParams({ page: totalPages });
     }
   }, [page, totalPages, updateUrlParams]);
 
+  /**
+   * Edit user handler
+   */
   const handleEdit = (user) => {
     setSelectedUser({ ...user });
     setShowModal(true);
   };
 
+  /**
+   * Open add user modal
+   */
   const openAddModal = () => {
     setLoadingAddModal(true);
     setShowAddModal(true);
@@ -134,19 +170,34 @@ export function useUsers() {
     }, 500);
   };
 
+  /**
+   * Close edit modal
+   */
   const closeEditModal = () => {
     setShowModal(false);
     setSelectedUser(null);
   };
 
+  /**
+   * Close add modal
+   */
   const closeAddModal = () => {
     setShowAddModal(false);
     setNewUser(defaultNewUser);
   };
 
+  /**
+   * Create new user
+   */
   const addUser = async () => {
+    // Validate required fields
     if (!newUser.email || !newUser.password || !newUser.firstName || !newUser.lastName) {
       toast.error('Please fill in all required fields.');
+      return;
+    }
+
+    if (!newUser.barangay) {
+      toast.error('Please select a barangay.');
       return;
     }
 
@@ -161,12 +212,15 @@ export function useUsers() {
       await fetchUsers();
     } catch (error) {
       console.error('Error creating user:', error);
-      toast.error(error.message || 'Something went wrong.');
+      toast.error(error.message || 'Failed to create user.');
     } finally {
       setSaving(false);
     }
   };
 
+  /**
+   * Save user edits
+   */
   const saveEditUser = async () => {
     if (!selectedUser?.id) return;
 
@@ -184,6 +238,9 @@ export function useUsers() {
     }
   };
 
+  /**
+   * Delete user
+   */
   const deleteUser = async (userId) => {
     const confirmed = window.confirm('Are you sure you want to delete this user?');
     if (!confirmed) return;
@@ -192,13 +249,15 @@ export function useUsers() {
       await userService.deleteUser(userId);
       toast.success('User deleted successfully.');
 
+      // Refresh user list
       const result = await userService.fetchUsers({
         page,
         limitSize: PAGE_SIZE,
         search: urlSearchTerm,
       });
 
-      if (page > result.totalPages) {
+      // Adjust page if it exceeds totalPages
+      if (page > result.totalPages && result.totalPages > 0) {
         updateUrlParams({ page: result.totalPages });
       } else {
         setUsers(result.users);
@@ -212,39 +271,45 @@ export function useUsers() {
   };
 
   return {
+    // User data
     users,
     searchTerm: searchInput,
     setSearchTerm: setSearchInput,
 
+    // Loading states
     loading,
     saving,
     loadingAddModal,
 
+    // Modal states
     showModal,
     setShowModal,
     showAddModal,
     setShowAddModal,
 
+    // Form states
     selectedUser,
     setSelectedUser,
     newUser,
     setNewUser,
 
+    // Pagination
     page,
     totalPages,
     totalCount,
     paginatedUsers: users,
 
+    // Methods
     handleEdit,
     openAddModal,
     closeEditModal,
     closeAddModal,
-
     addUser,
     saveEditUser,
     deleteUser,
-
     setPage,
+
+    // Constants
     PAGE_SIZE,
   };
 }

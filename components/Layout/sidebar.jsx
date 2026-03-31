@@ -22,7 +22,7 @@ export default function Sidebar({ sidebarOpen }) {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: <MdSpaceDashboard size={22} />, allowedRoles: ["Brgy-Secretary", "MDRRMC-Personnel"] },
     { href: "/household", label: "Households", icon: <BsFillHousesFill size={20} />, allowedRoles: ["Brgy-Secretary", "MDRRMC-Personnel", "MDRRMC-Admin"] },
-    { href: "/maps", label: "Maps", icon: <IoMapSharp size={22} />, allowedRoles: ["MDRRMC-Admin", "MDRRMC-Personnel"] },
+    { href: "/map", label: "Maps", icon: <IoMapSharp size={22} />, allowedRoles: ["MDRRMC-Admin", "MDRRMC-Personnel"] },
     { href: "/hazards", label: "Hazards", icon: <FaExclamationTriangle size={20} />, allowedRoles: ["MDRRMC-Admin"] },
     { href: "/users", label: "User Management", icon: <FaUserShield size={20} />, allowedRoles: ["MDRRMC-Admin"] },
     { href: "/reports", label: "Reports", icon: <HiDocumentReport size={22} />, allowedRoles: ["MDRRMC-Personnel", "Brgy-Secretary"] },

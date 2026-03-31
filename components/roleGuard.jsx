@@ -5,33 +5,25 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/authContext';
 import LoadingSpinner from './LoadingSpinner';
 
-export default function RoleGuard({ children, allowedRoles = [] }) {
-  const { user, profile, loading } = useAuth();
-  const router = useRouter();
-  const [redirecting, setRedirecting] = useState(false);
+
+export default function RoleGuard({
+  allowedRoles = [],
+  children,
+  redirectTo = '/unauthorized',
+}) {
+
+   const router = useRouter();
+  const { role, loading } = useAuth();
 
   useEffect(() => {
     if (loading) return;
 
-    let timer;
-    const role = profile?.role;
-
-    // 🔒 Not authenticated
-    if (!user) {
-      setRedirecting(true);
-      timer = setTimeout(() => router.replace('/login'), 1500);
+    if (!role || !allowedRoles.includes(role)) {
+      router.replace(redirectTo);
     }
-    // 🚫 Authenticated but not authorized
-    else if (allowedRoles.length > 0 && role && !allowedRoles.includes(role)) {
-      setRedirecting(true);
-      timer = setTimeout(() => router.replace('/unauthorized'), 2000);
-    }
+  }, [role, loading, allowedRoles, redirectTo, router]);
 
-    return () => clearTimeout(timer);
-  }, [user, profile, loading, allowedRoles, router]);
-
-  // ⏳ Loading / redirect screen
-  if (loading || redirecting) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <LoadingSpinner/>
@@ -39,6 +31,9 @@ export default function RoleGuard({ children, allowedRoles = [] }) {
     );
   }
 
-  // ✅ Authorized
-  return <>{children}</>;
+  if (!role || !allowedRoles.includes(role)) {
+    return null;
+  }
+
+  return children;
 }

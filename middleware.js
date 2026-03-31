@@ -1,100 +1,118 @@
+// src/middleware.js
 import { NextResponse } from 'next/server';
-import admin from '@/lib/firebaseAdmin';
+import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
+
+const PUBLIC_ONLY_PATHS = ['/login', '/forgotpass'];
+const ADMIN_ONLY_PATHS = ['/users', '/hazards'];
+const ADMIN_BLOCKED_PATHS = ['/dashboard', '/reports'];
+
+function getHomeByRole(role) {
+  return role === 'MDRRMC-Admin' ? '/household' : '/dashboard';
+}
 
 export async function middleware(req) {
   const url = req.nextUrl.clone();
   const pathname = url.pathname;
-
-  // Skip Next.js internals
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon.ico') ||
-    pathname.startsWith('/assets')
-  ) {
-    return NextResponse.next();
-  }
-
-  const sessionCookie = req.cookies.get('session')?.value;
-
-  console.log('[Middleware] Incoming URL:', pathname);
 
   const redirect = (path) => {
     url.pathname = path;
     return NextResponse.redirect(url);
   };
 
-  /* =====================
-     PUBLIC ROUTES
-  ====================== */
-  const publicPaths = ['/login', '/forgotpass'];
-
-  if (publicPaths.some(path => pathname.startsWith(path))) {
-    if (!sessionCookie) return NextResponse.next();
-
-    try {
-      const decoded = await admin
-        .auth()
-        .verifySessionCookie(sessionCookie, true);
-
-      return redirect(
-        decoded.role === 'MDRRMC-Admin'
-          ? '/household'
-          : '/dashboard'
-      );
-    } catch {
-      return NextResponse.next();
-    }
+  // Ignore Next internals and static files
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/assets') ||
+    pathname === '/favicon.ico'
+  ) {
+    return NextResponse.next();
   }
 
-  /* =====================
-     PROTECTED ROUTES
-  ====================== */
-  if (!sessionCookie) {
-    return redirect('/login');
+  const sessionCookie = req.cookies.get('session')?.value;
+  const sessionToken = req.cookies.get('sessionToken')?.value;
+
+  async function verifyActiveSession() {
+    if (!sessionCookie || !sessionToken) return null;
+
+    const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
+    const uid = decoded.uid;
+
+    const userRef = adminDb.collection('users').doc(uid);
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) return null;
+
+    const userData = userSnap.data() || {};
+
+    if (!userData.activeSessionToken) return null;
+    if (userData.activeSessionToken !== sessionToken) return null;
+
+    return {
+      uid,
+      role: userData.role || decoded.role || null,
+    };
   }
+
+  let session = null;
 
   try {
-    const decoded = await admin
-      .auth()
-      .verifySessionCookie(sessionCookie, true);
-
-    const role = decoded.role ?? 'user';
-
-    /* =====================
-       ADMIN-ONLY ROUTES
-    ====================== */
-    const adminOnly = ['/users', '/hazards'];
-
-    if (
-      adminOnly.some(path => pathname.startsWith(path)) &&
-      role !== 'MDRRMC-Admin'
-    ) {
-      return redirect('/unauthorized');
-    }
-
-    /* =====================
-       BLOCK ADMIN FROM THESE
-    ====================== */
-    const adminBlocked = ['/dashboard', '/reports'];
-
-    if (
-      adminBlocked.some(path => pathname.startsWith(path)) &&
-      role === 'MDRRMC-Admin'
-    ) {
-      return redirect('/household');
-    }
-
-    return NextResponse.next();
+    session = await verifyActiveSession();
   } catch {
+    session = null;
+  }
+
+  // 1. Public-only pages: login / forgotpass
+  if (PUBLIC_ONLY_PATHS.some((path) => pathname.startsWith(path))) {
+    if (!session) {
+      return NextResponse.next();
+    }
+
+    return redirect(getHomeByRole(session.role));
+  }
+
+  // 2. Unauthorized page
+  // If user is not logged in, don't allow access
+  if (pathname.startsWith('/unauthorized')) {
+    if (!session) {
+      return redirect('/login');
+    }
+
+    // Logged-in users should not manually stay here
+    return redirect(getHomeByRole(session.role));
+  }
+
+  // 3. All remaining matched routes are protected
+  if (!session) {
     return redirect('/login');
   }
+
+  const role = session.role;
+
+  // 4. Admin-only routes
+  if (
+    ADMIN_ONLY_PATHS.some((path) => pathname.startsWith(path)) &&
+    role !== 'MDRRMC-Admin'
+  ) {
+    return redirect('/unauthorized');
+  }
+
+  // 5. Routes blocked for admin
+  if (
+    ADMIN_BLOCKED_PATHS.some((path) => pathname.startsWith(path)) &&
+    role === 'MDRRMC-Admin'
+  ) {
+    return redirect('/household');
+  }
+
+  return NextResponse.next();
 }
 
+export const runtime = 'nodejs';
+
 export const config = {
-  runtime: 'nodejs',
   matcher: [
     '/dashboard/:path*',
-    '/maps/:path*',
+    '/map/:path*',
     '/users/:path*',
     '/hazards/:path*',
     '/household/:path*',

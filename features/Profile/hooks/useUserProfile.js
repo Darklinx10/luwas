@@ -1,4 +1,14 @@
 // hooks/useUserProfile.js
+/**
+ * Hook for managing user profile edit form and submission
+ *
+ * Handles:
+ * - Form state management
+ * - Photo preview state
+ * - Submission to server-side /api/profile/update
+ * - AuthContext synchronization after update
+ */
+
 import { useAuth } from '@/context/authContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -12,7 +22,7 @@ const DEFAULT_AVATARS = [
 
 export function useUserProfile() {
   const router = useRouter();
-  const { profile, setProfile } = useAuth();
+  const { profile, setProfile, refreshSession } = useAuth();
 
   const [form, setForm] = useState({
     firstName: '',
@@ -21,18 +31,19 @@ export function useUserProfile() {
     dateOfBirth: '',
     gender: '',
     contactNumber: '',
-    email: '',
     barangay: '',
     profilePhoto: '',
   });
-  const [photo, setPhoto] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState('');
+
+  const [photoFile, setPhotoFile] = useState(null);  // Actual file for upload
+  const [photoPreview, setPhotoPreview] = useState('');  // Preview URL
   const [loading, setLoading] = useState(false);
 
   // Populate form when profile is available
   useEffect(() => {
     console.log('[useUserProfile] profile changed:', profile);
     if (!profile) return;
+
     setForm({
       firstName: profile.firstName || '',
       middleName: profile.middleName || '',
@@ -40,7 +51,6 @@ export function useUserProfile() {
       dateOfBirth: profile.dateOfBirth || '',
       gender: profile.gender || '',
       contactNumber: profile.contactNumber || '',
-      email: profile.email || '',
       barangay: profile.barangay || '',
       profilePhoto: profile.profilePhoto || '',
     });
@@ -55,50 +65,74 @@ export function useUserProfile() {
   const handlePhotoChange = (file) => {
     if (!file) return;
     console.log('[useUserProfile] new photo selected:', file);
-    setPhoto(file);
+
+    // Validate file
+    if (file.size > 5 * 1024 * 1024) {  // 5MB limit
+      toast.error('Photo must be less than 5MB');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('File must be an image');
+      return;
+    }
+
+    setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
-    handleChange('profilePhoto', ''); // Clear previous avatar URL
+    // Don't update form.profilePhoto here - handle in submission
   };
 
   const handleAvatarClick = (avatarUrl) => {
     console.log('[useUserProfile] avatar selected:', avatarUrl);
-    setPhoto(null);
+    setPhotoFile(null);  // Clear file if any
     setPhotoPreview(avatarUrl);
-    handleChange('profilePhoto', avatarUrl);
+    // Avatar URL will be sent as profilePhoto in form
+    setForm((prev) => ({ ...prev, profilePhoto: avatarUrl }));
     toast.info('Default avatar selected.');
   };
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
-    console.log('[useUserProfile] submitting form:', form, 'photo:', photo);
+    console.log('[useUserProfile] submitting profile update');
 
     if (!profile?.uid) {
-      toast.error('User UID is missing. Please log in again.');
+      toast.error('User ID is missing. Please log in again.');
       console.error('[useUserProfile] missing profile UID', profile);
       return;
     }
 
     setLoading(true);
     try {
-      let profilePhotoUrl = photoPreview;
+      // 1. Prepare form data for submission
+      const profileData = {
+        ...form,
+        profilePhoto: photoPreview,  // Use preview URL (avatar or uploaded URL)
+      };
 
-      // Upload new photo if selected
-      if (photo) {
-        const storageRef = ref(storage, `profile_photos/${profile.uid}`);
-        await uploadBytes(storageRef, photo);
-        profilePhotoUrl = await getDownloadURL(storageRef);
-      }
-      
-      const updatedProfile = await updateUserProfile(profile.uid, form, photo);
-      const mergedProfile = { ...profile, ...updatedProfile };
+      // 2. Call server-side update endpoint
+      const updatedProfile = await updateUserProfile(profileData, photoFile);
+
       console.log('[useUserProfile] profile updated successfully:', updatedProfile);
-      setProfile(mergedProfile);
-      localStorage.setItem('userProfile', JSON.stringify(mergedProfile));
+
+      // 3. Update AuthContext with new profile
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+      }
+
+      // 4. Reload session to ensure fresh data from server
+      // This will call /api/auth/me and update context with fresh profile
+      await refreshSession();
+
       toast.success('Profile updated successfully!');
+      
+      // 5. Redirect back to profile page
       router.push('/profile');
     } catch (error) {
       console.error('[useUserProfile] Profile update failed:', error);
-      toast.error('Failed to update profile.');
+      
+      // Parse error message
+      const errorMsg = error.message || 'Failed to update profile';
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

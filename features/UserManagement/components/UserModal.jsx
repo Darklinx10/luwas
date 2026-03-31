@@ -69,13 +69,14 @@ export default function UserModal({ user, setUser, onClose, onSave, saving, mode
             id="contactNumber"
             value={user.contactNumber}
             onChange={(v) => {
-              if ((v === '' || /^0\d{0,10}$/.test(v)) && v.length <= 11) {
-                setUser((p) => ({ ...p, contactNumber: v }));
+              // Allow digits only, max 11 digits
+              if (v === '' || /^\d+$/.test(v)) {
+                setUser((p) => ({ ...p, contactNumber: v.slice(0, 11) }));
               }
             }}
             type="tel"
             autoComplete="tel"
-            placeholder="Enter contact number"
+            placeholder="Enter 10-11 digit number"
           />
 
           {/* Municipality Dropdown */}
