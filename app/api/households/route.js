@@ -14,14 +14,22 @@ import {
   fetchHouseholdsQuery,
   createHousehold,
 } from '@/lib/api/householdService';
+import { buildHouseholdPayload } from '@/features/Households/utils/buildHouseholdPayload';
 import { recalculateHouseholdTotals } from '@/lib/api/recalculateTotals';
+import { logFirestoreError, analyzeFirestoreError } from '@/lib/api/firestoreErrorHandler';
 
+// ALLOWED_SORT_FIELDS must match available Firestore composite indexes
+// Available indexes support sorting by:
+// - Name fields: headLastName, headFirstName, headMiddleName, headSuffix
+// - Special fields: totalPWDs, totalSeniors, hasMapLocation
 const ALLOWED_SORT_FIELDS = [
-  'headLastName',
-  'headFirstName',
-  'barangay',
-  'sitio',
-  'createdAt',
+  'headLastName',    // Index: headLastName, headFirstName, headMiddleName, headSuffix, __name__
+  'headFirstName',   // OR barangay, headLastName, headFirstName, headMiddleName, headSuffix, __name__
+  'headMiddleName',
+  'headSuffix',
+  'totalPWDs',       // Index: totalPWDs, headLastName, __name__ OR barangay, totalPWDs, __name__
+  'totalSeniors',    // Index: totalSeniors, headLastName, __name__ OR barangay, totalSeniors, __name__
+  'hasMapLocation',  // Index: hasMapLocation, headLastName, __name__
 ];
 
 export async function GET(request) {
@@ -95,14 +103,59 @@ export async function GET(request) {
 
     console.log('🏘️ Barangay filter:', barangayFilter);
 
-    const result = await fetchHouseholdsQuery({
-      page,
-      limit,
-      search,
-      sort,
-      order,
-      barangay: barangayFilter,
-    });
+    let result;
+    try {
+      result = await fetchHouseholdsQuery({
+        page,
+        limit,
+        search,
+        sort,
+        order,
+        barangay: barangayFilter,
+      });
+    } catch (queryError) {
+      // Intelligent error handling for Firestore composite index errors
+      if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
+        const queryMetadata = {
+          collection: 'households',
+          where: barangayFilter ? [{ field: 'barangay', operator: '==', value: barangayFilter }] : [],
+          orderBy: [
+            { field: 'headLastName', direction: order },
+            { field: 'headFirstName', direction: order },
+            { field: 'headMiddleName', direction: order },
+          ],
+          pagination: 'offset',
+        };
+
+        // Log detailed analysis for developers
+        logFirestoreError(queryError, queryMetadata);
+        
+        // Return actionable error response
+        const analysis = analyzeFirestoreError(queryError, queryMetadata);
+        
+        return NextResponse.json(
+          {
+            error: 'Firestore composite index required',
+            errorCode: queryError.code,
+            isIndexError: true,
+            explanation: analysis.explanation,
+            queryFields: analysis.fields,
+            suggestions: analysis.suggestions,
+            paginationRecommendation: analysis.paginationRecommendation,
+            actionSteps: analysis.actionSteps,
+            ...(analysis.indexUrl && { 
+              consoleLink: analysis.indexUrl,
+              details: `The query requires an index. You can create it here: ${analysis.indexUrl}`,
+            }),
+            message: 'Please follow the action steps or click consoleLink to create the required Firestore composite index.',
+          },
+          { status: 503 }
+        );
+      }
+      
+      // Re-throw other errors
+      throw queryError;
+    }
 
     console.log('✅ fetchHouseholdsQuery success:', {
       count: result.households?.length || 0,
@@ -143,9 +196,49 @@ export async function GET(request) {
       hasPrevPage: result.hasPrevPage,
     });
   } catch (error) {
-    console.error('❌ GET /api/households error:', error);
+    console.error('❌ GET /api/households error:', error?.message || error);
+
+    // Handle Firestore composite index required error
+    if (error?.code === 9 || error?.message?.includes('FAILED_PRECONDITION')) {
+      const queryMetadata = {
+        collection: 'households',
+        where: [{ field: 'barangay', operator: '==', value: 'any' }],
+        orderBy: [
+          { field: 'headLastName', direction: 'asc' },
+          { field: 'headFirstName', direction: 'asc' },
+        ],
+        pagination: 'offset',
+      };
+
+      // Log detailed analysis
+      logFirestoreError(error, queryMetadata);
+      
+      // Return actionable error response
+      const analysis = analyzeFirestoreError(error, queryMetadata);
+      
+      return NextResponse.json(
+        {
+          error: 'Firestore composite index required',
+          errorCode: error.code,
+          isIndexError: true,
+          explanation: analysis.explanation,
+          queryFields: analysis.fields,
+          suggestions: analysis.suggestions,
+          paginationRecommendation: analysis.paginationRecommendation,
+          actionSteps: analysis.actionSteps,
+          ...(analysis.indexUrl && { 
+            consoleLink: analysis.indexUrl,
+            details: `The query requires an index. You can create it here: ${analysis.indexUrl}`,
+          }),
+          message: 'Please follow the action steps or click consoleLink to create the required index.',
+        },
+        { status: 503 }
+      );
+    }
+
+    // Generic error response
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch households' },
+      { error: error?.message || 'Failed to fetch households' },
       { status: 500 }
     );
   }
@@ -191,16 +284,30 @@ export async function POST(request) {
   try {
     const body = await request.json();
 
-    const payload = {
-      ...body,
-      headFirstName: body.headFirstName?.trim() || '',
-      headLastName: body.headLastName?.trim() || '',
-      barangay: body.barangay?.trim() || '',
-      sitio: body.sitio?.trim() || '',
-      contactNumber: body.contactNumber?.trim() || '',
-    };
+    // Use shared buildHouseholdPayload to ensure consistent top-level field generation
+    // This guarantees manual add and upload create the same Household structure
+    const payload = buildHouseholdPayload({
+      householdId: body.householdId,
+      headFirstName: body.headFirstName,
+      headMiddleName: body.headMiddleName,
+      headLastName: body.headLastName,
+      headSuffix: body.headSuffix,
+      headSex: body.headSex,
+      headAge: body.headAge,
+      contactNumber: body.contactNumber,
+      barangay: body.barangay,
+      sitio: body.sitio,
+      homes: body.homes,
+      totalFamilies: body.totalFamilies,
+      totalResidents: body.totalResidents,
+      totalMale: body.totalMale,
+      totalFemale: body.totalFemale,
+      totalPWDs: body.totalPWDs,
+      totalSeniors: body.totalSeniors,
+      ageBrackets: body.ageBrackets,
+    });
 
-    console.log('📦 Payload:', payload);
+    console.log('📦 Normalized payload:', payload);
 
     // Validate required fields
     const required = ['headFirstName', 'headLastName', 'barangay'];

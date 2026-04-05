@@ -1,6 +1,6 @@
 'use client';
 
-import { db, storage } from '@/lib/firebaseConfig';
+import { db } from '@/lib/firebaseConfig';
 import {
   collection,
   doc,
@@ -10,7 +10,6 @@ import {
   deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { reprojectGeoJSON } from '@/utils/geoJsonProjection';
 import { hazardTypes } from '@/utils/hazardTypes';
 
@@ -22,28 +21,18 @@ export const fetchHazards = async () => {
   const hazardsByType = await Promise.all(
     hazardTypes.map(async (hazardType) => {
       const infoSnap = await getDocs(collection(db, 'hazards', hazardType, 'hazardInfo'));
-      return await Promise.all(
-        infoSnap.docs.map(async (infoDoc) => {
-          const infoData = infoDoc.data();
-          let fileUrl = null;
-
-          if (infoData.fileId) {
-            const fileSnap = await getDoc(doc(db, 'hazards', hazardType, 'hazardFiles', infoData.fileId));
-            if (fileSnap.exists()) fileUrl = fileSnap.data()?.fileUrl || null;
-          }
-
-          return {
-            id: infoDoc.id,
-            type: infoData.type || hazardType,
-            description: infoData.description || '',
-            createdAt: infoData.createdAt || null,
-            fileId: infoData.fileId || null,
-            fileUrl,
-            legendProp: infoData.legendProp || null,
-            colorSettings: infoData.colorSettings || {},
-          };
-        })
-      );
+      return infoSnap.docs.map((infoDoc) => {
+        const infoData = infoDoc.data();
+        return {
+          id: infoDoc.id,
+          type: infoData.type || hazardType,
+          description: infoData.description || '',
+          createdAt: infoData.createdAt || null,
+          legendProp: infoData.legendProp || null,
+          colorSettings: infoData.colorSettings || {},
+          features: infoData.features || 0,
+        };
+      });
     })
   );
 
@@ -56,10 +45,8 @@ export const fetchHazards = async () => {
  * @returns {Promise<void>}
  */
 export const deleteHazard = async (hazard) => {
+  // Delete hazard info document (which now contains the GeoJSON data)
   await deleteDoc(doc(db, 'hazards', hazard.type, 'hazardInfo', hazard.id));
-  if (hazard.fileId) {
-    await deleteDoc(doc(db, 'hazards', hazard.type, 'hazardFiles', hazard.fileId));
-  }
 };
 
 /**
@@ -68,23 +55,23 @@ export const deleteHazard = async (hazard) => {
  * @returns {Promise<Object>} - hazard with geojson, legendProp, colorSettings
  */
 export const previewHazard = async (hazard) => {
-  if (!hazard.fileId) throw new Error('No hazard file linked.');
+  const infoSnap = await getDoc(doc(db, 'hazards', hazard.type, 'hazardInfo', hazard.id));
 
-  const fileSnap = await getDoc(doc(db, 'hazards', hazard.type, 'hazardFiles', hazard.fileId));
-  if (!fileSnap.exists()) throw new Error('Hazard file not found.');
+  if (!infoSnap.exists()) {
+    throw new Error('Hazard not found.');
+  }
 
-  const fileData = fileSnap.data();
-  if (!fileData?.geojsonString) throw new Error('GeoJSON data missing.');
+  const infoData = infoSnap.data();
+  if (!infoData?.geojsonData) {
+    throw new Error('GeoJSON data missing.');
+  }
 
   let geojsonData;
   try {
-    geojsonData = JSON.parse(fileData.geojsonString);
+    geojsonData = JSON.parse(infoData.geojsonData);
   } catch {
     throw new Error('Invalid GeoJSON format');
   }
-
-  const infoSnap = await getDoc(doc(db, 'hazards', hazard.type, 'hazardInfo', hazard.id));
-  const infoData = infoSnap.exists() ? infoSnap.data() : {};
 
   return {
     ...hazard,
@@ -95,7 +82,7 @@ export const previewHazard = async (hazard) => {
 };
 
 /**
- * Upload and save a new hazard
+ * Upload and save a new hazard via API (server-side)
  * @param {Object} params
  * @param {File} params.geojsonFile
  * @param {string} params.hazardType
@@ -121,28 +108,12 @@ export const uploadHazard = async ({ geojsonFile, hazardType, description, legen
 
   const geojson = reprojectGeoJSON(geojsonData);
 
-  // Prepare safe filename
-  const safeFileName = geojsonFile.name.replace(/[\s\/\\:*?"<>|]+/g, '_').replace(/\.geojson$/i, '');
-  const storagePath = `hazards/${hazardType}/${Date.now()}-${safeFileName}.geojson`;
-  const storageRef = ref(storage, storagePath);
-
-  // Upload
-  await uploadBytes(storageRef, new Blob([JSON.stringify(geojson)], { type: 'application/geo+json' }));
-  const downloadURL = await getDownloadURL(storageRef);
-
-  // Save file metadata
-  const hazardFileRef = await addDoc(collection(db, 'hazards', hazardType, 'hazardFiles'), {
-    name: geojsonFile.name,
-    geojsonString: JSON.stringify(geojson),
-    fileUrl: downloadURL,
-    createdAt: serverTimestamp(),
-  });
-
-  // Save hazard info
+  // Save hazard info directly to Firestore (no Cloud Storage)
   await addDoc(collection(db, 'hazards', hazardType, 'hazardInfo'), {
-    fileId: hazardFileRef.id,
     type: hazardType,
     description,
+    geojsonData: JSON.stringify(geojson), // Stringified to avoid nested arrays
+    features: geojson.features?.length || 0,
     legendProp: legendProp || null,
     colorSettings: colorSettings || {},
     createdAt: serverTimestamp(),

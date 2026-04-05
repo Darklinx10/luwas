@@ -42,70 +42,96 @@ export async function GET(request) {
       );
     }
 
-    // Fetch all households (filtered by barangay if Secretary)
-    let householdQuery = adminDb.collection('households');
+    // ✅ OPTIMIZED: Use collectionGroup query instead of N+1 pattern
+    // Get all PWD members across all accessible households in ONE query
+    let memberQuery = adminDb.collectionGroup('members').where('isPWD', '==', true);
 
+    const memberSnap = await memberQuery.get();
+
+    // Collect household IDs we need to fetch
+    const householdIdsToFetch = new Set();
+
+    memberSnap.forEach((memDoc) => {
+      const householdId = memDoc.ref.parent.parent.id;
+      householdIdsToFetch.add(householdId);
+    });
+
+    // ✅ Filter accessible households if Secretary
+    let accessibleHouseholds = new Set(householdIdsToFetch);
     if (user.role === 'Brgy-Secretary') {
-      householdQuery = householdQuery.where('barangay', '==', user.barangay);
+      const barangayHouseholds = await adminDb
+        .collection('households')
+        .where('barangay', '==', user.barangay)
+        .select()
+        .get();
+
+      accessibleHouseholds = new Set(
+        barangayHouseholds.docs.map(doc => doc.id)
+      );
     }
 
-    const householdSnap = await householdQuery.get();
+    // Fetch household data for all needed households in parallel
+    const householdCache = {};
+    await Promise.all(
+      Array.from(householdIdsToFetch).map(async (householdId) => {
+        if (!accessibleHouseholds.has(householdId)) return;
+
+        const hhSnap = await adminDb.collection('households').doc(householdId).get();
+        if (hhSnap.exists) {
+          householdCache[householdId] = hhSnap.data();
+        }
+      })
+    );
 
     // Collect all PWD members across all accessible households
     const pwdMembers = [];
     const normalizedSearch = search.toLowerCase();
 
-    for (const householdDoc of householdSnap.docs) {
-      const household = householdDoc.data();
-      const householdId = householdDoc.id;
+    memberSnap.forEach((memDoc) => {
+      const householdId = memDoc.ref.parent.parent.id;
 
-      const membersSnap = await adminDb
-        .collection('households')
-        .doc(householdId)
-        .collection('members')
-        .where('isPWD', '==', true)
-        .get();
+      // Filter by accessible households
+      if (!accessibleHouseholds.has(householdId)) {
+        return;
+      }
 
-      membersSnap.forEach((memDoc) => {
-        const member = memDoc.data();
+      const member = memDoc.data();
+      const household = householdCache[householdId];
 
-        // Apply search filter if provided
-        if (normalizedSearch) {
-          const firstName = String(member.firstName || '').toLowerCase();
-          const lastName = String(member.lastName || '').toLowerCase();
-          const fullName = String(member.fullName || '').toLowerCase();
+      // Apply search filter if provided
+      if (normalizedSearch) {
+        const firstName = String(member.firstName || '').toLowerCase();
+        const lastName = String(member.lastName || '').toLowerCase();
+        const fullName = String(member.fullName || '').toLowerCase();
 
-          if (
-            !firstName.includes(normalizedSearch) &&
-            !lastName.includes(normalizedSearch) &&
-            !fullName.includes(normalizedSearch)
-          ) {
-            return; // Skip this member
-          }
+        if (
+          !firstName.includes(normalizedSearch) &&
+          !lastName.includes(normalizedSearch) &&
+          !fullName.includes(normalizedSearch)
+        ) {
+          return; // Skip this member
         }
+      }
 
-        pwdMembers.push({
-          memberId: memDoc.id,
-          householdId,
-          firstName: member.firstName || '',
-          middleName: member.middleName || '',
-          lastName: member.lastName || '',
-          fullName: member.fullName || '',
-          age: member.age || null,
-          sex: member.sex || '',
-          barangay: member.barangay || '',
-          sitio: member.sitio || '',
-          contactNumber: member.contactNumber || '',
-          headFirstName: household.headFirstName || '',
-          headLastName: household.headLastName || '',
-          headFullName: household.headFullName || '',
-          householdBarangay: household.barangay || '',
-          householdSitio: household.sitio || '',
-          createdAt: member.createdAt,
-          updatedAt: member.updatedAt,
-        });
+      pwdMembers.push({
+        memberId: memDoc.id,
+        householdId,
+        firstName: member.firstName || '',
+        middleName: member.middleName || '',
+        lastName: member.lastName || '',
+        fullName: member.fullName || '',
+        age: member.age || null,
+        sex: member.sex || '',
+        contactNumber: member.contactNumber || '',
+        headFirstName: household?.headFirstName || '',
+        headLastName: household?.headLastName || '',
+        headFullName: household?.headFullName || '',
+        householdBarangay: household?.barangay || '',
+        householdSitio: household?.sitio || '',
+        createdAt: member.createdAt,
+        updatedAt: member.updatedAt,
       });
-    }
+    });
 
     // Sort by last name, then first name
     pwdMembers.sort((a, b) => {

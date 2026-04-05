@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import { Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { db, storage } from '@/lib/firebaseConfig';
-import { collection, addDoc } from 'firebase/firestore';
+import { storage } from '@/lib/firebaseConfig';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'react-toastify';
+import { mapApi } from '../../services/mapApi';
 
 export default function AccidentMapForm({ onSubmit }) {
   const [position, setPosition] = useState(null);
@@ -42,6 +42,10 @@ export default function AccidentMapForm({ onSubmit }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!position) return;
+    if (!formData.type || !formData.severity || !formData.datetime) {
+      toast.error('Please fill in all required fields.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -54,19 +58,18 @@ export default function AccidentMapForm({ onSubmit }) {
         imageUrl = await getDownloadURL(storageRef);
       }
 
-      const data = {
+      // ✅ FIXED: Use API instead of direct Firestore - includes auth, audit trail, server timestamp
+      const accidentData = {
         ...formData,
-        position: {
-          lat: position.lat,
-          lng: position.lng,
-        },
+        lat: position.lat,
+        lng: position.lng,
+        barangay: '', // Will be set by API based on user's barangay or coordinates
         imageUrl,
-        createdAt: new Date(),
       };
 
-      await addDoc(collection(db, 'accidents'), data);
-      toast.success('Accident data submitted successfully!');
-      if (onSubmit) onSubmit(data);
+      const result = await mapApi.createAccident(accidentData);
+      toast.success('Accident reported successfully!');
+      if (onSubmit) onSubmit(result.accident);
 
       // reset form
       setPosition(null);
@@ -74,7 +77,7 @@ export default function AccidentMapForm({ onSubmit }) {
       setFile(null);
     } catch (error) {
       console.error('Error submitting accident:', error);
-      toast.error('Failed to submit accident.');
+      toast.error(error.message || 'Failed to report accident.');
     } finally {
       setLoading(false);
     }
@@ -86,7 +89,7 @@ export default function AccidentMapForm({ onSubmit }) {
     <Marker
       position={position}
       icon={L.icon({
-        iconUrl: 'https://cdn-icons-png.flaticon.com/512/564/564619.png',
+        iconUrl: '/leaflet-icons/accident-icon.svg',
         iconSize: [30, 30],
         iconAnchor: [15, 30],
       })}

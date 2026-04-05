@@ -14,7 +14,7 @@ import UploadHouseholdsModal from './UploadHouseholdModal';
 export default function HouseholdPageContent() {
   const router = useRouter();
   const vm = useHouseholds();
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, role } = useAuth(); // ✅ Get role from useAuth
   
   // Map popup state
   const [mapPopupOpen, setMapPopupOpen] = useState(false);
@@ -138,6 +138,7 @@ export default function HouseholdPageContent() {
             totalResidents={vm.totalResidents}
             page={vm.page}
             pageSize={10}
+            role={role} // ✅ Pass role prop for action visibility
           />
 
           <Pagination

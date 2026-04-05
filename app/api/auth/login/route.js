@@ -41,13 +41,7 @@ export async function POST(request) {
     const userData = userSnap.data() || {};
     const role = userData.role || null;
 
-    // Ensure user has an assigned role
-    if (!role) {
-      return NextResponse.json(
-        { error: 'User role is missing. Please contact admin.' },
-        { status: 403 }
-      );
-    }
+    // Note: Role can be null for new users - admins assign roles via protected endpoint
 
     // Create a Firebase session cookie (long-lived authentication)
     const sessionCookie = await adminAuth.createSessionCookie(idToken, {

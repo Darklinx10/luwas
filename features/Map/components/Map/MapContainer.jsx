@@ -1,9 +1,8 @@
 'use client';
 
-import { db, storage } from '@/lib/firebaseConfig';
+import { db } from '@/lib/firebaseConfig';
 import * as turf from '@turf/turf';
 import { doc, setDoc } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import L from 'leaflet';
 import 'leaflet.heat';
 import 'leaflet/dist/leaflet.css';
@@ -21,6 +20,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from '@/context/authContext';
 import { useMap } from '@/context/mapContext';
 import { reprojectGeoJSON } from '@/utils/geoJsonProjection';
+import { mapApi } from '../../services/mapApi';
 
 // Feature-based Map imports
 import { useMapState } from '../../hooks/useMapState';
@@ -61,16 +61,22 @@ const { BaseLayer } = LayersControl;
 export default function MapContainerComponent() {
   // Core state management
   const mapState = useMapState();
-  const { markers: householdMarkers, loading: markersLoading } = useHouseholdMarkers();
-  const { accidents, addAccident: addAccidentToState } = useAccidents();
-
+  
   // Auth and context
-  const { profile, role } = useAuth();
+  const { user, profile, role } = useAuth();
   const { boundaryGeoJSON, defaultCenter, setBoundaryGeoJSON } = useMap();
   const mapRef = useRef(null);
   const router = useRouter();
 
-  const isMDRRMCAdmin = profile?.role === 'MDRRMC-Admin';
+  const isMDRRMCAdmin = role === 'MDRRMC-Admin';
+
+  // ✅ Fetch household markers only for non-admin users
+  const { markers: householdMarkers, loading: markersLoading } = useHouseholdMarkers(!isMDRRMCAdmin);
+  
+  // ✅ Fetch accidents ONLY when accident map is active AND user is not admin
+  const { accidents, addAccident: addAccidentToState } = useAccidents(
+    mapState.isAccidentMap && !isMDRRMCAdmin
+  );
 
   // Redirect if no profile or role
   useEffect(() => {
@@ -78,6 +84,46 @@ export default function MapContainerComponent() {
       router.replace('/unauthorized');
     }
   }, [profile, role, markersLoading, router]);
+
+  // ✅ Fetch boundary ONLY when on map page (not on dashboard, reports, or other pages)
+  useEffect(() => {
+    const fetchBoundary = async () => {
+      try {
+        console.log('🗺️ Fetching boundary from API (MapContainer mount)...');
+        const response = await fetch('/api/maps/boundary', {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('📦 Boundary response:', {
+            hasGeojson: !!data.geojson,
+            features: data.features,
+            name: data.name,
+          });
+          if (data.geojson) {
+            console.log('✅ Setting boundary GeoJSON');
+            setBoundaryGeoJSON(data.geojson);
+          } else {
+            console.log('⚠️ No GeoJSON in response - boundary not uploaded yet');
+          }
+        } else if (response.status !== 404) {
+          console.error('❌ Error fetching boundary:', response.status);
+        }
+      } catch (err) {
+        console.error('❌ Error fetching boundary:', err);
+      }
+    };
+
+    fetchBoundary();
+
+    // Cleanup: Clear boundary when leaving map page
+    return () => {
+      console.log('🗺️ Leaving map page - boundary stays for performance');
+    };
+  }, []); // Empty dependency array - fetch once on mount
 
   // Handle accident submission (add to local state)
   const handleAccidentSubmit = (data) => {
@@ -107,7 +153,7 @@ export default function MapContainerComponent() {
       .filter(Boolean);
 
     mapState.setAffectedHouseholds(affected);
-  }, [mapState.hazardGeoJSON, householdMarkers, mapState.legendProp, mapState]);
+  }, [mapState.hazardGeoJSON, householdMarkers, mapState.legendProp]);
 
   // Clear hazard data if hazard is deselected
   useEffect(() => {
@@ -115,7 +161,7 @@ export default function MapContainerComponent() {
       mapState.setHazardGeoJSON(null);
       mapState.setAffectedHouseholds([]);
     }
-  }, [mapState.activeHazard, mapState]);
+  }, [mapState.activeHazard]);
 
   // Cluster accidents for heat map
   const clusteredAccidents = groupNearbyAccidents(accidents, ACCIDENT_CLUSTERING_RADIUS);
@@ -153,26 +199,34 @@ export default function MapContainerComponent() {
           mapRef.current.fitBounds(leafletGeoJSON.getBounds());
         }
 
-        // Upload to Firebase Storage
-        const storageRef = ref(storage, `boundary/${mapState.geojsonFile.name}`);
+        // Upload via API (server-side handling of stringification and admin validation)
+        const formData = new FormData();
         const blob = new Blob([JSON.stringify(geojson)], { type: 'application/geo+json' });
-        await uploadBytes(storageRef, blob);
-        const downloadURL = await getDownloadURL(storageRef);
+        formData.append('file', new File([blob], mapState.geojsonFile.name, { type: 'application/geo+json' }));
 
-        // Save metadata to Firestore
-        await setDoc(doc(db, 'settings', 'boundaryFile'), {
-          name: mapState.geojsonFile.name,
-          data: JSON.stringify(geojson),
-          url: downloadURL,
-          uploadedAt: new Date(),
+        const response = await fetch('/api/maps/boundary', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData,
         });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Upload failed');
+        }
 
         toast.success('GeoJSON uploaded, reprojected, and map updated!');
         mapState.setIsUploadModalOpen(false);
         mapState.setGeojsonFile(null);
       } catch (err) {
         console.error(err);
-        toast.error('Failed to upload or reproject GeoJSON');
+        if (err.message.includes('403')) {
+          toast.error('Only admin can upload boundaries');
+        } else if (err.message.includes('Invalid')) {
+          toast.error('Invalid GeoJSON file');
+        } else {
+          toast.error('Failed to upload GeoJSON: ' + err.message);
+        }
       } finally {
         mapState.setLoading(false);
       }

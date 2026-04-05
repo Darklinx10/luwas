@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { fetchSeniors, updateSenior, removeSeniorStatus } from '@/services/seniorServices';
+import { fetchSeniors, updateSenior, removeSeniorStatus } from '@/features/Reports/services/seniorServices';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/authContext';
 import { capitalizeWords } from '@/utils/capitalize';
@@ -42,17 +42,17 @@ export const useSeniors = (filterBarangay = null) => {
         .trim()
         .replace(/\s+/g, ' ')
         .toLowerCase();
-  
+
     const getLastName = (fullName) => {
       const cleaned = normalize(fullName);
       if (!cleaned) return '';
       const parts = cleaned.split(' ').filter(Boolean);
       return parts.length ? parts[parts.length - 1] : '';
     };
-  
+
     const term = normalize(searchTerm);
     const barangayFilter = normalize(effectiveBarangay);
-  
+
     return [...seniors]
       .filter((item) => {
         if (!barangayFilter) return true;
@@ -65,10 +65,10 @@ export const useSeniors = (filterBarangay = null) => {
       .sort((a, b) => {
         const lastA = getLastName(a.name);
         const lastB = getLastName(b.name);
-  
+
         const fullA = normalize(a.name);
         const fullB = normalize(b.name);
-  
+
         return lastA.localeCompare(lastB) || fullA.localeCompare(fullB);
       });
   }, [seniors, searchTerm, effectiveBarangay]);

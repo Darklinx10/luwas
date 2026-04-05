@@ -1,7 +1,6 @@
 'use client';
 
-import { db, storage } from '@/lib/firebaseConfig';
-import { collection, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { storage } from '@/lib/firebaseConfig';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
@@ -21,7 +20,7 @@ export default function AccidentTable({ title = 'Accident Reports' }) {
   const [editData, setEditData] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
 
-  const { accidents, searchTerm, setSearchTerm, loading, refetch, setAccidents } =
+  const { accidents, searchTerm, setSearchTerm, loading, pagination, goToPage, refetch, setAccidents } =
     useAccidentsReport();
 
   // Open map popup with coordinates
@@ -34,7 +33,7 @@ export default function AccidentTable({ title = 'Accident Reports' }) {
     }
   };
 
-  // Delete accident record
+  // ✅ FIXED: Delete via API instead of direct Firestore
   const handleDelete = async (id) => {
     const confirm = window.confirm(
       'Are you sure you want to delete this accident record?'
@@ -42,23 +41,44 @@ export default function AccidentTable({ title = 'Accident Reports' }) {
     if (!confirm) return;
 
     try {
-      await deleteDoc(doc(db, 'accidents', id));
+      const response = await fetch(`/api/accidents/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete accident');
+      }
+      
       setAccidents((prev) => prev.filter((acc) => acc.id !== id));
       toast.success('Accident record deleted.');
       refetch();
     } catch (err) {
       console.error('Delete failed:', err);
-      toast.error('Failed to delete record.');
+      toast.error(err.message || 'Failed to delete record.');
     }
   };
 
-  // Open edit modal with pre-filled accident data
+  // ✅ FIXED: Fetch via API instead of direct Firestore
   const handleEdit = async (id) => {
-    const docRef = doc(db, 'accidents', id);
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) return toast.error('Accident not found.');
-    setEditData({ id, ...docSnap.data() });
-    setShowEditModal(true);
+    try {
+      const response = await fetch(`/api/accidents/${id}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Accident not found.');
+      }
+      
+      const data = await response.json();
+      setEditData({ id, ...data.accident });
+      setShowEditModal(true);
+    } catch (err) {
+      console.error('Edit fetch failed:', err);
+      toast.error('Accident not found.');
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -77,14 +97,24 @@ export default function AccidentTable({ title = 'Accident Reports' }) {
         imageUrl = await getDownloadURL(storageRef);
       }
 
-      // ✅ Update Firestore document
-      await updateDoc(doc(db, 'accidents', id), {
-        type,
-        severity,
-        description,
-        datetime,
-        imageUrl,
+      // ✅ FIXED: Update via API instead of direct Firestore
+      const response = await fetch(`/api/accidents/${id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type,
+          severity,
+          description,
+          datetime,
+          imageUrl,
+        }),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update accident');
+      }
 
       // ✅ Update local state
       setAccidents((prev) =>
@@ -100,7 +130,7 @@ export default function AccidentTable({ title = 'Accident Reports' }) {
       refetch();
     } catch (err) {
       console.error(err);
-      toast.error('Update failed.');
+      toast.error(err.message || 'Update failed.');
     } finally {
       setEditLoading(false);
     }
@@ -240,8 +270,8 @@ export default function AccidentTable({ title = 'Accident Reports' }) {
                           <button
                             onClick={() =>
                               openMapWithLocation(
-                                accident.position?.lat,
-                                accident.position?.lng
+                                accident.lat || accident.position?.lat,
+                                accident.lng || accident.position?.lng
                               )
                             }
                             className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 text-xs"
@@ -277,8 +307,58 @@ export default function AccidentTable({ title = 'Accident Reports' }) {
         </div>
       </div>
 
-      <p className="text-sm text-gray-700 mt-4">
-        <strong>Total Accidents:</strong> {accidents.length}
+      {/* Pagination Info & Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mt-4 px-4 py-3 bg-gray-50 rounded print:hidden">
+        <p className="text-sm text-gray-700">
+          <strong>Total Accidents:</strong> {pagination.totalCount} | 
+          <strong className="ml-2">Page {pagination.page} of {pagination.totalPages}</strong>
+        </p>
+
+        {pagination.totalPages > 1 && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => goToPage(pagination.page - 1)}
+              disabled={pagination.page === 1 || loading}
+              className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+
+            {/* Page Numbers */}
+            <div className="flex gap-1">
+              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === pagination.totalPages || Math.abs(p - pagination.page) <= 1)
+                .map((p, idx, arr) => (
+                  <div key={p}>
+                    {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1">...</span>}
+                    <button
+                      onClick={() => goToPage(p)}
+                      disabled={loading}
+                      className={`px-2 py-1 rounded text-sm ${
+                        p === pagination.page
+                          ? 'bg-green-600 text-white'
+                          : 'bg-white border border-gray-300 hover:bg-gray-100'
+                      } disabled:opacity-50`}
+                    >
+                      {p}
+                    </button>
+                  </div>
+                ))}
+            </div>
+
+            <button
+              onClick={() => goToPage(pagination.page + 1)}
+              disabled={pagination.page === pagination.totalPages || loading}
+              className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
+
+      <p className="text-sm text-gray-700 mt-2 px-4">
+        Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of {pagination.totalCount} accidents
       </p>
 
       {/* Edit Modal */}

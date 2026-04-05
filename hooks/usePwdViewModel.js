@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/authContext';
-import { pwdService } from '@/services/pwdService';
+import { pwdService } from '@/features/Reports/services/pwdService';
 
 export const usePWDs = (filterBarangay) => {
   const { profile, loading: authLoading } = useAuth();
@@ -31,43 +31,43 @@ export const usePWDs = (filterBarangay) => {
     profile?.role === 'Brgy-Secretary'
       ? profile?.barangay
       : filterBarangay;
-  
+
   const filteredPWDs = useMemo(() => {
-  const normalize = (value) =>
-    String(value || '')
-      .trim()
-      .replace(/\s+/g, ' ')
-      .toLowerCase();
+    const normalize = (value) =>
+      String(value || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
 
-  const getLastName = (fullName) => {
-    const cleaned = normalize(fullName);
-    if (!cleaned) return '';
-    const parts = cleaned.split(' ').filter(Boolean);
-    return parts.length ? parts[parts.length - 1] : '';
-  };
+    const getLastName = (fullName) => {
+      const cleaned = normalize(fullName);
+      if (!cleaned) return '';
+      const parts = cleaned.split(' ').filter(Boolean);
+      return parts.length ? parts[parts.length - 1] : '';
+    };
 
-  const term = normalize(searchTerm);
-  const barangayFilter = normalize(effectiveBarangay);
+    const term = normalize(searchTerm);
+    const barangayFilter = normalize(effectiveBarangay);
 
-  return [...pwds]
-    .filter((item) => {
-      if (!barangayFilter) return true;
-      return normalize(item.barangay) === barangayFilter;
-    })
-    .filter((item) => {
-      if (!term) return true;
-      return getLastName(item.name).includes(term);
-    })
-    .sort((a, b) => {
-      const lastA = getLastName(a.name);
-      const lastB = getLastName(b.name);
+    return [...pwds]
+      .filter((item) => {
+        if (!barangayFilter) return true;
+        return normalize(item.barangay) === barangayFilter;
+      })
+      .filter((item) => {
+        if (!term) return true;
+        return getLastName(item.name).includes(term);
+      })
+      .sort((a, b) => {
+        const lastA = getLastName(a.name);
+        const lastB = getLastName(b.name);
 
-      const fullA = normalize(a.name);
-      const fullB = normalize(b.name);
+        const fullA = normalize(a.name);
+        const fullB = normalize(b.name);
 
-      return lastA.localeCompare(lastB) || fullA.localeCompare(fullB);
-    });
-}, [pwds, searchTerm, effectiveBarangay]);
+        return lastA.localeCompare(lastB) || fullA.localeCompare(fullB);
+      });
+  }, [pwds, searchTerm, effectiveBarangay]);
 
   const savePWD = async (item) => {
     try {

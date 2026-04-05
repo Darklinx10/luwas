@@ -29,24 +29,7 @@ export const MapProvider = ({ children }) => {
     return () => unsubscribe();
   }, [user]);
 
-  // Fetch boundary once
-  useEffect(() => {
-    if (!user) return; // 🔹 skip if logged out
-
-    const fetchBoundary = async () => {
-      try {
-        const docRef = doc(db, 'settings', 'boundaryFile');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const geojson = JSON.parse(docSnap.data().data);
-          setBoundaryGeoJSON(geojson);
-        }
-      } catch (err) {
-        console.error('Error fetching boundary:', err);
-      }
-    };
-    fetchBoundary();
-  }, [user]);
+  // ✅ REMOVED: Boundary fetch moved to MapContainer so it only fetches when map page is active
 
   // Optional: refresh default center manually
   const refreshMapCenter = async () => {

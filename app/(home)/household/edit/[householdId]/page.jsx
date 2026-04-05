@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   doc,
   getDoc,
@@ -61,12 +61,13 @@ const formSections = {
 function EditHouseholdFormPage({ params }) {
   const router = useRouter();
   const { user, profile } = useAuth();
-  const { householdId } = params;
+  const { householdId } = React.use(params);
   const userRole = profile?.role;
 
   const [currentSection, setCurrentSection] = useState('Geographic Identification');
   const [loading, setLoading] = useState(true);
   const [savedMembers, setSavedMembers] = useState([]);
+  const [householdData, setHouseholdData] = useState(null);
   const [isUpdated, setIsUpdated] = useState(false);
 
   const sectionKeys = Object.keys(formSections);
@@ -79,7 +80,7 @@ function EditHouseholdFormPage({ params }) {
       }
 
       try {
-        // Verify household exists
+        // Verify household exists and load all household data
         const hhRef = doc(db, 'households', householdId);
         const hhSnap = await getDoc(hhRef);
 
@@ -88,6 +89,9 @@ function EditHouseholdFormPage({ params }) {
           router.push('/household');
           return;
         }
+
+        // Store all household data
+        setHouseholdData(hhSnap.data());
 
         // Load members for this household
         const membersSnap = await getDocs(
@@ -99,7 +103,7 @@ function EditHouseholdFormPage({ params }) {
         }));
 
         setSavedMembers(members);
-        setCurrentSection('Geographic Identification');
+        setCurrentSection(hhSnap.data()?.lastSection || 'Geographic Identification');
       } catch (error) {
         console.error('❌ Error loading household data:', error);
         alert('Failed to load household data');
@@ -144,7 +148,7 @@ function EditHouseholdFormPage({ params }) {
 
   const SectionComponent = formSections[currentSection] || (() => <div>Section not found</div>);
 
-  if (loading || !profile) {
+  if (loading || !user || !profile) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="flex flex-col items-center">
@@ -163,16 +167,12 @@ function EditHouseholdFormPage({ params }) {
     );
   }
 
-  if (userRole !== 'Brgy-Secretary') {
+  if (userRole !== 'Brgy-Secretary' && userRole !== 'MDRRMC-Admin') {
     return (
       <div className="p-6 text-red-500 text-center">
-        ❌ Access Denied: This page is restricted to <strong>Secretary</strong> users.
+        ❌ Access Denied: This page is restricted to <strong>Secretary</strong> and <strong>Admin</strong> users.
       </div>
     );
-  }
-
-  if (!user) {
-    return <div className="p-6 text-red-500">❌ Unable to load form. Make sure you&apos;re logged in.</div>;
   }
 
   if (isUpdated) {
@@ -201,6 +201,7 @@ function EditHouseholdFormPage({ params }) {
           <p className="text-gray-500 text-sm mb-4">Editing Household #{householdId}</p>
           <SectionComponent
             householdId={householdId}
+            householdData={householdData}
             members={savedMembers}
             setSavedMembers={setSavedMembers}
             user={user}

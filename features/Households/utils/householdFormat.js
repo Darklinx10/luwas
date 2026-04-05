@@ -70,12 +70,18 @@ export function formatAddress({ sitio = '', barangay = '' } = {}) {
  * @returns {Object} Normalized household data
  */
 export function normalizeHousehold(household = {}) {
+  // Ensure name fields are always defined and not null/undefined
+  const headFirstName = capitalizeWords(household.headFirstName || '');
+  const headMiddleName = capitalizeWords(household.headMiddleName || '');
+  const headLastName = capitalizeWords(household.headLastName || '');
+  const headSuffix = capitalizeWords(household.headSuffix || '');
+
   return {
     ...household,
-    headFirstName: capitalizeWords(household.headFirstName),
-    headMiddleName: capitalizeWords(household.headMiddleName),
-    headLastName: capitalizeWords(household.headLastName),
-    headSuffix: capitalizeWords(household.headSuffix),
+    headFirstName,
+    headMiddleName,
+    headLastName,
+    headSuffix,
     headFullName: formatFullName({
       firstName: household.headFirstName,
       middleName: household.headMiddleName,

@@ -16,12 +16,12 @@ import { useMap } from '@/context/mapContext'; // optional, for shared boundary/
 
 const { BaseLayer } = LayersControl;
 
-// Setup default Leaflet marker icons
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-shadow.png',
+// ✅ Create local marker icon (SVG-based, no CDN needed)
+const defaultIcon = L.icon({
+  iconUrl: '/leaflet-icons/marker-icon.svg',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
 });
 
 // Marker component to handle map clicks
@@ -55,6 +55,37 @@ export default function MapPopup({
   useEffect(() => {
     if (location) setPosition(location);
   }, [location]);
+
+  // ✅ Fetch boundary from API endpoint when modal opens (if not in context)
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const fetchBoundary = async () => {
+      // Use context boundary if available
+      if (contextBoundary) {
+        setBoundaryGeoJSON(contextBoundary);
+        return;
+      }
+
+      // Otherwise fetch from API endpoint (handles Firestore permissions server-side)
+      try {
+        const response = await fetch('/api/maps/boundary');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.geojson) {
+            setBoundaryGeoJSON(data.geojson);
+            console.log('✅ Boundary loaded in map popup:', {features: data.geojson.features?.length || 0});
+          }
+        } else {
+          console.warn('API returned status:', response.status);
+        }
+      } catch (err) {
+        console.warn('Could not load boundary:', err);
+      }
+    };
+
+    fetchBoundary();
+  }, [isOpen, contextBoundary]);
 
 
   
@@ -109,7 +140,7 @@ export default function MapPopup({
               />
             )}
 
-            <Marker position={position}>
+            <Marker position={position} icon={defaultIcon}>
               {readOnly && <Popup>{label}</Popup>}
             </Marker>
 

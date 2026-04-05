@@ -24,6 +24,7 @@
 import { NextResponse } from 'next/server';
 import admin from '@/lib/firebaseAdmin';
 import { getSessionUser } from '@/lib/auth/getSessionUser';
+import { logFirestoreError, analyzeFirestoreError } from '@/lib/api/firestoreErrorHandler';
 
 export const runtime = 'nodejs';
 
@@ -213,8 +214,33 @@ export async function GET(req) {
       hasPrevPage: page > 1,
     });
 
-  } catch (error) {
-    console.error('GET /api/users error:', error);
+  } catch (queryError) {
+    // Intelligent error handling for Firestore composite index errors
+    if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
+      const queryMetadata = {
+        collection: 'users',
+        where: [],
+        orderBy: [],
+        pagination: 'offset',
+      };
+
+      logFirestoreError(queryError, queryMetadata);
+      const analysis = analyzeFirestoreError(queryError, queryMetadata);
+
+      return NextResponse.json(
+        {
+          error: 'Firestore composite index required',
+          errorCode: queryError.code,
+          isIndexError: true,
+          consoleLink: analysis.indexUrl,
+          explanation: analysis.explanation,
+          message: 'An index is required for this query.',
+        },
+        { status: 503 }
+      );
+    }
+
+    console.error('GET /api/users error:', queryError);
     return NextResponse.json(
       { error: 'Failed to fetch users' },
       { status: 500 }

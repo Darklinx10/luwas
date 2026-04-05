@@ -25,6 +25,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth/getSessionUser';
 import { adminDb } from '@/lib/firebaseAdmin';
+import { logFirestoreError, analyzeFirestoreError } from '@/lib/api/firestoreErrorHandler';
 
 export async function GET(request) {
   console.log('📊 GET /api/dashboard called');
@@ -80,6 +81,24 @@ export async function GET(request) {
     let mappedHouseholds = 0;
     const barangayCounts = {};
 
+    // Initialize age bracket counts
+    const ageBracketCounts = {
+      'Under 1': 0,
+      '1-4': 0,
+      '5-9': 0,
+      '10-14': 0,
+      '15-19': 0,
+      '20-24': 0,
+      '25-29': 0,
+      '30-34': 0,
+      '35-39': 0,
+      '40-44': 0,
+      '45-49': 0,
+      '50-54': 0,
+      '55-59': 0,
+      '60 and over': 0,
+    };
+
     householdSnap.forEach((doc) => {
       const data = doc.data();
 
@@ -104,6 +123,15 @@ export async function GET(request) {
       totalFemale += female;
       totalPWDs += pwds;
       totalSeniors += seniors;
+
+      // Aggregate age brackets from household data
+      if (data.ageBrackets && typeof data.ageBrackets === 'object') {
+        Object.entries(data.ageBrackets).forEach(([bracket, count]) => {
+          if (ageBracketCounts.hasOwnProperty(bracket)) {
+            ageBracketCounts[bracket] += Number(count) || 0;
+          }
+        });
+      }
 
       // Count households with map locations
       if (data.homes && Array.isArray(data.homes) && data.homes.length > 0) {
@@ -165,24 +193,23 @@ export async function GET(request) {
     console.log(`✅ Hazards: ${totalHazards}, Accidents: ${totalAccidents}`);
 
     // ============================================
-    // AGE BRACKET DATA (from household summary fields)
+    // AGE BRACKET DATA (aggregated from household top-level fields)
     // ============================================
-    // Default structure - can be populated by reading members if needed in future
     const ageBracketData = [
-      { age: 'Under 1', count: 0 },
-      { age: '1-4', count: 0 },
-      { age: '5-9', count: 0 },
-      { age: '10-14', count: 0 },
-      { age: '15-19', count: 0 },
-      { age: '20-24', count: 0 },
-      { age: '25-29', count: 0 },
-      { age: '30-34', count: 0 },
-      { age: '35-39', count: 0 },
-      { age: '40-44', count: 0 },
-      { age: '45-49', count: 0 },
-      { age: '50-54', count: 0 },
-      { age: '55-59', count: 0 },
-      { age: '60 and over', count: totalSeniors }, // Use household totalSeniors for 60+
+      { age: 'Under 1', count: ageBracketCounts['Under 1'] },
+      { age: '1-4', count: ageBracketCounts['1-4'] },
+      { age: '5-9', count: ageBracketCounts['5-9'] },
+      { age: '10-14', count: ageBracketCounts['10-14'] },
+      { age: '15-19', count: ageBracketCounts['15-19'] },
+      { age: '20-24', count: ageBracketCounts['20-24'] },
+      { age: '25-29', count: ageBracketCounts['25-29'] },
+      { age: '30-34', count: ageBracketCounts['30-34'] },
+      { age: '35-39', count: ageBracketCounts['35-39'] },
+      { age: '40-44', count: ageBracketCounts['40-44'] },
+      { age: '45-49', count: ageBracketCounts['45-49'] },
+      { age: '50-54', count: ageBracketCounts['50-54'] },
+      { age: '55-59', count: ageBracketCounts['55-59'] },
+      { age: '60 and over', count: ageBracketCounts['60 and over'] },
     ];
 
     // ============================================
@@ -228,10 +255,35 @@ export async function GET(request) {
       success: true,
       stats,
     });
-  } catch (error) {
-    console.error('❌ GET /api/dashboard error:', error?.message || error);
+  } catch (queryError) {
+    // Intelligent error handling for Firestore composite index errors
+    if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
+      const queryMetadata = {
+        collection: 'households',
+        where: [],
+        orderBy: [],
+        pagination: 'offset',
+      };
+
+      logFirestoreError(queryError, queryMetadata);
+      const analysis = analyzeFirestoreError(queryError, queryMetadata);
+
+      return NextResponse.json(
+        {
+          error: 'Firestore composite index required',
+          errorCode: queryError.code,
+          isIndexError: true,
+          consoleLink: analysis.indexUrl,
+          explanation: analysis.explanation,
+          message: 'An index is required for this query.',
+        },
+        { status: 503 }
+      );
+    }
+
+    console.error('❌ GET /api/dashboard error:', queryError?.message || queryError);
     return NextResponse.json(
-      { error: error?.message || 'Failed to fetch dashboard data' },
+      { error: queryError?.message || 'Failed to fetch dashboard data' },
       { status: 500 }
     );
   }

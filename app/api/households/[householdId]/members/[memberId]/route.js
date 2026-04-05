@@ -13,6 +13,7 @@ import {
   updateMember,
   deleteMember,
 } from '@/lib/api/memberService';
+import { logFirestoreError, analyzeFirestoreError } from '@/lib/api/firestoreErrorHandler';
 
 export async function PATCH(request, { params: paramsPromise }) {
   // ✅ Verify authentication
@@ -79,10 +80,35 @@ export async function PATCH(request, { params: paramsPromise }) {
       success: true,
       message: 'Member updated successfully',
     });
-  } catch (error) {
+  } catch (queryError) {
+    // Intelligent error handling for Firestore composite index errors
+    if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
+      const queryMetadata = {
+        collection: 'members',
+        where: [],
+        orderBy: [],
+        pagination: 'none',
+      };
+
+      logFirestoreError(queryError, queryMetadata);
+      const analysis = analyzeFirestoreError(queryError, queryMetadata);
+
+      return NextResponse.json(
+        {
+          error: 'Firestore composite index required',
+          errorCode: queryError.code,
+          isIndexError: true,
+          consoleLink: analysis.indexUrl,
+          explanation: analysis.explanation,
+          message: 'An index is required for this operation.',
+        },
+        { status: 503 }
+      );
+    }
+
     console.error(
       `PATCH /api/households/members error:`,
-      error
+      queryError
     );
     return NextResponse.json(
       { error: 'Failed to update member' },
@@ -154,10 +180,35 @@ export async function DELETE(request, { params: paramsPromise }) {
       success: true,
       message: 'Member deleted successfully',
     });
-  } catch (error) {
+  } catch (queryError) {
+    // Intelligent error handling for Firestore composite index errors
+    if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
+      const queryMetadata = {
+        collection: 'members',
+        where: [],
+        orderBy: [],
+        pagination: 'none',
+      };
+
+      logFirestoreError(queryError, queryMetadata);
+      const analysis = analyzeFirestoreError(queryError, queryMetadata);
+
+      return NextResponse.json(
+        {
+          error: 'Firestore composite index required',
+          errorCode: queryError.code,
+          isIndexError: true,
+          consoleLink: analysis.indexUrl,
+          explanation: analysis.explanation,
+          message: 'An index is required for this operation.',
+        },
+        { status: 503 }
+      );
+    }
+
     console.error(
       `DELETE /api/households/members error:`,
-      error
+      queryError
     );
     return NextResponse.json(
       { error: 'Failed to delete member' },

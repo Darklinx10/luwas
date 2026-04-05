@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="30" height="30">
+  <!-- Roof -->
+  <path fill="#B8E986" d="M12 2L2 12h2v8h16v-8h2L12 2z"/>
+  <!-- Main house body -->
+  <rect x="4" y="10" width="16" height="10" fill="#CDDC39"/>
+  <!-- Door -->
+  <rect x="10" y="14" width="4" height="6" fill="#9CCC65"/>
+  <!-- Door handle -->
+  <circle cx="13.5" cy="17" r="0.5" fill="#333"/>
+  <!-- Windows -->
+  <rect x="5" y="12" width="3" height="3" fill="#7CB342"/>
+  <rect x="16" y="12" width="3" height="3" fill="#7CB342"/>
+  <!-- Window panes -->
+  <line x1="6.5" y1="12" x2="6.5" y2="15" stroke="#333" stroke-width="0.5"/>
+  <line x1="5" y1="13.5" x2="8" y2="13.5" stroke="#333" stroke-width="0.5"/>
+  <line x1="17.5" y1="12" x2="17.5" y2="15" stroke="#333" stroke-width="0.5"/>
+  <line x1="16" y1="13.5" x2="19" y2="13.5" stroke="#333" stroke-width="0.5"/>
+</svg>

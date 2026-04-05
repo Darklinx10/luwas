@@ -4,7 +4,7 @@ import { useState } from 'react';
 import RoleGuard from '@/components/roleGuard';
 import dynamic from 'next/dynamic';
 import { FiPlus, FiSearch } from 'react-icons/fi';
-import { useHazardViewModel } from '@/hooks/useHazardViewModel';
+import { useHazardViewModel } from '@/features/Hazard/hooks/useHazardViewModel';
 import HazardTable from './components/HazardTable';
 import HazardPreviewModal from './components/HazardPreviewModal';
 

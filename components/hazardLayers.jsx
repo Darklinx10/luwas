@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import { fetchHazardFromFirebase } from '@/utils/fetchHazards';
 import useIsMobile from '@/hooks/useMobile';
 
 function getColorScale(geojson, legendProp, colorSettings) {
@@ -64,7 +63,18 @@ export default function HazardLayer({
     const loadHazard = async () => {
       setLoading(true);
       try {
-        const data = await fetchHazardFromFirebase(activeHazard);
+        // Fetch hazards from public API (visible to all users)
+        const response = await fetch(`/api/hazards?type=${encodeURIComponent(activeHazard)}`, {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch hazards: ${response.statusText}`);
+        }
+
+        const data = await response.json();
         if (isCancelled) return;
 
         // Remove old layers

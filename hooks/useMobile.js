@@ -1,26 +1,29 @@
-// hooks/useIsMobile.js
-import { useEffect, useState } from "react";
+'use client';
 
-// match Tailwind breakpoints
-const breakpoints = {
-  sm: 640,
-  md: 768,
-  lg: 1024,
-  xl: 1280,
-};
+import { useState, useEffect } from 'react';
 
-export default function useIsMobile(breakpoint = "md") {
+/**
+ * Hook to detect if the screen size is mobile (< 768px)
+ * @returns {boolean} true if mobile, false otherwise
+ */
+export default function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const bp = breakpoints[breakpoint] ?? breakpoints.md;
+      // Set initial value
+      const checkMobile = () => {
+          setIsMobile(window.innerWidth < 768);
+      };
 
-    const checkSize = () => setIsMobile(window.innerWidth < bp);
-    checkSize();
+      checkMobile();
 
-    window.addEventListener("resize", checkSize);
-    return () => window.removeEventListener("resize", checkSize);
-  }, [breakpoint]);
+      // Add resize listener
+      window.addEventListener('resize', checkMobile);
+
+      return () => {
+          window.removeEventListener('resize', checkMobile);
+      };
+  }, []);
 
   return isMobile;
 }

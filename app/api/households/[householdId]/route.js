@@ -13,6 +13,7 @@ import {
   updateHousehold,
   deleteHousehold,
 } from '@/lib/api/householdService';
+import { logFirestoreError, analyzeFirestoreError } from '@/lib/api/firestoreErrorHandler';
 
 export async function GET(request, { params: paramsPromise }) {
   // ✅ Verify authentication
@@ -58,8 +59,25 @@ export async function GET(request, { params: paramsPromise }) {
     return NextResponse.json({
       household,
     });
-  } catch (error) {
-    console.error(`GET /api/households error:`, error);
+  } catch (queryError) {
+    // Intelligent error handling for Firestore composite index errors
+    if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
+      const analysis = analyzeFirestoreError(queryError, { collection: 'households' });
+      logFirestoreError(queryError, { collection: 'households' });
+
+      return NextResponse.json(
+        {
+          error: 'Firestore error',
+          errorCode: queryError.code,
+          isIndexError: true,
+          consoleLink: analysis.indexUrl,
+          message: analysis.explanation,
+        },
+        { status: 500 }
+      );
+    }
+
+    console.error(`GET /api/households error:`, queryError);
     return NextResponse.json(
       { error: 'Failed to fetch household' },
       { status: 500 }
@@ -132,10 +150,27 @@ export async function PATCH(request, { params: paramsPromise }) {
       success: true,
       message: 'Household updated successfully',
     });
-  } catch (error) {
+  } catch (queryError) {
+    // Intelligent error handling for Firestore composite index errors
+    if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
+      const analysis = analyzeFirestoreError(queryError, { collection: 'households' });
+      logFirestoreError(queryError, { collection: 'households' });
+
+      return NextResponse.json(
+        {
+          error: 'Firestore error',
+          errorCode: queryError.code,
+          isIndexError: true,
+          consoleLink: analysis.indexUrl,
+          message: analysis.explanation,
+        },
+        { status: 500 }
+      );
+    }
+
     console.error(
       `PATCH /api/households error:`,
-      error
+      queryError
     );
     return NextResponse.json(
       { error: 'Failed to update household' },
@@ -188,10 +223,27 @@ export async function DELETE(request, { params: paramsPromise }) {
       success: true,
       message: 'Household deleted successfully',
     });
-  } catch (error) {
+  } catch (queryError) {
+    // Intelligent error handling for Firestore composite index errors
+    if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
+      const analysis = analyzeFirestoreError(queryError, { collection: 'households' });
+      logFirestoreError(queryError, { collection: 'households' });
+
+      return NextResponse.json(
+        {
+          error: 'Firestore error',
+          errorCode: queryError.code,
+          isIndexError: true,
+          consoleLink: analysis.indexUrl,
+          message: analysis.explanation,
+        },
+        { status: 500 }
+      );
+    }
+
     console.error(
       `DELETE /api/households error:`,
-      error
+      queryError
     );
     return NextResponse.json(
       { error: 'Failed to delete household' },

@@ -24,47 +24,59 @@
  * @returns {string} Display name for household
  */
 export const formatHouseholdName = (household = {}) => {
-  if (!household) return 'Unnamed';
+  try {
+    if (!household || typeof household !== 'object') return 'Unnamed';
 
-  // 1. Use pre-computed headFullName if available and not empty
-  if (household.headFullName && household.headFullName.trim()) {
-    return household.headFullName.trim();
+    // 1. Use pre-computed headFullName if available and not empty
+    if (household.headFullName && typeof household.headFullName === 'string' && household.headFullName.trim()) {
+      return household.headFullName.trim();
+    }
+
+    // 2. Construct from individual components
+    const {
+      headFirstName = '',
+      headMiddleName = '',
+      headLastName = '',
+      headSuffix = '',
+      householdId = '',
+    } = household;
+
+    // Ensure all values are strings before processing
+    const firstName = typeof headFirstName === 'string' ? headFirstName : '';
+    const middleName = typeof headMiddleName === 'string' ? headMiddleName : '';
+    const lastName = typeof headLastName === 'string' ? headLastName : '';
+    const suffix = typeof headSuffix === 'string' ? headSuffix : '';
+    const id = typeof householdId === 'string' ? householdId : '';
+
+    // Build name from components (first + middle) (last)(suffix)
+    const firstPart = [firstName, middleName]
+      .filter((n) => n && n.trim())
+      .join(' ')
+      .trim();
+    const lastPart = lastName && lastName.trim() ? lastName.trim() : '';
+    const suffixPart = suffix && suffix.trim() ? suffix.trim() : '';
+
+    // Assemble full name
+    const constructedName = [lastPart, firstPart, suffixPart]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    if (constructedName) {
+      return constructedName;
+    }
+
+    // 3. Fall back to household ID
+    if (id && id.trim()) {
+      return id.trim();
+    }
+
+    // 4. Final fallback
+    return 'Unnamed';
+  } catch (error) {
+    console.error('Error in formatHouseholdName:', error);
+    return 'Unnamed';
   }
-
-  // 2. Construct from individual components
-  const {
-    headFirstName = '',
-    headMiddleName = '',
-    headLastName = '',
-    headSuffix = '',
-    householdId = '',
-  } = household;
-
-  // Build name from components (first + middle) (last)(suffix)
-  const firstPart = [headFirstName, headMiddleName]
-    .filter((n) => n && n.trim())
-    .join(' ')
-    .trim();
-  const lastPart = headLastName && headLastName.trim() ? headLastName.trim() : '';
-  const suffix = headSuffix && headSuffix.trim() ? headSuffix.trim() : '';
-
-  // Assemble full name
-  const constructedName = [lastPart, firstPart, suffix]
-    .filter(Boolean)
-    .join(' ')
-    .trim();
-
-  if (constructedName) {
-    return constructedName;
-  }
-
-  // 3. Fall back to household ID
-  if (householdId && householdId.trim()) {
-    return householdId.trim();
-  }
-
-  // 4. Final fallback (should rarely reach here)
-  return 'Unnamed';
 };
 
 /**

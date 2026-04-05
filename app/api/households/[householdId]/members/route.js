@@ -12,6 +12,7 @@ import {
   fetchMembersQuery,
   createMember,
 } from '@/lib/api/memberService';
+import { logFirestoreError, analyzeFirestoreError } from '@/lib/api/firestoreErrorHandler';
 
 export async function GET(request, { params: paramsPromise }) {
   // ✅ Verify authentication
@@ -87,14 +88,53 @@ export async function GET(request, { params: paramsPromise }) {
       hasNextPage: result.hasNextPage,
       hasPrevPage: result.hasPrevPage,
     });
-  } catch (error) {
+  } catch (queryError) {
+    // Intelligent error handling for Firestore composite index errors
+    if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
+      const queryMetadata = {
+        collection: `households/${householdId}/members`,
+        where: [],
+        orderBy: [
+          { field: 'lastName', direction: 'asc' },
+          { field: 'firstName', direction: 'asc' },
+          { field: 'middleName', direction: 'asc' },
+        ],
+        pagination: 'offset',
+      };
+
+      // Log detailed analysis for developers
+      logFirestoreError(queryError, queryMetadata);
+
+      // Return actionable error response
+      const analysis = analyzeFirestoreError(queryError, queryMetadata);
+
+      return NextResponse.json(
+        {
+          error: 'Firestore composite index required',
+          errorCode: queryError.code,
+          isIndexError: true,
+          explanation: analysis.explanation,
+          queryFields: analysis.fields,
+          suggestions: analysis.suggestions,
+          actionSteps: analysis.actionSteps,
+          ...(analysis.indexUrl && {
+            consoleLink: analysis.indexUrl,
+            details: `The query requires an index. You can create it here: ${analysis.indexUrl}`,
+          }),
+          message: 'Please follow the action steps or click consoleLink to create the required Firestore composite index.',
+        },
+        { status: 500 }
+      );
+    }
+
+  // Regular error handling for non-index errors
     console.error(
       `❌ GET /api/households/${householdId}/members error:`,
-      error?.message || String(error),
-      error?.stack
+      queryError?.message || String(queryError),
+      queryError?.stack
     );
     return NextResponse.json(
-      { error: error?.message || 'Failed to fetch members' },
+      { error: queryError?.message || 'Failed to fetch members' },
       { status: 500 }
     );
   }

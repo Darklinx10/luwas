@@ -55,10 +55,11 @@ export function useLogin({ setShowPageLoader, setRedirectMessage } = {}) {
       const user = await loginWithEmail(email.trim(), password);
 
       const idToken = await user.getIdToken(true);
-      await createServerSession(idToken);
 
-      // 🔐 Pass idToken to server-side profile creation
+      // 🔐 Create profile FIRST (before session), so it exists for login endpoint
       const { profile, isNewUser } = await getOrCreateUserProfile(idToken);
+
+      await createServerSession(idToken);
 
       authContext?.setProfile?.(profile);
       saveRememberMe(email.trim(), rememberMe);

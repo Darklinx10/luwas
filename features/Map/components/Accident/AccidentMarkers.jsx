@@ -5,14 +5,20 @@ import { Marker, Popup } from 'react-leaflet';
 import Image from 'next/image';
 
 const AccidentMarkers = ({ isAccidentMap, isMDRRMCAdmin, accidents, accidentIcon }) => {
-  if (!isAccidentMap || isMDRRMCAdmin) return null;
+  // ✅ FIXED: Show accidents to all authenticated users, not blocked for admin
+  if (!isAccidentMap) return null;
 
   return (
     <>
-      {accidents.map((acc, idx) => (
+      {accidents.map((acc, idx) => {
+        // ✅ FIXED: Normalize position from {lat, lng} structure used by API
+        const position = acc.position || { lat: acc.lat, lng: acc.lng };
+        if (!position.lat || !position.lng) return null; // Skip if no valid coordinates
+        
+        return (
         <Marker
           key={acc.id || idx}
-          position={acc.position}
+          position={position}
           icon={accidentIcon}
           eventHandlers={{
             mouseover: (e) => e.target.openPopup(),
@@ -39,7 +45,8 @@ const AccidentMarkers = ({ isAccidentMap, isMDRRMCAdmin, accidents, accidentIcon
             </div>
           </Popup>
         </Marker>
-      ))}
+        );
+      })}
     </>
   );
 };

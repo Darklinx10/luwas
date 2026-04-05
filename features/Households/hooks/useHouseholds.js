@@ -48,25 +48,49 @@ export function useHouseholds() {
         order: 'asc',
       });
 
-      // Normalize and sort households
+      // Normalize households
       let householdsWithId = (result.households || [])
         .filter((h) => h && h.householdId)
         .map((household) => normalizeHousehold(household));
       
-      // Sort by last name alphabetically (case-insensitive)
+      console.log('📊 BEFORE sort:', householdsWithId.map(h => ({ 
+        id: h.householdId,
+        name: `${h.headLastName}, ${h.headFirstName}` 
+      })));
+      
+      // Client-side defensive sort: multi-field name sorting
+      // Matches Firestore sorting: lastName → firstName → middleName → suffix
       householdsWithId.sort((a, b) => {
-        const lastNameA = (a.headLastName || '').toLowerCase();
-        const lastNameB = (b.headLastName || '').toLowerCase();
+        // Extract and normalize all name fields
+        const lastNameA = String(a.headLastName || '').trim().toLowerCase();
+        const lastNameB = String(b.headLastName || '').trim().toLowerCase();
         
-        if (lastNameA !== lastNameB) {
-          return lastNameA.localeCompare(lastNameB);
-        }
+        // First: compare last names
+        let cmp = lastNameA.localeCompare(lastNameB);
+        if (cmp !== 0) return cmp;
         
-        // If last names are equal, sort by first name
-        const firstNameA = (a.headFirstName || '').toLowerCase();
-        const firstNameB = (b.headFirstName || '').toLowerCase();
-        return firstNameA.localeCompare(firstNameB);
+        // Second: if last names are equal, compare first names
+        const firstNameA = String(a.headFirstName || '').trim().toLowerCase();
+        const firstNameB = String(b.headFirstName || '').trim().toLowerCase();
+        cmp = firstNameA.localeCompare(firstNameB);
+        if (cmp !== 0) return cmp;
+        
+        // Third: if first names are also equal, compare middle names
+        const middleNameA = String(a.headMiddleName || '').trim().toLowerCase();
+        const middleNameB = String(b.headMiddleName || '').trim().toLowerCase();
+        cmp = middleNameA.localeCompare(middleNameB);
+        if (cmp !== 0) return cmp;
+        
+        // Fourth: if middle names are also equal, compare suffixes
+        const suffixA = String(a.headSuffix || '').trim().toLowerCase();
+        const suffixB = String(b.headSuffix || '').trim().toLowerCase();
+        return suffixA.localeCompare(suffixB);
       });
+
+      console.log('📊 AFTER sort:', householdsWithId.map(h => ({ 
+        id: h.householdId,
+        name: `${h.headLastName}, ${h.headFirstName}` 
+      })));
       
       if (householdsWithId.length !== (result.households || []).length) {
         console.warn(

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db, auth } from '@/lib/firebaseConfig';
-import { doc, setDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -207,8 +207,11 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
     }
 
     try {
-      // Map over all members and save each member to Firestore
-      const saveTasks = members.map(async (member) => {
+      // ✅ OPTIMIZED: Use writeBatch to combine all writes into a single atomic operation
+      const batch = writeBatch(db);
+
+      // Add all member writes to the batch
+      members.forEach((member) => {
         // Prepare the member data by ensuring all fields are sanitized and populated
         const cleanedMember = {
           firstName: member.firstName || '',
@@ -239,26 +242,16 @@ export default function DemographicCharacteristics({ householdId, goToNext, setS
         // Log the cleaned member data for debugging purposes
         console.log('Saving member data:', cleanedMember);
 
-        // Firestore reference to the member document
+        // ✅ Add member write to batch (no await here)
         const memberRef = doc(db, 'households', householdId, 'members', member.id);
+        batch.set(memberRef, cleanedMember);
 
-        // Save the member data to Firestore
-        await setDoc(memberRef, cleanedMember);
-
-        // Save demographic data in a sub-collection for each member
-        const demoRef = doc(memberRef, 'demographicCharacteristics', 'main');
-        await setDoc(demoRef, {
-          ...cleanedMember,  // Merge all member data
-        }, { merge: true });  // Use merge to avoid overwriting existing data
+        // ✅ NO DUPLICATE WRITES: Removed demographicCharacteristics subcollection writes
+        // All member data is stored in the parent member document
       });
 
-      // Wait for all member data to be saved
-      await Promise.all(saveTasks);
-
-      // Optionally, save a list of all members to the parent household document
-      await updateDoc(doc(db, 'households', householdId), {
-        demographicCharacteristics: members,
-      });
+      // ✅ Commit all writes in a single atomic batch operation
+      await batch.commit();
 
       // Callback to update the saved members state in the parent component
       setSavedMembers?.(members);

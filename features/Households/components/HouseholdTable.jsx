@@ -23,8 +23,9 @@ export default function HouseholdTable({
   totalResidents,
   page = 1,
   pageSize = 10,
+  role, // ✅ Added role prop for conditional action visibility
 }) {
-  const sortedHouseholds = useMemo(() => {
+  const displayedHouseholds = useMemo(() => {
     return Array.isArray(households) ? households : [];
   }, [households]);
   
@@ -48,7 +49,7 @@ export default function HouseholdTable({
     );
   }
 
-  if (!sortedHouseholds.length) {
+  if (!displayedHouseholds.length) {
     return <p className="text-center text-gray-500 py-6">No household records found.</p>;
   }
 
@@ -72,7 +73,7 @@ export default function HouseholdTable({
           </thead>
 
           <tbody>
-            {sortedHouseholds.map((hh, index) => {
+            {displayedHouseholds.map((hh, index) => {
               const fullName = [
                 hh.headLastName,
                 [hh.headFirstName, hh.headMiddleName].filter(Boolean).join(' '),
@@ -125,33 +126,41 @@ export default function HouseholdTable({
                     </td>
 
                     <td className="p-2 border space-x-2 print:hidden">
-                      <button
-                        onClick={() => handleEditHousehold(hh)}
-                        className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                        title="Edit"
-                      >
-                        <FiEdit />
-                      </button>
+                      {/* ✅ Secretary & Admin: Show edit icon */}
+                      {(role === 'Brgy-Secretary' || role === 'MDRRMC-Admin') && (
+                        <button
+                          onClick={() => handleEditHousehold(hh)}
+                          className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                          title="Edit"
+                        >
+                          <FiEdit />
+                        </button>
+                      )}
 
-                      <button
-                        onClick={async () => {
-                          const confirmed = confirm('Are you sure you want to delete this household?');
-                          if (!confirmed) return;
-                        
-                          try {
-                            await handleDeleteHousehold(hh.householdId);
-                            toast.success('Household deleted successfully.');
-                          } catch (err) {
-                            console.error('Error deleting household:', err);
-                            toast.error('Failed to delete household.');
-                          }
-                        }}
-                        disabled={loading}
-                        className={`text-red-600 hover:text-red-800 cursor-pointer ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title="Delete"
-                      >
-                        {loading ? 'Deleting...' : <FiTrash2 />}
-                      </button>
+                      {/* ✅ Admin: Show delete icon only */}
+                      {role === 'MDRRMC-Admin' &&  (
+                        <button
+                          onClick={async () => {
+                            const confirmed = confirm('Are you sure you want to delete this household?');
+                            if (!confirmed) return;
+                          
+                            try {
+                              await handleDeleteHousehold(hh.householdId);
+                              toast.success('Household deleted successfully.');
+                            } catch (err) {
+                              console.error('Error deleting household:', err);
+                              toast.error('Failed to delete household.');
+                            }
+                          }}
+                          disabled={loading}
+                          className={`text-red-600 hover:text-red-800 cursor-pointer ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title="Delete"
+                        >
+                          {loading ? 'Deleting...' : <FiTrash2 />}
+                        </button>
+                      )}
+
+                      {/* ✅ Personnel: No actions shown */}
                     </td>
                   </tr>
 

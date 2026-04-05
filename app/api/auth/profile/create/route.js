@@ -21,8 +21,28 @@ export async function POST(request) {
     const decodedToken = await adminAuth.verifyIdToken(idToken, true);
     const uid = decodedToken.uid;
 
+    console.log('🔍 DEBUG: Profile creation starting');
+    console.log('  uid:', uid);
+    console.log('  email:', decodedToken.email);
+
     const userRef = adminDb.collection('users').doc(uid);
-    const userSnap = await userRef.get();
+    let userSnap;
+
+    try {
+      console.log('✅ userRef created successfully');
+
+      userSnap = await userRef.get();
+      console.log('✅ userRef.get() succeeded');
+      console.log('  exists:', userSnap.exists);
+    } catch (dbError) {
+      console.error('❌ Firestore error details:', {
+        message: dbError.message,
+        code: dbError.code,
+        name: dbError.name,
+        stack: dbError.stack,
+      });
+      throw dbError;
+    }
 
     // Return existing profile if already created
     if (userSnap.exists) {
