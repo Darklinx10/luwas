@@ -38,8 +38,16 @@ export function buildHouseholdPayload(input = {}) {
     // Ensure homes is an array
     const homes = Array.isArray(input.homes) ? input.homes : [];
 
-    // Ensure ageBrackets is an array if provided
-    const ageBrackets = Array.isArray(input.ageBrackets) ? input.ageBrackets : [];
+    // Preserve member input for create flows that also create nested member docs
+    const members = Array.isArray(input.members) ? input.members : [];
+
+    // Ensure ageBrackets is an object/map if provided
+    const ageBrackets =
+        input.ageBrackets &&
+        typeof input.ageBrackets === 'object' &&
+        !Array.isArray(input.ageBrackets)
+            ? input.ageBrackets
+            : null;
 
     // Build the base payload
     const payload = {
@@ -60,7 +68,8 @@ export function buildHouseholdPayload(input = {}) {
         totalFemale,
         totalPWDs,
         totalSeniors,
-        ...(ageBrackets.length > 0 && { ageBrackets }),
+        ...(ageBrackets && { ageBrackets }),
+        ...(members.length > 0 && { members }),
     };
 
     // Apply formatting and normalization from householdFormat

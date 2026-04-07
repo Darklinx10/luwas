@@ -1,12 +1,40 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-    FiChevronLeft,
-    FiChevronRight,
-    FiChevronsLeft,
-    FiChevronsRight,
+  FiChevronLeft,
+  FiChevronRight,
+  FiChevronsLeft,
+  FiChevronsRight,
 } from 'react-icons/fi';
+
+function buildPages(page, totalPages, windowSize) {
+  if (totalPages <= 1) return [1];
+
+  const pages = [];
+  const half = Math.floor(windowSize / 2);
+
+  let start = Math.max(2, page - half);
+  let end = Math.min(totalPages - 1, page + half);
+
+  if (page <= half + 1) {
+    end = Math.min(totalPages - 1, windowSize);
+  }
+
+  if (page >= totalPages - half) {
+    start = Math.max(2, totalPages - windowSize + 1);
+  }
+
+  pages.push(1);
+
+  if (start > 2) pages.push('left-ellipsis');
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < totalPages - 1) pages.push('right-ellipsis');
+
+  if (totalPages > 1) pages.push(totalPages);
+
+  return pages;
+}
 
 export default function Pagination({
   page = 1,
@@ -18,6 +46,7 @@ export default function Pagination({
   onPageSelect,
 }) {
   const [windowSize, setWindowSize] = useState(5);
+  const [pageInput, setPageInput] = useState(String(page));
 
   useEffect(() => {
     const handleResize = () => {
@@ -29,111 +58,136 @@ export default function Pagination({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
+
   if (!totalPages || totalPages < 1) return null;
 
-  const pages = [];
-  const half = Math.floor(windowSize / 2);
-  let start = Math.max(2, page - half);
-  let end = Math.min(totalPages - 1, page + half);
+  const pages = useMemo(
+    () => buildPages(page, totalPages, windowSize),
+    [page, totalPages, windowSize]
+  );
 
-  if (page <= half) end = Math.min(totalPages - 1, windowSize);
-  if (page > totalPages - half) start = Math.max(2, totalPages - windowSize + 1);
-
-  pages.push(1);
-  if (start > 2) pages.push('...');
-  for (let i = start; i <= end; i++) pages.push(i);
-  if (end < totalPages - 1) pages.push('...');
-  if (totalPages > 1) pages.push(totalPages);
+  const isFirstPage = page === 1;
+  const isLastPage = page === totalPages;
 
   const baseBtn =
-    'flex items-center justify-center px-2 py-1 rounded-md border text-xs transition min-w-[30px] h-8';
-  const navBtn = `${baseBtn} bg-white hover:bg-gray-100 border-gray-300`;
-  const disabledBtn = 'opacity-40 cursor-not-allowed';
+    'inline-flex h-9 min-w-[36px] items-center justify-center rounded-xl border px-2.5 text-sm font-medium transition';
+  const neutralBtn =
+    'border-slate-200 bg-white text-slate-700 hover:bg-slate-50';
+  const activeBtn =
+    'border-emerald-600 bg-emerald-600 text-white shadow-sm';
+  const disabledBtn = 'cursor-not-allowed opacity-40 hover:bg-white';
 
-  const handleJump = (e) => {
-    let val = Number(e.target.value);
-    if (!val || Number.isNaN(val)) return;
-    if (val < 1) val = 1;
-    if (val > totalPages) val = totalPages;
-    onPageSelect(val);
+  const submitPageInput = () => {
+    let value = Number(pageInput);
+
+    if (!Number.isFinite(value) || Number.isNaN(value)) {
+      setPageInput(String(page));
+      return;
+    }
+
+    value = Math.max(1, Math.min(totalPages, value));
+
+    if (value !== page) {
+      onPageSelect(value);
+    } else {
+      setPageInput(String(value));
+    }
   };
 
   return (
-    <div className="flex flex-col items-center gap-2 p-2">
-      <div className="flex flex-wrap justify-center items-center gap-1.5">
+    <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
         <button
+          type="button"
           onClick={onFirst}
-          disabled={page === 1}
-          className={`${navBtn} ${page === 1 ? disabledBtn : ''}`}
-          aria-label="First Page"
+          disabled={isFirstPage}
+          className={`${baseBtn} ${neutralBtn} ${isFirstPage ? disabledBtn : ''}`}
+          aria-label="First page"
         >
-          <FiChevronsLeft size={14} />
+          <FiChevronsLeft size={16} />
         </button>
 
         <button
+          type="button"
           onClick={onPrev}
-          disabled={page === 1}
-          className={`${navBtn} ${page === 1 ? disabledBtn : ''}`}
-          aria-label="Previous Page"
+          disabled={isFirstPage}
+          className={`${baseBtn} ${neutralBtn} ${isFirstPage ? disabledBtn : ''}`}
+          aria-label="Previous page"
         >
-          <FiChevronLeft size={14} />
+          <FiChevronLeft size={16} />
         </button>
 
-        {pages.map((p, idx) =>
-          typeof p === 'number' ? (
+        {pages.map((item, index) =>
+          typeof item === 'number' ? (
             <button
-              key={`${p}-${idx}`}
-              onClick={() => onPageSelect(p)}
-              className={
-                p === page
-                  ? 'flex items-center justify-center px-2 py-1 rounded-md border bg-green-600 text-white border-green-600 min-w-[30px] h-8 text-xs transition'
-                  : 'flex items-center justify-center px-2 py-1 rounded-md border bg-white text-gray-700 border-gray-300 min-w-[30px] h-8 hover:bg-gray-100 text-xs transition'
-              }
-              aria-current={p === page ? 'page' : undefined}
+              key={`${item}-${index}`}
+              type="button"
+              onClick={() => onPageSelect(item)}
+              className={`${baseBtn} ${item === page ? activeBtn : neutralBtn}`}
+              aria-current={item === page ? 'page' : undefined}
             >
-              {p}
+              {item}
             </button>
           ) : (
-            <span key={`ellipsis-${idx}`} className="px-1 text-gray-400 text-xs select-none">
+            <span
+              key={`${item}-${index}`}
+              className="px-1 text-sm text-slate-400 select-none"
+              aria-hidden="true"
+            >
               …
             </span>
           )
         )}
 
         <button
+          type="button"
           onClick={onNext}
-          disabled={page === totalPages}
-          className={`${navBtn} ${page === totalPages ? disabledBtn : ''}`}
-          aria-label="Next Page"
+          disabled={isLastPage}
+          className={`${baseBtn} ${neutralBtn} ${isLastPage ? disabledBtn : ''}`}
+          aria-label="Next page"
         >
-          <FiChevronRight size={14} />
+          <FiChevronRight size={16} />
         </button>
 
         <button
+          type="button"
           onClick={onLast}
-          disabled={page === totalPages}
-          className={`${navBtn} ${page === totalPages ? disabledBtn : ''}`}
-          aria-label="Last Page"
+          disabled={isLastPage}
+          className={`${baseBtn} ${neutralBtn} ${isLastPage ? disabledBtn : ''}`}
+          aria-label="Last page"
         >
-          <FiChevronsRight size={14} />
+          <FiChevronsRight size={16} />
         </button>
       </div>
 
-      <div className="flex items-center gap-1.5 mt-1">
-        <span className="text-gray-500 text-xs">
-          Page <span className="font-semibold">{page}</span> of{' '}
-          <span className="font-semibold">{totalPages}</span>
+      <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-slate-500">
+        <span>
+          Page <span className="font-semibold text-slate-700">{page}</span> of{' '}
+          <span className="font-semibold text-slate-700">{totalPages}</span>
         </span>
-        <input
-          type="number"
-          min={1}
-          max={totalPages}
-          value={page}
-          onChange={handleJump}
-          onBlur={handleJump}
-          className="w-10 h-7 px-1 text-center border border-gray-300 rounded-md bg-gray-100 text-xs focus:outline-none focus:ring-1 focus:ring-green-500"
-          aria-label="Jump to page"
-        />
+
+        <div className="flex items-center gap-2">
+          <label htmlFor="page-jump" className="text-slate-500">
+            Go to
+          </label>
+          <input
+            id="page-jump"
+            type="number"
+            min={1}
+            max={totalPages}
+            value={pageInput}
+            onChange={(e) => setPageInput(e.target.value)}
+            onBlur={submitPageInput}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submitPageInput();
+            }}
+            className="h-9 w-14 rounded-xl border border-slate-300 bg-white px-2 text-center text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            aria-label="Jump to page"
+          />
+        </div>
       </div>
     </div>
   );

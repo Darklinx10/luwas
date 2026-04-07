@@ -1,112 +1,77 @@
 /**
- * Hook for Senior Citizens report data management
+ * features/Reports/hooks/useSeniorsReport.js
+ *
+ * React hook for Seniors (Senior Citizens) report
+ * Handles fetching, pagination, and search
  */
 
-import { useEffect, useState, useMemo } from 'react';
-import { fetchSeniorsReport, updateSeniorCitizen, removeSeniorStatus } from '../services/reportApi';
-import { toast } from 'react-toastify';
-import { useAuth } from '@/context/authContext';
-import { getMemberDisplayName } from '../utils/nameFormatter';
+'use client';
 
-export const useSeniorsReport = () => {
-  const [seniors, setSeniors] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+import { useState, useCallback, useEffect } from 'react';
+import { fetchSeniorsReport } from '../services/reportService';
+
+export function useSeniorsReport(initialPage = 1, initialLimit = 10) {
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
-    totalCount: 0,
-    totalPages: 0,
-  });
-  const { profile, loading: authLoading } = useAuth();
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(initialPage);
+  const [limit, setLimit] = useState(initialLimit);
+  const [search, setSearch] = useState('');
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPrevPage, setHasPrevPage] = useState(false);
+  const [isIndexError, setIsIndexError] = useState(false);
+  const [indexErrorLink, setIndexErrorLink] = useState(null);
 
-  // Fetch Seniors report
-  const fetchReport = async (page = 1, search = '') => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    try {
-      const data = await fetchSeniorsReport({
-        page,
-        limit: 20,
-        search,
-      });
+    setError(null);
+    setIsIndexError(false);
+    setIndexErrorLink(null);
 
-      setSeniors(data.members || []);
-      setPagination({
-        page: data.currentPage || 1,
-        limit: 20,
-        totalCount: data.totalMembers || 0,
-        totalPages: data.totalPages || 1,
-      });
-    } catch (error) {
-      console.error('Error fetching seniors report:', error);
-      toast.error('Failed to load senior citizens.');
-      setSeniors([]);
+    try {
+      const data = await fetchSeniorsReport({ page, limit, search });
+
+      setMembers(data.members || []);
+      setTotalCount(data.totalMembers || 0);
+      setTotalPages(data.totalPages || 0);
+      setHasNextPage(data.hasNextPage || false);
+      setHasPrevPage(data.hasPrevPage || false);
+      setIsIndexError(Boolean(data.isIndexError));
+    } catch (err) {
+      setError(err.message || 'Failed to load Seniors report');
+      setMembers([]);
+      setTotalCount(0);
+      setTotalPages(0);
+      setHasNextPage(false);
+      setHasPrevPage(false);
+      setIsIndexError(Boolean(err.isIndexError));
+      setIndexErrorLink(err.consoleLink || null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, search]);
 
-  // Fetch on mount
   useEffect(() => {
-    fetchReport(1, '');
-  }, []);
-
-  // Handle search with debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchReport(1, searchTerm);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // Handle pagination
-  const goToPage = (page) => {
-    fetchReport(page, searchTerm);
-  };
-
-  // Save Senior
-  const saveSenior = async (senior) => {
-    try {
-      await updateSeniorCitizen(senior.memberId, senior);
-      setSeniors(prev =>
-        prev.map(s => (s.memberId === senior.memberId ? { ...s, ...senior } : s))
-      );
-      toast.success('Senior citizen updated successfully.');
-    } catch (error) {
-      console.error('Error updating senior citizen:', error);
-      toast.error('Failed to update senior citizen.');
-    }
-  };
-
-  // Delete Senior status
-  const deleteSenior = async (senior) => {
-    if (!window.confirm(`Remove senior citizen status for ${getMemberDisplayName(senior)}?`)) {
-      return;
-    }
-
-    try {
-      await removeSeniorStatus(senior.memberId);
-      setSeniors(prev => prev.filter(s => s.memberId !== senior.memberId));
-      toast.success('Senior citizen removed successfully.');
-      // Refetch to update counts
-      fetchReport(pagination.page, searchTerm);
-    } catch (error) {
-      console.error('Error deleting senior status:', error);
-      toast.error('Failed to remove senior citizen.');
-    }
-  };
+    fetchData();
+  }, [fetchData]);
 
   return {
-    seniors,
-    searchTerm,
-    setSearchTerm,
+    members,
     loading,
-    authLoading,
-    pagination,
-    goToPage,
-    saveSenior,
-    deleteSenior,
-    refetch: () => fetchReport(pagination.page, searchTerm),
+    error,
+    page,
+    limit,
+    search,
+    totalCount,
+    totalPages,
+    hasNextPage,
+    hasPrevPage,
+    isIndexError,
+    indexErrorLink,
+    setPage,
+    setSearch,
+    refetch: fetchData,
   };
-};
+}

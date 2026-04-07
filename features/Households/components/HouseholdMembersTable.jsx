@@ -1,6 +1,7 @@
 'use client';
-import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
-import { capitalizeWords } from '@/utils/capitalize'; // ✅ added import
+
+import { FiEdit, FiPlus, FiTrash2, FiUsers } from 'react-icons/fi';
+import { capitalizeWords, formatFullName } from '../utils/householdFormat';
 
 export default function HouseholdMembersTable({
   isExpanded,
@@ -14,101 +15,170 @@ export default function HouseholdMembersTable({
   if (!isExpanded) return null;
 
   const nonHeadMembers = members.filter(
-    (m) => ((m.relationshipToHead || m.nuclearRelation || '').toLowerCase() !== 'head')
+    (member) =>
+      ((member.relationshipToHead || member.nuclearRelation || '').toLowerCase() !== 'head')
   );
 
-  // Calculate gender counts
-  const maleCount = nonHeadMembers.filter((m) => (m.sex || '').toLowerCase() === 'male').length;
-  const femaleCount = nonHeadMembers.filter((m) => (m.sex || '').toLowerCase() === 'female').length;
+  const maleCount = nonHeadMembers.filter(
+    (member) => (member.sex || '').toLowerCase() === 'male'
+  ).length;
+
+  const femaleCount = nonHeadMembers.filter(
+    (member) => (member.sex || '').toLowerCase() === 'female'
+  ).length;
 
   return (
     <tr>
-      <td colSpan="10" className="p-4 border bg-gray-50 text-left text-sm">
-        <div className="flex items-center justify-between mb-3">
-          <strong>Household Members:</strong>
-          <button
-            onClick={() => handleAddMember(data.householdId)}
-            className="inline-flex items-center gap-2 rounded bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 transition"
-          >
-            <FiPlus className="text-sm" /> Add Member
-          </button>
+      <td colSpan="10" className="border-b border-slate-200 bg-slate-50 px-4 py-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <FiUsers size={16} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-800">
+                    Household Members
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Members linked to household {data.householdId}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => handleAddMember(data.householdId)}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700"
+            >
+              <FiPlus size={16} />
+              Add Member
+            </button>
+          </div>
+
+          {loadingMembers[data.householdId] ? (
+            <p className="mt-2 animate-pulse text-sm text-slate-500">
+              Loading household members...
+            </p>
+          ) : members.length === 0 || nonHeadMembers.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+              <p className="text-sm text-slate-500">No household members found.</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left">
+                  <thead className="bg-slate-50">
+                    <tr className="text-xs uppercase tracking-[0.08em] text-slate-500">
+                      <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[220px]">
+                        Name
+                      </th>
+                      <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[150px]">
+                        Relation
+                      </th>
+                      <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[90px]">
+                        Sex
+                      </th>
+                      <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[80px]">
+                        Age
+                      </th>
+                      <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[160px]">
+                        Contact Number
+                      </th>
+                      <th className="border-b border-slate-200 px-4 py-3 text-center font-semibold min-w-[120px]">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {nonHeadMembers.map((member) => {
+                      const name =
+                        member.fullName ||
+                        formatFullName({
+                          firstName: member.firstName,
+                          middleName: member.middleName,
+                          lastName: member.lastName,
+                          suffix: member.suffix,
+                        }) ||
+                        'Unnamed';
+
+                      const rawRelation =
+                        member.nuclearRelation || member.relationshipToHead || 'Unspecified';
+
+                      const relationLabel = capitalizeWords(
+                        rawRelation.includes(' - ')
+                          ? rawRelation.split(' - ')[1].trim()
+                          : rawRelation.trim()
+                      );
+
+                      const sex = capitalizeWords(member.sex || 'N/A');
+
+                      return (
+                        <tr key={member.memberId || member.id} className="transition hover:bg-slate-50">
+                          <td className="border-b border-slate-200 px-4 py-4">
+                            <p className="text-sm font-medium text-slate-800">{name}</p>
+                          </td>
+
+                          <td className="border-b border-slate-200 px-4 py-4 text-sm text-slate-700">
+                            {relationLabel}
+                          </td>
+
+                          <td className="border-b border-slate-200 px-4 py-4 text-sm text-slate-700">
+                            {sex}
+                          </td>
+
+                          <td className="border-b border-slate-200 px-4 py-4 text-sm text-slate-700">
+                            {member.age || 'N/A'}
+                          </td>
+
+                          <td className="border-b border-slate-200 px-4 py-4 text-sm text-slate-700">
+                            {member.contactNumber || 'N/A'}
+                          </td>
+
+                          <td className="border-b border-slate-200 px-4 py-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleEditMember(data.householdId, member)}
+                                className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 p-2 text-blue-700 transition hover:bg-blue-100"
+                                title="Edit member"
+                              >
+                                <FiEdit size={16} />
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  handleDeleteMember(data.householdId, member.memberId || member.id)
+                                }
+                                className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 p-2 text-red-700 transition hover:bg-red-100"
+                                title="Delete member"
+                              >
+                                <FiTrash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <div className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 ring-1 ring-blue-100">
+                  Male: {maleCount}
+                </div>
+                <div className="rounded-full bg-pink-50 px-3 py-1 text-sm font-medium text-pink-700 ring-1 ring-pink-100">
+                  Female: {femaleCount}
+                </div>
+                <div className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+                  Total Members: {nonHeadMembers.length}
+                </div>
+              </div>
+            </>
+          )}
         </div>
-
-        {loadingMembers[data.householdId] ? (
-          <p className="text-gray-500 mt-1 animate-pulse">Loading household members...</p>
-        ) : members.length === 0 || nonHeadMembers.length === 0 ? (
-          <p className="text-gray-500 mt-1">No household members found...</p>
-        ) : (
-          <>
-            <div className="mt-2 overflow-x-auto">
-              <table className="w-full text-center text-sm border border-collapse">
-                <thead>
-                  <tr className="bg-gray-100 text-gray-600">
-                    <th className="p-2 border">Name</th>
-                    <th className="p-2 border">Relation</th>
-                    <th className="p-2 border">Sex</th>
-                    <th className="p-2 border">Age</th>
-                    <th className="p-2 border">Contact Number</th>
-                    <th className="p-2 border text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {nonHeadMembers.map((m) => {
-                    const name = capitalizeWords(
-                      [m.lastName, m.firstName, m.middleName].filter(Boolean).join(', ')
-                    ) || 'Unnamed';
-
-                    const rawRelation = m.nuclearRelation || m.relationshipToHead || 'Unspecified';
-                    const relationLabel = capitalizeWords(
-                      rawRelation.includes(' - ') ? rawRelation.split(' - ')[1].trim() : rawRelation.trim()
-                    );
-
-                    const sex = capitalizeWords(m.sex || 'N/A');
-
-                    return (
-                      <tr key={m.id} className="hover:bg-gray-100">
-                        <td className="p-2 border">{name}</td>
-                        <td className="p-2 border">{relationLabel}</td>
-                        <td className="p-2 border">{sex}</td>
-                        <td className="p-2 border">{m.age || 'N/A'}</td>
-                        <td className="p-2 border">{m.contactNumber || 'N/A'}</td>
-                        <td className="p-2 border text-center space-x-2">
-                          <button
-                            onClick={() => handleEditMember(data.householdId, m)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="Edit"
-                          >
-                            <FiEdit />
-                          </button>
-
-                          <button
-                            onClick={() => handleDeleteMember(data.householdId, m.memberId || m.id)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Delete"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Gender Summary */}
-            <div className="mt-3 flex gap-4 text-sm text-gray-700">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">Male:</span>
-                <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded">{maleCount}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">Female:</span>
-                <span className="bg-pink-100 text-pink-800 px-3 py-1 rounded">{femaleCount}</span>
-              </div>
-            </div>
-          </>
-        )}
       </td>
     </tr>
   );

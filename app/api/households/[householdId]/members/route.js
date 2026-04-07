@@ -91,6 +91,46 @@ export async function GET(request, { params: paramsPromise }) {
   } catch (queryError) {
     // Intelligent error handling for Firestore composite index errors
     if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
+      const projectId = process.env.FIREBASE_PROJECT_ID || 'luwasv2';
+
+      // Extract Firestore's auto-generated create_index link from error message
+      let autoIndexLink = null;
+      let isAutoLink = false;
+
+      if (queryError.message) {
+        const createIndexMatch = queryError.message.match(
+          /https:\/\/console\.firebase\.google\.com[^\s]*create_index[^\s\)]+/
+        );
+        if (createIndexMatch) {
+          autoIndexLink = createIndexMatch[0];
+          isAutoLink = true;
+        }
+      }
+
+      if (!autoIndexLink) {
+        autoIndexLink = `https://console.firebase.google.com/u/2/project/${projectId}/firestore/databases/-default-/indexes`;
+      }
+
+      console.error('\n' + '='.repeat(80));
+      console.error('❌ FIRESTORE COMPOSITE INDEX ERROR - Action Required!');
+      console.error('='.repeat(80));
+      console.error('\nEndpoint:', `GET /api/households/${householdId}/members`);
+      console.error('Error Code:', queryError.code, '(FAILED_PRECONDITION)');
+      console.error('Full Error:', queryError.toString());
+      console.error('');
+      console.error('📊 Collection: members (collectionGroup)');
+      console.error('');
+
+      if (isAutoLink) {
+        console.error('🔗 FIREBASE AUTO-CREATE LINK (Click to auto-create index):');
+        console.error(`\n  ${autoIndexLink}\n`);
+      } else {
+        console.error('🔗 FIREBASE INDEXES PAGE:');
+        console.error(`\n  ${autoIndexLink}\n`);
+      }
+
+      console.error('='.repeat(80) + '\n');
+
       const queryMetadata = {
         collection: `households/${householdId}/members`,
         where: [],

@@ -3,10 +3,45 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
+import { compareNames } from '@/lib/utils/nameNormalizer';
 import * as householdApi from '../services/householdApi';
 import { normalizeHousehold, normalizeMember } from '../utils/householdFormat';
 
 const PAGE_SIZE = 10;
+
+function compareHouseholdHeadNames(left = {}, right = {}) {
+  return compareNames(
+    {
+      firstName: left.headFirstName,
+      middleName: left.headMiddleName,
+      lastName: left.headLastName,
+      suffix: left.headSuffix,
+    },
+    {
+      firstName: right.headFirstName,
+      middleName: right.headMiddleName,
+      lastName: right.headLastName,
+      suffix: right.headSuffix,
+    }
+  );
+}
+
+function compareMemberNames(left = {}, right = {}) {
+  return compareNames(
+    {
+      firstName: left.firstName,
+      middleName: left.middleName,
+      lastName: left.lastName,
+      suffix: left.suffix,
+    },
+    {
+      firstName: right.firstName,
+      middleName: right.middleName,
+      lastName: right.lastName,
+      suffix: right.suffix,
+    }
+  );
+}
 
 export function useHouseholds() {
   const router = useRouter();
@@ -48,54 +83,15 @@ export function useHouseholds() {
         order: 'asc',
       });
 
-      // Normalize households
-      let householdsWithId = (result.households || [])
-        .filter((h) => h && h.householdId)
-        .map((household) => normalizeHousehold(household));
-      
-      console.log('📊 BEFORE sort:', householdsWithId.map(h => ({ 
-        id: h.householdId,
-        name: `${h.headLastName}, ${h.headFirstName}` 
-      })));
-      
-      // Client-side defensive sort: multi-field name sorting
-      // Matches Firestore sorting: lastName → firstName → middleName → suffix
-      householdsWithId.sort((a, b) => {
-        // Extract and normalize all name fields
-        const lastNameA = String(a.headLastName || '').trim().toLowerCase();
-        const lastNameB = String(b.headLastName || '').trim().toLowerCase();
-        
-        // First: compare last names
-        let cmp = lastNameA.localeCompare(lastNameB);
-        if (cmp !== 0) return cmp;
-        
-        // Second: if last names are equal, compare first names
-        const firstNameA = String(a.headFirstName || '').trim().toLowerCase();
-        const firstNameB = String(b.headFirstName || '').trim().toLowerCase();
-        cmp = firstNameA.localeCompare(firstNameB);
-        if (cmp !== 0) return cmp;
-        
-        // Third: if first names are also equal, compare middle names
-        const middleNameA = String(a.headMiddleName || '').trim().toLowerCase();
-        const middleNameB = String(b.headMiddleName || '').trim().toLowerCase();
-        cmp = middleNameA.localeCompare(middleNameB);
-        if (cmp !== 0) return cmp;
-        
-        // Fourth: if middle names are also equal, compare suffixes
-        const suffixA = String(a.headSuffix || '').trim().toLowerCase();
-        const suffixB = String(b.headSuffix || '').trim().toLowerCase();
-        return suffixA.localeCompare(suffixB);
-      });
+      const householdsWithId = (result.households || [])
+        .filter((household) => household && household.householdId)
+        .map((household) => normalizeHousehold(household))
+        .sort(compareHouseholdHeadNames);
 
-      console.log('📊 AFTER sort:', householdsWithId.map(h => ({ 
-        id: h.householdId,
-        name: `${h.headLastName}, ${h.headFirstName}` 
-      })));
-      
       if (householdsWithId.length !== (result.households || []).length) {
         console.warn(
           'Some households missing householdId:',
-          (result.households || []).filter((h) => !h || !h.householdId)
+          (result.households || []).filter((household) => !household || !household.householdId)
         );
       }
 
@@ -118,8 +114,8 @@ export function useHouseholds() {
   }, [fetchPage]);
 
   const handleSearchSubmit = useCallback(
-    (e) => {
-      e?.preventDefault?.();
+    (event) => {
+      event?.preventDefault?.();
       setPage(1);
       setSearch(searchInput.trim());
     },
@@ -128,7 +124,6 @@ export function useHouseholds() {
 
   const toggleExpanded = useCallback(
     (householdId) => {
-      // Defensive check: ensure householdId is valid
       if (!householdId) {
         console.error('toggleExpanded: householdId is missing or undefined', { householdId });
         toast.error('Error: Household ID is missing');
@@ -138,7 +133,6 @@ export function useHouseholds() {
       setExpandedHouseholds((prev) => {
         const willOpen = !prev[householdId];
 
-        // If opening and members not loaded, fetch them
         if (willOpen && !membersData[householdId]) {
           (async () => {
             try {
@@ -149,26 +143,12 @@ export function useHouseholds() {
 
               const result = await householdApi.fetchMembers(householdId);
 
-              // Normalize and sort members
-              let normalizedMembers = (result.members || [])
+              const normalizedMembers = (result.members || [])
                 .map((member) => normalizeMember(member))
-                .sort((a, b) => {
-                  // Sort by last name first (case-insensitive)
-                  const lastNameA = (a.lastName || '').toLowerCase();
-                  const lastNameB = (b.lastName || '').toLowerCase();
+                .sort(compareMemberNames);
 
-                  if (lastNameA !== lastNameB) {
-                    return lastNameA.localeCompare(lastNameB);
-                  }
-
-                  // If last names are equal, sort by first name
-                  const firstNameA = (a.firstName || '').toLowerCase();
-                  const firstNameB = (b.firstName || '').toLowerCase();
-                  return firstNameA.localeCompare(firstNameB);
-                });
-
-              setMembersData((prev) => ({
-                ...prev,
+              setMembersData((prevMembers) => ({
+                ...prevMembers,
                 [householdId]: normalizedMembers,
               }));
             } catch (error) {
@@ -257,9 +237,6 @@ export function useHouseholds() {
   );
 
   const handleEditMember = useCallback((householdId, member) => {
-    // Navigate to household edit form (members edited in context of household demographics section)
-    // This is handled by the component that calls this callback by navigating to /household/edit/[householdId]
-    // For now, keep modal as fallback for quick inline edits
     setEditMemberModal({
       isOpen: true,
       householdId,
@@ -277,8 +254,8 @@ export function useHouseholds() {
     });
   }, []);
 
-  const handleEditFieldChange = useCallback((e) => {
-    const { name, value } = e.target;
+  const handleEditFieldChange = useCallback((event) => {
+    const { name, value } = event.target;
 
     setEditMemberModal((prev) => ({
       ...prev,
@@ -309,23 +286,13 @@ export function useHouseholds() {
       await householdApi.updateMember(householdId, memberId, payload);
       toast.success('Member updated successfully');
 
-      // Normalize updated member data
       const normalizedUpdatedMember = normalizeMember({ ...member, ...payload });
 
       setMembersData((prev) => ({
         ...prev,
-        [householdId]: (prev[householdId] || []).map((item) =>
-          item.memberId === memberId ? normalizedUpdatedMember : item
-        ).sort((a, b) => {
-          const lastNameA = (a.lastName || '').toLowerCase();
-          const lastNameB = (b.lastName || '').toLowerCase();
-          if (lastNameA !== lastNameB) {
-            return lastNameA.localeCompare(lastNameB);
-          }
-          const firstNameA = (a.firstName || '').toLowerCase();
-          const firstNameB = (b.firstName || '').toLowerCase();
-          return firstNameA.localeCompare(firstNameB);
-        }),
+        [householdId]: (prev[householdId] || [])
+          .map((item) => (item.memberId === memberId ? normalizedUpdatedMember : item))
+          .sort(compareMemberNames),
       }));
 
       closeEditMember();
@@ -345,11 +312,10 @@ export function useHouseholds() {
   }, []);
 
   const handleAddHouseholdClick = useCallback(() => {
-    router.push('/household/add');
+    router.push('/household/quick-add');
   }, [router]);
 
-  const handleUploadSuccess = useCallback(async (count) => {
-    // Refresh data after successful upload
+  const handleUploadSuccess = useCallback(async () => {
     setPage(1);
     await fetchPage();
   }, [fetchPage]);

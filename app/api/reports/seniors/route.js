@@ -1,278 +1,165 @@
 /**
  * app/api/reports/seniors/route.js
- * 
- * GET /api/reports/seniors - Fetch Senior Citizens (isSeniorCitizen = true or age >= 60)
- * 
- * Returns paginated list of all members classified as senior citizens
- * Includes household information for context
- * 
- * Query params:
- * - page: Page number (1-based)
- * - limit: Results per page
- * - search: Search by member name
- * 
- * Auth required. Secretary gets only their barangay.
+ *
+ * GET /api/reports/seniors
+ * Fetch paginated Senior Citizens member report
+ *
+ * Query Parameters:
+ * - page: Page number (default: 1)
+ * - limit: Results per page (default: 10, max: 100)
+ * - search: Search term for filtering (optional)
+ *
+ * Returns:
+ * - members: Array of senior members with household context
+ * - totalMembers: Total count of senior members
+ * - totalPages: Total number of pages
+ * - currentPage: Current page number
+ * - pageSize: Items per page
+ *
+ * Auth required. Secretary gets only their barangay data.
  */
 
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth/getSessionUser';
-import { adminDb } from '@/lib/firebaseAdmin';
-import { logFirestoreError, analyzeFirestoreError } from '@/lib/api/firestoreErrorHandler';
+import { getAllSeniorMembers } from '@/lib/api/memberService';
+import { extractFirestoreIndexUrl } from '@/lib/api/firestoreErrorHandler';
 
 export async function GET(request) {
+  console.log('👥 GET /api/reports/seniors called');
+
   // ✅ Verify authentication
-  const user = await getSessionUser();
+  const user = await getSessionUser(request);
   if (!user) {
+    console.log('❌ Unauthorized: No session user');
     return NextResponse.json(
       { error: 'Unauthorized: Authentication required' },
       { status: 401 }
     );
   }
 
+  // 🔐 Only Secretary and Personnel can view reports
+  if (!['Brgy-Secretary', 'MDRRMC-Personnel', 'MDRRMC-Admin'].includes(user.role)) {
+    console.log(`❌ Forbidden: User role ${user.role} not allowed`);
+    return NextResponse.json(
+      { error: 'Forbidden: Report access required' },
+      { status: 403 }
+    );
+  }
+
   try {
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
-    const search = (searchParams.get('search') || '').trim();
+    // Parse query parameters
+    const url = new URL(request.url);
+    const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '10', 10)));
+    const search = String(url.searchParams.get('search') || '').trim();
 
-    // Validate pagination
-    if (page < 1 || limit < 1 || limit > 100) {
-      return NextResponse.json(
-        { error: 'Invalid pagination parameters' },
-        { status: 400 }
-      );
-    }
-
-    // ✅ OPTIMIZED: Use collectionGroup query instead of N+1 pattern
-    // Get all senior members across all accessible households in ONE query
-    let memberQuery = adminDb.collectionGroup('members').where('isSeniorCitizen', '==', true);
-
-    let memberSnap;
-    try {
-      memberSnap = await memberQuery.get();
-    } catch (queryError) {
-      // Handle Firestore composite index errors
-      if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
-        const queryMetadata = {
-          collection: 'members',
-          where: [{ field: 'isSeniorCitizen', operator: '==', value: true }],
-          orderBy: [],
-          pagination: 'offset',
-        };
-
-        // Log detailed analysis for developers
-        logFirestoreError(queryError, queryMetadata);
-        
-        // Return actionable error response
-        const analysis = analyzeFirestoreError(queryError, queryMetadata);
-        
+    // Determine barangay filter for Secretary role
+    let barangay = null;
+    if (user.role === 'Brgy-Secretary') {
+      barangay = user.barangay || null;
+      if (!barangay) {
+        console.log('⚠️ Secretary without barangay assignment');
         return NextResponse.json(
-          {
-            error: 'Firestore composite index required',
-            errorCode: queryError.code,
-            isIndexError: true,
-            explanation: analysis.explanation,
-            queryFields: analysis.fields,
-            suggestions: analysis.suggestions,
-            paginationRecommendation: analysis.paginationRecommendation,
-            actionSteps: analysis.actionSteps,
-            ...(analysis.indexUrl && { 
-              consoleLink: analysis.indexUrl,
-              details: `The query requires an index. You can create it here: ${analysis.indexUrl}`,
-            }),
-            message: 'Please follow the action steps or click consoleLink to create the required Firestore composite index.',
-          },
-          { status: 503 }
+          { error: 'Secretary role requires barangay assignment' },
+          { status: 400 }
         );
       }
-      
-      // Re-throw other errors to be handled by outer catch block
-      throw queryError;
+      console.log(`🏘️ Fetching Senior members for Secretary in barangay: ${barangay}`);
+    } else {
+      console.log('👮 Fetching Senior members for Personnel/Admin (all barangays)');
     }
 
-    // Collect household IDs we need to fetch
-    const householdIdsToFetch = new Set();
+    // Fetch all Senior members (with optional barangay filter)
+    console.log(`📡 Querying Senior members from memberService...`);
+    const allMembers = await getAllSeniorMembers({ barangay });
+    console.log(`✅ Retrieved ${allMembers.length} Senior members`);
 
-    memberSnap.forEach((memDoc) => {
-      const householdId = memDoc.ref.parent.parent.id;
-      householdIdsToFetch.add(householdId);
-    });
-
-    // ✅ Filter accessible households if Secretary
-    let accessibleHouseholds = new Set(householdIdsToFetch);
-    if (user.role === 'Brgy-Secretary') {
-      const barangayHouseholds = await adminDb
-        .collection('households')
-        .where('barangay', '==', user.barangay)
-        .select()
-        .get();
-
-      accessibleHouseholds = new Set(
-        barangayHouseholds.docs.map(doc => doc.id)
-      );
-    }
-
-    // Fetch household data for all needed households in parallel
-    const householdCache = {};
-    await Promise.all(
-      Array.from(householdIdsToFetch).map(async (householdId) => {
-        if (!accessibleHouseholds.has(householdId)) return;
-
-        const hhSnap = await adminDb.collection('households').doc(householdId).get();
-        if (hhSnap.exists) {
-          householdCache[householdId] = hhSnap.data();
-        }
-      })
-    );
-
-    // Collect all senior members across all accessible households
-    const seniorMembers = [];
-    const normalizedSearch = search.toLowerCase();
-
-    memberSnap.forEach((memDoc) => {
-      const householdId = memDoc.ref.parent.parent.id;
-
-      // Filter by accessible households
-      if (!accessibleHouseholds.has(householdId)) {
-        return;
-      }
-
-      const member = memDoc.data();
-      const household = householdCache[householdId];
-
-      // Apply search filter if provided
-      if (normalizedSearch) {
+    // Apply search filter if provided
+    let filteredMembers = allMembers;
+    if (search) {
+      console.log(`🔍 Applying search filter: "${search}"`);
+      const lowerSearch = search.toLowerCase();
+      filteredMembers = allMembers.filter((member) => {
         const firstName = String(member.firstName || '').toLowerCase();
+        const middleName = String(member.middleName || '').toLowerCase();
         const lastName = String(member.lastName || '').toLowerCase();
         const fullName = String(member.fullName || '').toLowerCase();
+        const householdHead = String(member.headFullName || '').toLowerCase();
+        const barangayMatch = String(member.householdBarangay || '').toLowerCase();
+        const sitioMatch = String(member.householdSitio || '').toLowerCase();
+        const contactMatch = String(member.contactNumber || '').toLowerCase();
+        const householdIdMatch = String(member.householdId || '').toLowerCase();
+        const recordType = String(member.recordType || '').toLowerCase();
 
-        if (
-          !firstName.includes(normalizedSearch) &&
-          !lastName.includes(normalizedSearch) &&
-          !fullName.includes(normalizedSearch)
-        ) {
-          return; // Skip this member
-        }
-      }
-
-      seniorMembers.push({
-        memberId: memDoc.id,
-        householdId,
-        firstName: member.firstName || '',
-        middleName: member.middleName || '',
-        lastName: member.lastName || '',
-        fullName: member.fullName || '',
-        age: member.age || null,
-        birthdate: member.birthdate || '',
-        sex: member.sex || '',
-        contactNumber: member.contactNumber || '',
-        headFirstName: household?.headFirstName || '',
-        headLastName: household?.headLastName || '',
-        headFullName: household?.headFullName || '',
-        householdBarangay: household?.barangay || '',
-        householdSitio: household?.sitio || '',
-        createdAt: member.createdAt,
-        updatedAt: member.updatedAt,
+        return (
+          firstName.includes(lowerSearch) ||
+          middleName.includes(lowerSearch) ||
+          lastName.includes(lowerSearch) ||
+          fullName.includes(lowerSearch) ||
+          householdHead.includes(lowerSearch) ||
+          barangayMatch.includes(lowerSearch) ||
+          sitioMatch.includes(lowerSearch) ||
+          contactMatch.includes(lowerSearch) ||
+          householdIdMatch.includes(lowerSearch) ||
+          recordType.includes(lowerSearch)
+        );
       });
-    });
+      console.log(`✅ Search filter returned ${filteredMembers.length} members`);
+    }
 
-    // Sort by last name, then first name
-    seniorMembers.sort((a, b) => {
-      const lastNameCmp = a.lastName.localeCompare(b.lastName);
-      if (lastNameCmp !== 0) return lastNameCmp;
-      return a.firstName.localeCompare(b.firstName);
-    });
+    // Calculate pagination
+    const totalMembers = filteredMembers.length;
+    const totalPages = Math.max(1, Math.ceil(totalMembers / limit));
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedMembers = filteredMembers.slice(startIndex, endIndex);
 
-    // Paginate
-    const totalCount = seniorMembers.length;
-    const totalPages = Math.max(1, Math.ceil(totalCount / limit));
-    const skip = (page - 1) * limit;
-    const paginatedMembers = seniorMembers.slice(skip, skip + limit);
+    console.log(
+      `📄 Pagination: page ${page}/${totalPages}, showing ${paginatedMembers.length}/${totalMembers} members`
+    );
 
     return NextResponse.json({
       success: true,
       members: paginatedMembers,
-      totalMembers: totalCount,
+      totalMembers,
       totalPages,
       currentPage: page,
+      pageSize: limit,
       hasNextPage: page < totalPages,
       hasPrevPage: page > 1,
+      isIndexError: false,
     });
   } catch (error) {
-    console.error('GET /api/reports/seniors error:', error);
+    console.error('❌ Seniors Report Error:', error.message);
 
-    // Handle Firestore composite index required error
-    if (error?.code === 9 || error?.message?.includes('FAILED_PRECONDITION')) {
-      // Extract index creation link from either error.message or error.details
-      let indexLink = null;
-      const messageMatch = error?.message?.match(/(https:\/\/console\.firebase\.google\.com\/[^\s]+)/);
-      const detailsMatch = error?.details?.match(/(https:\/\/console\.firebase\.google\.com\/[^\s]+)/);
-      
-      if (messageMatch) indexLink = messageMatch[1];
-      if (!indexLink && detailsMatch) indexLink = detailsMatch[1];
+    // Intelligent error handling for Firestore composite index errors
+    const isMissingIndex = error?.code === 9 || error?.message?.includes('FAILED_PRECONDITION');
+    if (isMissingIndex) {
+      const consoleLink = extractFirestoreIndexUrl(error);
+      console.log('Extracted Firestore index URL:', consoleLink);
 
-      const queryMetadata = {
-        collection: 'members',
-        where: [{ field: 'isSeniorCitizen', operator: '==', value: true }],
-        orderBy: [],
-        pagination: 'offset',
-      };
-
-      // Log detailed analysis
-      logFirestoreError(error, queryMetadata);
-      
-      // Return actionable error response
-      const analysis = analyzeFirestoreError(error, queryMetadata);
-      console.error('\n� FIREBASE ERROR DETAILS:');
-      console.error('  Error Code:', error.code);
-      console.error('  Error Message:', error.message);
-      if (error.details) {
-        console.error('  Error Details:', error.details);
-      }
-      console.error('\n🔍 QUERY ANALYSIS:');
-      console.error('  Collection: members (collectionGroup)');
-      console.error('  Filter: isSeniorCitizen == true');
-      console.error('  Fields requiring index: [isSeniorCitizen]');
-      console.error('\n📋 ACTION REQUIRED:');
-      if (indexLink) {
-        console.error('  1. Click the link below to open Firebase Console');
-        console.error('  2. Create the composite index');
-        console.error('  3. Wait 2-5 minutes for the index to be built');
-        console.error('  4. Retry the request\n');
-        console.error(indexLink);
-      } else {
-        console.error('  1. Go to: https://console.firebase.google.com');
-        console.error('  2. Navigate to: Firestore > Indexes > Composite');
-        console.error('  3. Create a new index with:');
-        console.error('     - Collection: members');
-        console.error('     - Field: isSeniorCitizen (Ascending)');
-        console.error('  4. Wait 2-5 minutes for the index to be built');
-        console.error('  5. Retry the request');
-      }
-      console.error('\n' + '═'.repeat(80) + '\n');
-      
       return NextResponse.json(
         {
           error: 'Firestore composite index required',
-          errorCode: error.code,
+          errorCode: error.code || 9,
           isIndexError: true,
-          explanation: analysis.explanation,
-          queryFields: analysis.fields,
-          suggestions: analysis.suggestions,
-          paginationRecommendation: analysis.paginationRecommendation,
-          actionSteps: analysis.actionSteps,
-          ...(analysis.indexUrl && { 
-            consoleLink: analysis.indexUrl,
-            details: `The query requires an index. You can create it here: ${analysis.indexUrl}`,
-          }),
-          message: 'Please follow the action steps or click consoleLink to create the required index.',
+          consoleLink,
+          message: 'A Firestore index is required for this query.',
+          details: consoleLink
+            ? 'Click the link to open Firebase Console and create the required index.'
+            : 'Missing index detected, but no auto-generated console link was found in the error message.',
         },
         { status: 503 }
       );
     }
 
+    // Other errors
+    console.error(
+      `GET /api/reports/seniors error:`,
+      error
+    );
     return NextResponse.json(
-      { error: 'Failed to fetch seniors report' },
+      { error: 'Failed to fetch Seniors report' },
       { status: 500 }
     );
   }

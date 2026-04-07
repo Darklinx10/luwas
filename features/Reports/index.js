@@ -1,23 +1,40 @@
 /**
  * features/Reports/index.js
- * Central exports for the Reports feature
+ *
+ * Reports feature module exports
+ * Feature-based architecture - Integrated with household module
  */
-
-// Components
-export { default as PWDTable } from './components/PWDTable';
-export { default as SeniorTable } from './components/SeniorTable';
-export { default as AccidentTable } from './components/AccidentTable';
-export { default as HazardTable } from './components/HazardTable';
 
 // Hooks
 export { usePWDReport } from './hooks/usePWDReport';
 export { useSeniorsReport } from './hooks/useSeniorsReport';
-export { useAccidentsReport } from './hooks/useAccidentsReport';
-export { useHazardsReport } from './hooks/useHazardsReport';
+export { useAffectedHouseholdsReport } from './hooks/useAffectedHouseholdsReport';
 
 // Services
-export * from './services/reportApi';
+export {
+  reportApi,
+  fetchPWDReport,
+  fetchSeniorsReport,
+  fetchAffectedHouseholdsReport,
+  fetchAccidentsReport,
+  fetchAccidentById,
+  updateAccidentReport,
+  deleteAccidentReport,
+} from './services/reportService';
 
-// Utilities
-export * from './utils/nameFormatter';
-export * from './utils/csvExport';
+// Components - PWD
+export { default as PWDReportView } from './components/PWD/PWDReportView';
+
+// Components - Seniors
+export { default as SeniorsReportView } from './components/Seniors/SeniorsReportView';
+
+// Components - Accidents
+export { default as AccidentsReportView } from './components/Accidents/AccidentsReportView';
+
+// Components - Affected Households
+export { default as AffectedHouseholdsReportView } from './components/AffectedHouseholds/AffectedHouseholdsReportView';
+
+// Components - Shared
+export { default as ReportTable } from './components/Shared/ReportTable';
+export { default as ReportSearch } from './components/Shared/ReportSearch';
+export { default as ReportPagination } from './components/Shared/ReportPagination';

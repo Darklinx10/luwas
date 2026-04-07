@@ -1,112 +1,77 @@
 /**
- * Hook for PWD report data management
+ * features/Reports/hooks/usePWDReport.js
+ *
+ * React hook for PWD (Persons with Disability) report
+ * Handles fetching, pagination, and search
  */
 
-import { useEffect, useState, useMemo } from 'react';
-import { fetchPWDReport, updatePWDMember, deletePWDStatus } from '../services/reportApi';
-import { toast } from 'react-toastify';
-import { useAuth } from '@/context/authContext';
-import { getMemberDisplayName } from '../utils/nameFormatter';
+'use client';
 
-export const usePWDReport = () => {
-  const [pwdMembers, setPWDMembers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+import { useState, useCallback, useEffect } from 'react';
+import { fetchPWDReport } from '../services/reportService';
+
+export function usePWDReport(initialPage = 1, initialLimit = 10) {
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
-    totalCount: 0,
-    totalPages: 0,
-  });
-  const { profile, loading: authLoading } = useAuth();
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(initialPage);
+  const [limit, setLimit] = useState(initialLimit);
+  const [search, setSearch] = useState('');
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPrevPage, setHasPrevPage] = useState(false);
+  const [isIndexError, setIsIndexError] = useState(false);
+  const [indexErrorLink, setIndexErrorLink] = useState(null);
 
-  // Fetch PWD report
-  const fetchReport = async (page = 1, search = '') => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    try {
-      const data = await fetchPWDReport({
-        page,
-        limit: 20,
-        search,
-      });
+    setError(null);
+    setIsIndexError(false);
+    setIndexErrorLink(null);
 
-      setPWDMembers(data.members || []);
-      setPagination({
-        page: data.currentPage || 1,
-        limit: 20,
-        totalCount: data.totalMembers || 0,
-        totalPages: data.totalPages || 1,
-      });
-    } catch (error) {
-      console.error('Error fetching PWD report:', error);
-      toast.error('Failed to load PWD members.');
-      setPWDMembers([]);
+    try {
+      const data = await fetchPWDReport({ page, limit, search });
+
+      setMembers(data.members || []);
+      setTotalCount(data.totalMembers || 0);
+      setTotalPages(data.totalPages || 0);
+      setHasNextPage(data.hasNextPage || false);
+      setHasPrevPage(data.hasPrevPage || false);
+      setIsIndexError(Boolean(data.isIndexError));
+    } catch (err) {
+      setError(err.message || 'Failed to load PWD report');
+      setMembers([]);
+      setTotalCount(0);
+      setTotalPages(0);
+      setHasNextPage(false);
+      setHasPrevPage(false);
+      setIsIndexError(Boolean(err.isIndexError));
+      setIndexErrorLink(err.consoleLink || null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, search]);
 
-  // Fetch on mount
   useEffect(() => {
-    fetchReport(1, '');
-  }, []);
-
-  // Handle search with debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchReport(1, searchTerm);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // Handle pagination
-  const goToPage = (page) => {
-    fetchReport(page, searchTerm);
-  };
-
-  // Save PWD member
-  const savePWD = async (member) => {
-    try {
-      await updatePWDMember(member.memberId, member);
-      setPWDMembers(prev =>
-        prev.map(m => (m.memberId === member.memberId ? { ...m, ...member } : m))
-      );
-      toast.success('PWD member updated successfully.');
-    } catch (error) {
-      console.error('Error updating PWD member:', error);
-      toast.error('Failed to update PWD member.');
-    }
-  };
-
-  // Delete PWD status
-  const deletePWD = async (member) => {
-    if (!window.confirm(`Remove PWD status for ${getMemberDisplayName(member)}?`)) {
-      return;
-    }
-
-    try {
-      await deletePWDStatus(member.memberId);
-      setPWDMembers(prev => prev.filter(m => m.memberId !== member.memberId));
-      toast.success('PWD member removed successfully.');
-      // Refetch to update counts
-      fetchReport(pagination.page, searchTerm);
-    } catch (error) {
-      console.error('Error deleting PWD status:', error);
-      toast.error('Failed to remove PWD member.');
-    }
-  };
+    fetchData();
+  }, [fetchData]);
 
   return {
-    pwdMembers,
-    searchTerm,
-    setSearchTerm,
+    members,
     loading,
-    authLoading,
-    pagination,
-    goToPage,
-    savePWD,
-    deletePWD,
-    refetch: () => fetchReport(pagination.page, searchTerm),
+    error,
+    page,
+    limit,
+    search,
+    totalCount,
+    totalPages,
+    hasNextPage,
+    hasPrevPage,
+    isIndexError,
+    indexErrorLink,
+    setPage,
+    setSearch,
+    refetch: fetchData,
   };
-};
+}

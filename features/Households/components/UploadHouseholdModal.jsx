@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiX } from 'react-icons/fi';
+import { FiFileText, FiUploadCloud, FiX } from 'react-icons/fi';
 import UploadProgressBar from './UploadProgressBar';
 import { useHouseholdUpload } from '../hooks/useHouseholdUpload';
 
@@ -13,11 +13,9 @@ export default function UploadHouseholdsModal({
   const [file, setFile] = useState(null);
   const upload = useHouseholdUpload();
 
-  // Reset when modal closes
   useEffect(() => {
     if (!isOpen) {
       setFile(null);
-      // Only reset if not uploading
       if (!upload.isUploading) {
         upload.resetProgress();
       }
@@ -33,11 +31,10 @@ export default function UploadHouseholdsModal({
     if (!file) return;
 
     await upload.handleUpload(file, (count) => {
-      // Callback on success
       if (onUploadSuccess) {
         onUploadSuccess(count);
       }
-      // Close modal after brief delay to show completion
+
       setTimeout(() => {
         onClose();
         setFile(null);
@@ -46,7 +43,6 @@ export default function UploadHouseholdsModal({
   };
 
   const handleClose = () => {
-    // Don't close if uploading
     if (!upload.isUploading) {
       onClose();
       setFile(null);
@@ -57,64 +53,85 @@ export default function UploadHouseholdsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between bg-gradient-to-r from-green-600 to-green-700 px-6 py-4">
-          <h2 className="text-lg font-bold text-white">Upload Household Data</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">Upload Household Data</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Import households and members from a supported file.
+            </p>
+          </div>
+
           <button
             onClick={handleClose}
             disabled={upload.isUploading}
-            className="p-1 hover:bg-green-700 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
             title="Close"
+            type="button"
           >
-            <FiX className="w-5 h-5 text-white" />
+            <FiX className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-4">
-          {/* Instructions */}
-          {!upload.isUploading && !upload.isComplete && (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-700">
-                Select a <strong>CSV, Excel, or JSON file</strong> containing household and member data.
-              </p>
+        <div className="space-y-4 p-6">
+          {!upload.isUploading && !upload.isComplete && !upload.error && (
+            <>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm text-slate-700">
+                  Select a <strong>CSV, Excel, or JSON file</strong> containing
+                  household and member data.
+                </p>
+              </div>
 
-              {/* File requirements info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs font-semibold text-blue-900 mb-1">File Requirements:</p>
-                <ul className="text-xs text-blue-800 space-y-1">
-                  <li>• Two sheets/tabs: "Households" and "Members"</li>
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                <p className="mb-2 text-sm font-semibold text-blue-900">
+                  File Requirements
+                </p>
+                <ul className="space-y-1 text-sm text-blue-800">
+                  <li>• Two sheets/tabs: “Households” and “Members”</li>
                   <li>• Required columns: Household ID, Member ID, Head names</li>
                   <li>• Optional: Geographic coordinates (latitude/longitude)</li>
                 </ul>
               </div>
 
-              {/* File input */}
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
                   Select File
                 </label>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls,.csv,.json"
-                  onChange={handleFileChange}
-                  className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:bg-green-50 transition-colors cursor-pointer"
-                  disabled={upload.isUploading}
-                />
+
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white px-6 py-8 text-center transition hover:border-emerald-500 hover:bg-emerald-50">
+                  <FiUploadCloud className="mb-3 h-8 w-8 text-emerald-600" />
+                  <span className="text-sm font-medium text-slate-700">
+                    {file ? file.name : 'Click to choose a file'}
+                  </span>
+                  <span className="mt-1 text-xs text-slate-500">
+                    Accepted: .xlsx, .xls, .csv, .json
+                  </span>
+
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv,.json"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    disabled={upload.isUploading}
+                  />
+                </label>
+
                 {file && (
-                  <p className="mt-2 text-sm text-gray-600">
-                    Selected: <span className="font-semibold text-gray-800">{file.name}</span>
-                  </p>
+                  <div className="mt-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <FiFileText className="text-slate-500" />
+                    <p className="text-sm text-slate-700">
+                      Selected: <span className="font-medium">{file.name}</span>
+                    </p>
+                  </div>
                 )}
               </div>
-            </div>
+            </>
           )}
 
-          {/* Progress display */}
           {(upload.isUploading || upload.isComplete || upload.error) && (
-            <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <UploadProgressBar
                 percentage={upload.percentage}
                 stageName={upload.stageName}
@@ -123,35 +140,32 @@ export default function UploadHouseholdsModal({
                 totalBatches={upload.totalBatches}
                 isError={!!upload.error}
               />
-
-              {/* Error details */}
-              {upload.error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm text-red-800">
-                    <strong>Error:</strong> {upload.error}
-                  </p>
-                </div>
-              )}
             </div>
           )}
 
-          {/* Success message */}
+          {upload.error && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+              <p className="text-sm text-red-800">
+                <strong>Error:</strong> {upload.error}
+              </p>
+            </div>
+          )}
+
           {upload.isComplete && !upload.error && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm text-green-800">
-                <strong>✓ Success!</strong> {upload.message}
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <p className="text-sm text-emerald-800">
+                <strong>Success:</strong> {upload.message}
               </p>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t">
+        <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
           <button
             type="button"
             onClick={handleClose}
             disabled={upload.isUploading}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {upload.isComplete ? 'Close' : 'Cancel'}
           </button>
@@ -161,11 +175,11 @@ export default function UploadHouseholdsModal({
               type="button"
               onClick={handleUpload}
               disabled={!file || upload.isUploading}
-              className="px-6 py-2 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {upload.isUploading ? (
                 <>
-                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   Uploading...
                 </>
               ) : (
@@ -181,7 +195,7 @@ export default function UploadHouseholdsModal({
                 upload.resetProgress();
                 setFile(null);
               }}
-              className="px-6 py-2 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 transition-colors"
+              className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700"
             >
               Try Again
             </button>

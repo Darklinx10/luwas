@@ -116,13 +116,84 @@ export async function GET(request) {
     } catch (queryError) {
       // Intelligent error handling for Firestore composite index errors
       if (queryError?.code === 9 || queryError?.message?.includes('FAILED_PRECONDITION')) {
+        const projectId = process.env.FIREBASE_PROJECT_ID || 'luwasv2';
+
+        // Extract Firestore's auto-generated create_index link from error message
+        let autoIndexLink = null;
+        let isAutoLink = false;
+
+        if (queryError.message) {
+          // First try: Find the create_index link (has ?create_index=... parameter)
+          const createIndexMatch = queryError.message.match(
+            /https:\/\/console\.firebase\.google\.com[^\s]*create_index[^\s\)]+/
+          );
+          if (createIndexMatch) {
+            autoIndexLink = createIndexMatch[0];
+            isAutoLink = true;
+            console.error('\n✅ Found Firestore auto-generated create_index link');
+          } else {
+            // Fallback: Find any Firebase console link
+            const generalMatch = queryError.message.match(
+              /https:\/\/console\.firebase\.google\.com\/[^\s\)]+/
+            );
+            if (generalMatch) {
+              autoIndexLink = generalMatch[0];
+              console.error('\n⚠️  Found Firebase console link in error');
+            }
+          }
+        }
+
+        // Final fallback: Direct link to indexes page
+        if (!autoIndexLink) {
+          autoIndexLink = `https://console.firebase.google.com/u/2/project/${projectId}/firestore/databases/-default-/indexes`;
+          console.error('\n⚠️  Using fallback link to Firestore Indexes page');
+        }
+
+        // 📋 Log error details to console for developers
+        console.error('\n' + '='.repeat(80));
+        console.error('❌ FIRESTORE COMPOSITE INDEX ERROR - Action Required!');
+        console.error('='.repeat(80));
+        console.error('\nEndpoint:', 'GET /api/households');
+        console.error('Error Code:', queryError.code, '(FAILED_PRECONDITION)');
+        console.error('Full Error:', queryError.toString());
+        console.error('');
+        console.error('📊 Query Details:');
+        console.error('  Collection: households');
+        if (barangayFilter) {
+          console.error(`  Filter: barangay == "${barangayFilter}"`);
+        }
+        console.error(`  Sort: ${sort} (${order})`);
+        console.error('');
+
+        if (isAutoLink) {
+          console.error('🔗 FIREBASE AUTO-CREATE LINK (Click to auto-create index):');
+          console.error(`\n  ${autoIndexLink}\n`);
+          console.error('📋 Setup Instructions:');
+          console.error('  1. Click the link above');
+          console.error('  2. Firebase Console will auto-populate the index configuration');
+          console.error('  3. Review the settings and click "Create Index"');
+          console.error('  4. Return here when index is built (2-5 minutes)');
+        } else {
+          console.error('🔗 FIREBASE INDEXES PAGE:');
+          console.error(`\n  ${autoIndexLink}\n`);
+          console.error('📋 Setup Instructions:');
+          console.error('  1. Click the link to open Firestore Indexes page');
+          console.error('  2. Create composite index with:');
+          console.error(`     - Collection: households${barangayFilter ? ` (filtered by barangay: ${barangayFilter})` : ''}`);
+          console.error(`     - Field 1: ${sort} (${order})`);
+          console.error('     - Field 2: __name__ (Ascending)');
+          console.error('  3. Click "Create Index"');
+          console.error('  4. Return here when index is built (2-5 minutes)');
+        }
+
+        console.error('');
+        console.error('='.repeat(80) + '\n');
+
         const queryMetadata = {
           collection: 'households',
           where: barangayFilter ? [{ field: 'barangay', operator: '==', value: barangayFilter }] : [],
           orderBy: [
-            { field: 'headLastName', direction: order },
-            { field: 'headFirstName', direction: order },
-            { field: 'headMiddleName', direction: order },
+            { field: sort, direction: order },
           ],
           pagination: 'offset',
         };
@@ -200,12 +271,78 @@ export async function GET(request) {
 
     // Handle Firestore composite index required error
     if (error?.code === 9 || error?.message?.includes('FAILED_PRECONDITION')) {
+      const projectId = process.env.FIREBASE_PROJECT_ID || 'luwasv2';
+
+      // Extract Firestore's auto-generated create_index link from error message
+      let autoIndexLink = null;
+      let isAutoLink = false;
+
+      if (error.message) {
+        // First try: Find the create_index link (has ?create_index=... parameter)
+        const createIndexMatch = error.message.match(
+          /https:\/\/console\.firebase\.google\.com[^\s]*create_index[^\s\)]+/
+        );
+        if (createIndexMatch) {
+          autoIndexLink = createIndexMatch[0];
+          isAutoLink = true;
+          console.error('\n✅ Found Firestore auto-generated create_index link');
+        } else {
+          // Fallback: Find any Firebase console link
+          const generalMatch = error.message.match(
+            /https:\/\/console\.firebase\.google\.com\/[^\s\)]+/
+          );
+          if (generalMatch) {
+            autoIndexLink = generalMatch[0];
+            console.error('\n⚠️  Found Firebase console link in error');
+          }
+        }
+      }
+
+      // Final fallback: Direct link to indexes page
+      if (!autoIndexLink) {
+        autoIndexLink = `https://console.firebase.google.com/u/2/project/${projectId}/firestore/databases/-default-/indexes`;
+        console.error('\n⚠️  Using fallback link to Firestore Indexes page');
+      }
+
+      // 📋 Log error details to console for developers
+      console.error('\n' + '='.repeat(80));
+      console.error('❌ FIRESTORE COMPOSITE INDEX ERROR - Action Required!');
+      console.error('='.repeat(80));
+      console.error('\nEndpoint:', 'GET /api/households');
+      console.error('Error Code:', error.code, '(FAILED_PRECONDITION)');
+      console.error('Full Error:', error.toString());
+      console.error('');
+      console.error('📊 Query Details:');
+      console.error('  Collection: households');
+      console.error('  (Query requires composite index for filtering/sorting)');
+      console.error('');
+
+      if (isAutoLink) {
+        console.error('🔗 FIREBASE AUTO-CREATE LINK (Click to auto-create index):');
+        console.error(`\n  ${autoIndexLink}\n`);
+        console.error('📋 Setup Instructions:');
+        console.error('  1. Click the link above');
+        console.error('  2. Firebase Console will auto-populate the index configuration');
+        console.error('  3. Review the settings and click "Create Index"');
+        console.error('  4. Return here when index is built (2-5 minutes)');
+      } else {
+        console.error('🔗 FIREBASE INDEXES PAGE:');
+        console.error(`\n  ${autoIndexLink}\n`);
+        console.error('📋 Setup Instructions:');
+        console.error('  1. Click the link to open Firestore Indexes page');
+        console.error('  2. Create the required composite index');
+        console.error('  3. Click "Create Index"');
+        console.error('  4. Return here when index is built (2-5 minutes)');
+      }
+
+      console.error('');
+      console.error('='.repeat(80) + '\n');
+
       const queryMetadata = {
         collection: 'households',
         where: [{ field: 'barangay', operator: '==', value: 'any' }],
         orderBy: [
           { field: 'headLastName', direction: 'asc' },
-          { field: 'headFirstName', direction: 'asc' },
         ],
         pagination: 'offset',
       };
@@ -305,6 +442,7 @@ export async function POST(request) {
       totalPWDs: body.totalPWDs,
       totalSeniors: body.totalSeniors,
       ageBrackets: body.ageBrackets,
+      members: body.members,
     });
 
     console.log('📦 Normalized payload:', payload);

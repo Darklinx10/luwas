@@ -1,10 +1,7 @@
 'use client';
 
-import { FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+import { FiAlertCircle, FiCheckCircle, FiLoader } from 'react-icons/fi';
 
-/**
- * Professional upload progress bar component with detailed status
- */
 export default function UploadProgressBar({
   percentage = 0,
   stageName = '',
@@ -13,76 +10,78 @@ export default function UploadProgressBar({
   totalBatches = 0,
   isError = false,
 }) {
-  const getProgressColor = () => {
-    if (isError) return 'bg-red-500';
-    if (percentage === 100) return 'bg-green-500';
-    return 'bg-blue-500';
-  };
+  const isComplete = percentage === 100 && !isError;
+  const isInProgress = percentage > 0 && !isComplete && !isError;
 
-  const getProgressBackgroundColor = () => {
-    if (isError) return 'bg-red-100';
-    if (percentage === 100) return 'bg-green-100';
-    return 'bg-blue-100';
-  };
+  const progressColor = isError
+    ? 'bg-red-500'
+    : isComplete
+      ? 'bg-emerald-500'
+      : 'bg-emerald-600';
+
+  const progressTrack = isError
+    ? 'bg-red-100'
+    : isComplete
+      ? 'bg-emerald-100'
+      : 'bg-slate-200';
 
   return (
-    <div className="space-y-3">
-      {/* Header with percentage and stage */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {percentage === 100 && !isError && (
-            <FiCheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-          )}
-          {isError && (
-            <FiAlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-          )}
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5">
+            {isComplete && <FiCheckCircle className="h-5 w-5 text-emerald-600" />}
+            {isError && <FiAlertCircle className="h-5 w-5 text-red-600" />}
+            {isInProgress && <FiLoader className="h-5 w-5 animate-spin text-emerald-600" />}
+          </div>
+
           <div>
-            <p className="text-sm font-semibold text-gray-700">{stageName}</p>
-            <p className="text-xs text-gray-600">{message}</p>
+            <p className="text-sm font-semibold text-slate-800">{stageName || 'Uploading'}</p>
+            <p className="mt-1 text-sm text-slate-500">{message}</p>
           </div>
         </div>
-        <div className="text-right flex-shrink-0">
-          <p className="text-lg font-bold text-gray-800">{percentage}%</p>
+
+        <div className="shrink-0 text-right">
+          <p className="text-lg font-bold text-slate-800">{percentage}%</p>
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className={`relative h-3 w-full rounded-full overflow-hidden ${getProgressBackgroundColor()}`}>
+      <div className={`h-3 w-full overflow-hidden rounded-full ${progressTrack}`}>
         <div
-          className={`h-full ${getProgressColor()} transition-all duration-300 ease-out`}
+          className={`h-full ${progressColor} transition-all duration-300 ease-out`}
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />
       </div>
 
-      {/* Batch info (shown during uploading stage) */}
       {totalBatches > 0 && currentBatch > 0 && (
-        <div className="flex items-center justify-between text-xs text-gray-600">
-          <span>Batch Progress</span>
-          <span className="font-medium">
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>Batch progress</span>
+          <span className="font-medium text-slate-700">
             {currentBatch} of {totalBatches}
           </span>
         </div>
       )}
 
-      {/* Status indicators */}
-      <div className="flex gap-2 flex-wrap">
-        {!isError && percentage > 0 && (
-          <div className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700">
-            <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />
+      <div className="flex flex-wrap gap-2">
+        {isInProgress && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
             In Progress
-          </div>
+          </span>
         )}
-        {percentage === 100 && !isError && (
-          <div className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 rounded text-xs text-green-700">
-            <div className="w-1.5 h-1.5 bg-green-600 rounded-full" />
+
+        {isComplete && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
             Complete
-          </div>
+          </span>
         )}
+
         {isError && (
-          <div className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 rounded text-xs text-red-700">
-            <div className="w-1.5 h-1.5 bg-red-600 rounded-full" />
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 ring-1 ring-red-100">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-600" />
             Error
-          </div>
+          </span>
         )}
       </div>
     </div>

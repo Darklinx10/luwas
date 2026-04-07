@@ -21,12 +21,12 @@ export default function HomePage() {
   }, [user, role, loading, router]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-green-50 to-white text-center px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 text-center">
       <AppHeader />
 
-      <div className="flex flex-col items-center gap-3 mt-6">
+      <div className="mt-6 flex flex-col items-center gap-3">
         <svg
-          className="animate-spin h-10 w-10 text-green-600"
+          className="h-10 w-10 animate-spin text-emerald-600"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -47,15 +47,12 @@ export default function HomePage() {
           />
         </svg>
 
-        <p
-          className="text-gray-500 text-sm animate-pulse"
-          aria-live="polite"
-        >
+        <p className="animate-pulse text-sm text-slate-500" aria-live="polite">
           {loading
             ? 'Checking authentication...'
             : user
-            ? 'Redirecting to your workspace...'
-            : 'Redirecting to login...'}
+              ? 'Redirecting to your workspace...'
+              : 'Redirecting to login...'}
         </p>
       </div>
     </div>

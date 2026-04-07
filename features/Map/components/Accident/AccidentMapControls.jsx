@@ -1,18 +1,25 @@
 'use client';
 
-import React from 'react';
-
-export default function AccidentMapControls({ isAccidentMap, isMDRRMCAdmin, addingAccident, setAddingAccident }) {
+export default function AccidentMapControls({
+  isAccidentMap,
+  isMDRRMCAdmin,
+  addingAccident,
+  setAddingAccident,
+}) {
   if (!isAccidentMap || isMDRRMCAdmin) return null;
 
   return (
     <div className="leaflet-top leaflet-left ml-10">
-      <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2">
+      <div className="leaflet-control mt-2 ml-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
         <button
+          type="button"
           onClick={() => setAddingAccident((prev) => !prev)}
-          className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 w-full cursor-pointer"
+          className={`w-full rounded-xl px-4 py-2.5 text-sm font-medium transition ${addingAccident
+              ? 'bg-red-50 text-red-700 ring-1 ring-red-100 hover:bg-red-100'
+              : 'bg-emerald-600 text-white hover:bg-emerald-700'
+            }`}
         >
-          {addingAccident ? 'Cancel' : 'Add Accident'}
+          {addingAccident ? 'Cancel Accident Entry' : 'Add Accident'}
         </button>
       </div>
     </div>

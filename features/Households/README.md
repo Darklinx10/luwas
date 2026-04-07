@@ -2,7 +2,9 @@
 
 ## Overview
 
-The Household Module is the central feature for managing household data, members, and geographic information in the LUWAS (Luzon Unified Water and Sanitation) system. It provides a complete CRUD interface, bulk upload capabilities, and integration with the Dashboard, Reports, and Map modules.
+The Household Module is the central feature for managing household data, members, and geographic information in the LUWAS system. It provides a complete CRUD interface, bulk upload capabilities, and multi-section form workflows for detailed household surveys.
+
+**Architecture:** Fully API-based with server-side authentication and authorization. All client-side data access goes through `/api/households/*` endpoints.
 
 ## File Structure
 
@@ -10,44 +12,61 @@ The Household Module is the central feature for managing household data, members
 features/Households/
 ├── index.js                          # Module exports
 ├── components/
-│   ├── HouseholdPageContent.jsx      # Main container component
-│   ├── HouseholdTable.jsx            # Table display with row actions
-│   ├── HouseholdMembersTable.jsx     # Nested members table (expanded)
-│   ├── editMemberModal.jsx           # Member edit/create form
-│   ├── editHouseholdModal.jsx        # Household edit form (WIP)
-│   ├── UploadHouseholdModal.jsx      # Bulk upload UI
-│   ├── UploadProgressBar.jsx         # Upload progress indicator
-│   ├── Pagination.jsx                # Pagination controls
-│   ├── formSectionSidebar.jsx        # Sidebar for multi-section forms
-│   └── Forms/                        # Form section components (20+ detailed forms)
+│   ├── HouseholdPageContent.jsx      # ✅ Main listing page (via useHouseholds hook)
+│   ├── HouseholdTable.jsx            # ✅ Table display with actions
+│   ├── HouseholdMembersTable.jsx     # ✅ Expandable member rows
+│   ├── HouseholdFormShell.jsx        # ✅ NEW: Shared form container for Add/Edit
+│   ├── formSectionSidebar.jsx        # ✅ Form section navigation
+│   ├── UploadHouseholdModal.jsx      # ✅ Bulk upload dialog
+│   ├── UploadProgressBar.jsx         # ✅ Progress indicator
+│   ├── Pagination.jsx                # ✅ Table pagination
+│   └── Forms/                        # ✅ Form section components (5+ sections)
+│       ├── geographic-information.jsx # ✅ Location & barangay
+│       ├── demographics.jsx           # ✅ Family composition & statistics
+│       ├── health.jsx                 # ✅ Health & maternal information
+│       ├── education.jsx              # ✅ Education level tracking
+│       ├── economic.jsx               # ✅ Income & livelihood
+│       ├── HeadForm.jsx               # Sub-component for quick-add
+│       ├── LocationForm.jsx           # Sub-component for quick-add
+│       └── MembersForm.jsx            # Sub-component for quick-add
 ├── hooks/
-│   ├── useHouseholds.js              # Main hook for household list/CRUD
-│   └── useHouseholdUpload.js         # Hook for upload progress management
+│   ├── useHouseholds.js              # ✅ Household list management
+│   └── useHouseholdUpload.js         # ✅ Upload progress management
 ├── services/
-│   ├── householdApi.js               # Client API calls to /api/households
-│   ├── householdUploadService.js     # Batch upload logic (reads Excel/JSON/CSV)
+│   ├── householdApi.js               # ✅ Client → API layer
+│   └── householdUploadService.js     # ✅ Batch upload parsing
 ├── utils/
-│   ├── householdFormat.js            # Data normalization utilities
-│   └── householdQuery.js             # Query parameter builder
+│   ├── formSectionsConfig.js         # ✅ NEW: Centralized form definitions
+│   ├── buildHouseholdPayload.js      # ✅ Data normalization
+│   ├── householdFormat.js            # ✅ Data formatting
+│   └── householdQuery.js             # ✅ Query builder
 ```
 
-### API Routes
+### API Routes (All with Server-Side Auth)
 
 ```
 app/api/households/
-├── route.js                          # GET list, POST create
+├── route.js                          # ✅ GET list, POST create (with auth/authz)
 ├── [householdId]/
-│   ├── route.js                      # GET detail, PATCH update, DELETE
+│   ├── route.js                      # ✅ GET detail, PATCH update, DELETE
 │   └── members/
-│       ├── route.js                  # GET member list, POST create
+│       ├── route.js                  # ✅ GET member list, POST create
 │       └── [memberId]/
-│           └── route.js              # PATCH update member, DELETE
+│           └── route.js              # ✅ PATCH update member, DELETE
 
 app/(home)/household/
-├── page.jsx                          # Household listing page
-└── add/
-    └── page.jsx                      # Multi-section form for creating households (detailed data)
+├── page.jsx                          # ✅ Household listing (RoleGuard protected)
+├── quick-add/page.jsx                # ✅ Fast 3-step registration
+├── add/page.jsx                      # ✅ REFACTORED: Multi-section form (API-based)
+└── edit/[householdId]/page.jsx       # ✅ REFACTORED: Edit household (API-based)
 ```
+
+### Deleted (Dead Code)
+- ❌ editMemberModal.jsx (replaced by form sections)
+- ❌ editHouseholModal.jsx (replaced by HouseholdFormShell)
+- ❌ edithhMemberModal.jsx (typo, unused)
+- ❌ HouseholdMemberTble.jsx (typo, replaced by HouseholdMembersTable.jsx)
+- ❌ QuickHouseholdForm.jsx (old Firebase implementation)
 
 ### Library Services
 
@@ -678,23 +697,42 @@ const { memberId } = await response.json();
 
 ---
 
+## Recent Improvements (April 7, 2026)
+
+✅ **Form Data Persistence** - All form sections now save through API (onSaveProgress callback)
+✅ **Additional Form Sections** - Added Demographics, Education, and Economic forms (5 sections total)
+✅ **Unified Architecture** - Both Add and Edit workflows use shared HouseholdFormShell
+✅ **API-First Pattern** - Removed all direct Firestore writes from client components
+✅ **Dead Code Cleanup** - Deleted 6 unused modal components and references
+✅ **Configuration-Driven** - formSectionsConfig.js centralizes form definitions
+
 ## Known Limitations & TODOs
 
-1. **Household Edit Modal**: Currently declared but not fully integrated. handleEditHousehold is a placeholder.
-2. **Add Household Form**: Uses client-side Firestore writes (old pattern). Should migrate to API endpoints.
-3. **Redundant Geo Data**: Head info stored in both households/{id} and geographicIdentification/main.
-4. **Form Components**: 20+ detailed form components in Forms/ directory - purpose and usage unclear.
+1. **Member Management in Edit Flow**: API endpoints exist but UI forms for member CRUD not yet built
+2. **Resume Incomplete Households**: Form can resume at last section, but could be smarter
+3. **Form Section Optimization**: Each section independently loads data; could be batched
+4. **Firestore Subcollections**: Still using geographicIdentification/main subcollection; could consolidate
+5. **Error Recovery**: Limited retry logic if section save fails partway through
+
+## Planned Enhancements
+
+- Member management forms for adding/editing/deleting household members in edit flow
+- Additional form sections (Migration, Agriculture, Entrepreneurship, etc.) following established pattern
+- Firestore rules validation matching API layer authorization
+- Form completion percentage indicator
+- Auto-save between sections with offline support
+- Household template/drafts feature
 
 ---
 
 ## Module Status
 
-✅ **Production Ready** - Household List, Member Management, Bulk Upload
-🟡 **Partial** - Household Edit, Detailed Form Flow
-⚠️ **Needs Review** - Add Household page, unused form components
+✅ **Production Ready** - Household List, Member Management, Bulk Upload, Multi-section Add/Edit
+🟡 **Partial** - Member CRUD forms in edit flow (API ready, UI pending)
+✅ **Fully Refactored** - All client data access through API layer with authentication
 
 ---
 
 Created: March 30, 2026
-Last Updated: March 30, 2026
-Module Version: 1.0.0
+Last Updated: April 7, 2026
+Module Version: 1.1.0 (Refactored with Form Data Persistence)

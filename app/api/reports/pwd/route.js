@@ -1,162 +1,161 @@
 /**
  * app/api/reports/pwd/route.js
- * 
- * GET /api/reports/pwd - Fetch PWD (Persons with Disability) members
- * 
- * Returns paginated list of all members with isPWD = true
- * Includes household information for context
- * 
- * Query params:
- * - page: Page number (1-based)
- * - limit: Results per page
- * - search: Search by member name
- * 
- * Auth required. Secretary gets only their barangay.
+ *
+ * GET /api/reports/pwd
+ * Fetch paginated PWD (Persons with Disability) member report
+ *
+ * Query Parameters:
+ * - page: Page number (default: 1)
+ * - limit: Results per page (default: 10, max: 100)
+ * - search: Search term for filtering (optional)
+ *
+ * Returns:
+ * - members: Array of PWD members with household context
+ * - totalMembers: Total count of PWD members
+ * - totalPages: Total number of pages
+ * - currentPage: Current page number
+ * - pageSize: Items per page
+ *
+ * Auth required. Secretary gets only their barangay data.
  */
 
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth/getSessionUser';
-import { adminDb } from '@/lib/firebaseAdmin';
+import { getAllPWDMembers } from '@/lib/api/memberService';
+import { extractFirestoreIndexUrl } from '@/lib/api/firestoreErrorHandler';
 
 export async function GET(request) {
+  console.log('👥 GET /api/reports/pwd called');
+
   // ✅ Verify authentication
-  const user = await getSessionUser();
+  const user = await getSessionUser(request);
   if (!user) {
+    console.log('❌ Unauthorized: No session user');
     return NextResponse.json(
       { error: 'Unauthorized: Authentication required' },
       { status: 401 }
     );
   }
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
-    const search = (searchParams.get('search') || '').trim();
-
-    // Validate pagination
-    if (page < 1 || limit < 1 || limit > 100) {
-      return NextResponse.json(
-        { error: 'Invalid pagination parameters' },
-        { status: 400 }
-      );
-    }
-
-    // ✅ OPTIMIZED: Use collectionGroup query instead of N+1 pattern
-    // Get all PWD members across all accessible households in ONE query
-    let memberQuery = adminDb.collectionGroup('members').where('isPWD', '==', true);
-
-    const memberSnap = await memberQuery.get();
-
-    // Collect household IDs we need to fetch
-    const householdIdsToFetch = new Set();
-
-    memberSnap.forEach((memDoc) => {
-      const householdId = memDoc.ref.parent.parent.id;
-      householdIdsToFetch.add(householdId);
-    });
-
-    // ✅ Filter accessible households if Secretary
-    let accessibleHouseholds = new Set(householdIdsToFetch);
-    if (user.role === 'Brgy-Secretary') {
-      const barangayHouseholds = await adminDb
-        .collection('households')
-        .where('barangay', '==', user.barangay)
-        .select()
-        .get();
-
-      accessibleHouseholds = new Set(
-        barangayHouseholds.docs.map(doc => doc.id)
-      );
-    }
-
-    // Fetch household data for all needed households in parallel
-    const householdCache = {};
-    await Promise.all(
-      Array.from(householdIdsToFetch).map(async (householdId) => {
-        if (!accessibleHouseholds.has(householdId)) return;
-
-        const hhSnap = await adminDb.collection('households').doc(householdId).get();
-        if (hhSnap.exists) {
-          householdCache[householdId] = hhSnap.data();
-        }
-      })
+  // 🔐 Only Secretary and Personnel can view reports
+  if (!['Brgy-Secretary', 'MDRRMC-Personnel', 'MDRRMC-Admin'].includes(user.role)) {
+    console.log(`❌ Forbidden: User role ${user.role} not allowed`);
+    return NextResponse.json(
+      { error: 'Forbidden: Report access required' },
+      { status: 403 }
     );
+  }
 
-    // Collect all PWD members across all accessible households
-    const pwdMembers = [];
-    const normalizedSearch = search.toLowerCase();
+  try {
+    // Parse query parameters
+    const url = new URL(request.url);
+    const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '10', 10)));
+    const search = String(url.searchParams.get('search') || '').trim();
 
-    memberSnap.forEach((memDoc) => {
-      const householdId = memDoc.ref.parent.parent.id;
-
-      // Filter by accessible households
-      if (!accessibleHouseholds.has(householdId)) {
-        return;
+    // Determine barangay filter for Secretary role
+    let barangay = null;
+    if (user.role === 'Brgy-Secretary') {
+      barangay = user.barangay || null;
+      if (!barangay) {
+        console.log('⚠️ Secretary without barangay assignment');
+        return NextResponse.json(
+          { error: 'Secretary role requires barangay assignment' },
+          { status: 400 }
+        );
       }
+      console.log(`🏘️ Fetching PWD members for Secretary in barangay: ${barangay}`);
+    } else {
+      console.log('👮 Fetching PWD members for Personnel/Admin (all barangays)');
+    }
 
-      const member = memDoc.data();
-      const household = householdCache[householdId];
+    // Fetch all PWD members (with optional barangay filter)
+    console.log(`📡 Querying PWD members from memberService...`);
+    const allMembers = await getAllPWDMembers({ barangay });
+    console.log(`✅ Retrieved ${allMembers.length} PWD members`);
 
-      // Apply search filter if provided
-      if (normalizedSearch) {
+    // Apply search filter if provided
+    let filteredMembers = allMembers;
+    if (search) {
+      console.log(`🔍 Applying search filter: "${search}"`);
+      const lowerSearch = search.toLowerCase();
+      filteredMembers = allMembers.filter((member) => {
         const firstName = String(member.firstName || '').toLowerCase();
+        const middleName = String(member.middleName || '').toLowerCase();
         const lastName = String(member.lastName || '').toLowerCase();
         const fullName = String(member.fullName || '').toLowerCase();
+        const householdHead = String(member.headFullName || '').toLowerCase();
+        const barangayMatch = String(member.householdBarangay || '').toLowerCase();
+        const sitioMatch = String(member.householdSitio || '').toLowerCase();
+        const contactMatch = String(member.contactNumber || '').toLowerCase();
+        const householdIdMatch = String(member.householdId || '').toLowerCase();
 
-        if (
-          !firstName.includes(normalizedSearch) &&
-          !lastName.includes(normalizedSearch) &&
-          !fullName.includes(normalizedSearch)
-        ) {
-          return; // Skip this member
-        }
-      }
-
-      pwdMembers.push({
-        memberId: memDoc.id,
-        householdId,
-        firstName: member.firstName || '',
-        middleName: member.middleName || '',
-        lastName: member.lastName || '',
-        fullName: member.fullName || '',
-        age: member.age || null,
-        sex: member.sex || '',
-        contactNumber: member.contactNumber || '',
-        headFirstName: household?.headFirstName || '',
-        headLastName: household?.headLastName || '',
-        headFullName: household?.headFullName || '',
-        householdBarangay: household?.barangay || '',
-        householdSitio: household?.sitio || '',
-        createdAt: member.createdAt,
-        updatedAt: member.updatedAt,
+        return (
+          firstName.includes(lowerSearch) ||
+          middleName.includes(lowerSearch) ||
+          lastName.includes(lowerSearch) ||
+          fullName.includes(lowerSearch) ||
+          householdHead.includes(lowerSearch) ||
+          barangayMatch.includes(lowerSearch) ||
+          sitioMatch.includes(lowerSearch) ||
+          contactMatch.includes(lowerSearch) ||
+          householdIdMatch.includes(lowerSearch)
+        );
       });
-    });
+      console.log(`✅ Search filter returned ${filteredMembers.length} members`);
+    }
 
-    // Sort by last name, then first name
-    pwdMembers.sort((a, b) => {
-      const lastNameCmp = a.lastName.localeCompare(b.lastName);
-      if (lastNameCmp !== 0) return lastNameCmp;
-      return a.firstName.localeCompare(b.firstName);
-    });
+    // Calculate pagination
+    const totalMembers = filteredMembers.length;
+    const totalPages = Math.max(1, Math.ceil(totalMembers / limit));
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedMembers = filteredMembers.slice(startIndex, endIndex);
 
-    // Paginate
-    const totalCount = pwdMembers.length;
-    const totalPages = Math.max(1, Math.ceil(totalCount / limit));
-    const skip = (page - 1) * limit;
-    const paginatedMembers = pwdMembers.slice(skip, skip + limit);
+    console.log(
+      `📄 Pagination: page ${page}/${totalPages}, showing ${paginatedMembers.length}/${totalMembers} members`
+    );
 
     return NextResponse.json({
       success: true,
       members: paginatedMembers,
-      totalMembers: totalCount,
+      totalMembers,
       totalPages,
       currentPage: page,
+      pageSize: limit,
       hasNextPage: page < totalPages,
       hasPrevPage: page > 1,
+      isIndexError: false,
     });
   } catch (error) {
-    console.error('GET /api/reports/pwd error:', error);
+    console.error('❌ PWD Report Error:', error.message);
+
+    // Intelligent error handling for Firestore composite index errors
+    const isMissingIndex = error?.code === 9 || error?.message?.includes('FAILED_PRECONDITION');
+    if (isMissingIndex) {
+      const consoleLink = extractFirestoreIndexUrl(error);
+      console.log('Extracted Firestore index URL:', consoleLink);
+
+      return NextResponse.json(
+        {
+          error: 'Firestore composite index required',
+          errorCode: error.code || 9,
+          isIndexError: true,
+          consoleLink,
+          message: 'A Firestore index is required for this query.',
+          details: consoleLink
+            ? 'Click the link to open Firebase Console and create the required index.'
+            : 'Missing index detected, but no auto-generated console link was found in the error message.',
+        },
+        { status: 503 }
+      );
+    }
+
+    // Other errors
+    console.error(
+      `GET /api/reports/pwd error:`,
+      error
+    );
     return NextResponse.json(
       { error: 'Failed to fetch PWD report' },
       { status: 500 }

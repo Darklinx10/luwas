@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { hazardTypes } from '@/utils/hazardTypes';
 
 export default function HazardSelectControls({
@@ -8,67 +7,55 @@ export default function HazardSelectControls({
   isMDRRMCAdmin,
   loading,
   activeHazard,
-  setActiveHazard
+  setActiveHazard,
 }) {
   if (!isHouseholdMap || isMDRRMCAdmin) return null;
 
   return (
-    <div className="leaflet-top leaflet-left ml-10 md:ml-10 sm:ml-2">
-      <div className="leaflet-control leaflet-bar bg-white shadow rounded mt-2 ml-2 p-2 w-[200px] sm:w-[150px] md:w-[220px]">
-        <div className="flex items-center justify-between mb-1">
+    <div className="leaflet-top leaflet-left ml-10">
+      <div className="leaflet-control mt-2 ml-2 w-[220px] rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="mb-2 flex items-center justify-between">
           <label
             htmlFor="hazard-select"
-            className="text-sm font-medium whitespace-nowrap sm:text-xs"
+            className="text-sm font-semibold text-slate-700"
           >
-            Hazards
+            Hazard Layer
           </label>
+
           {loading && (
-            <div className="relative flex justify-end ml-2">
-              <svg
-                className="animate-spin h-4 w-4 text-green-800"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-                />
-              </svg>
-            </div>
+            <svg className="h-4 w-4 animate-spin text-emerald-700" viewBox="0 0 24 24">
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+                fill="none"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+              />
+            </svg>
           )}
         </div>
+
         <select
           id="hazard-select"
-          className="
-            text-sm md:text-sm sm:text-xs
-            border border-gray-300 rounded-lg
-            p-2 sm:p-1.5
-            cursor-pointer
-            focus:outline-none focus:ring-2 focus:ring-green-600
-            w-full
-            bg-white
-            transition-all duration-200
-          "
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
           value={activeHazard}
           onChange={(e) => setActiveHazard(e.target.value)}
         >
-         <option value="">Select a hazard type</option>
-            {hazardTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </div>
+          <option value="">Select a hazard type</option>
+          {hazardTypes.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

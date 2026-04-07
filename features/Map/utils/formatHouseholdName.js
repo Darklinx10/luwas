@@ -9,8 +9,8 @@
  * Build household display name with comprehensive fallback chain
  *
  * Priority:
- * 1. headFullName (if exists and not empty)
- * 2. Constructed name from headFirstName + headMiddleName + headLastName + headSuffix
+ * 1. Constructed name from headFirstName + headMiddleName + headLastName + headSuffix
+ * 2. headFullName (if exists and not empty)
  * 3. householdId as identifier
  * 4. "Unnamed" only as final fallback
  *
@@ -23,17 +23,15 @@
  * @param {string} [household.householdId] - Household ID fallback
  * @returns {string} Display name for household
  */
+import { buildFullName } from '@/lib/utils/nameNormalizer';
+
 export const formatHouseholdName = (household = {}) => {
   try {
     if (!household || typeof household !== 'object') return 'Unnamed';
 
-    // 1. Use pre-computed headFullName if available and not empty
-    if (household.headFullName && typeof household.headFullName === 'string' && household.headFullName.trim()) {
-      return household.headFullName.trim();
-    }
-
-    // 2. Construct from individual components
+    // 1. Construct from individual components using the household-standard format
     const {
+      headFullName = '',
       headFirstName = '',
       headMiddleName = '',
       headLastName = '',
@@ -48,22 +46,15 @@ export const formatHouseholdName = (household = {}) => {
     const suffix = typeof headSuffix === 'string' ? headSuffix : '';
     const id = typeof householdId === 'string' ? householdId : '';
 
-    // Build name from components (first + middle) (last)(suffix)
-    const firstPart = [firstName, middleName]
-      .filter((n) => n && n.trim())
-      .join(' ')
-      .trim();
-    const lastPart = lastName && lastName.trim() ? lastName.trim() : '';
-    const suffixPart = suffix && suffix.trim() ? suffix.trim() : '';
-
-    // Assemble full name
-    const constructedName = [lastPart, firstPart, suffixPart]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
+    const constructedName = buildFullName(firstName, middleName, lastName, suffix);
 
     if (constructedName) {
       return constructedName;
+    }
+
+    // 2. Fall back to stored headFullName if individual fields are unavailable
+    if (typeof headFullName === 'string' && headFullName.trim()) {
+      return headFullName.trim();
     }
 
     // 3. Fall back to household ID

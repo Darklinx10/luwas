@@ -637,8 +637,8 @@ export async function uploadHouseholdsFromFile(file, onProgress) {
       
       // Calculate totals from members array
       const totalMembers = members.length;
-      const totalMale = members.filter(m => m.sex?.toLowerCase() === 'male').length;
-      const totalFemale = members.filter(m => m.sex?.toLowerCase() === 'female').length;
+      const totalMale = members.filter(m => m.sex?.toLowerCase() === 'male').length + (headSex?.toLowerCase() === 'male' ? 1 : 0);
+      const totalFemale = members.filter(m => m.sex?.toLowerCase() === 'female').length + (headSex?.toLowerCase() === 'female' ? 1 : 0);
       const totalPWDs = members.filter(m => m.isPWD).length;
       const totalSeniors = (headAge >= 60 ? 1 : 0) + members.filter(m => m.age >= 60).length;
       const ageBrackets = calculateAgeBrackets(members, headAge); // ✅ Now includes head's age

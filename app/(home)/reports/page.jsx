@@ -1,117 +1,142 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { AccidentTable, HazardTable, PWDTable, SeniorTable, useHazardsReport } from '@/features/Reports';
+/**
+ * app/(home)/reports/page.jsx
+ *
+ * Reports landing page
+ * Feature-based architecture: Uses feature module from features/Reports/
+ * 
+ * Report types:
+ * - PWD: Persons with Disability
+ * - Seniors: Senior Citizens (age >= 60)
+ * - Accidents: Accident reports
+ * - Affected households: Household locations intersecting hazard layers
+ */
+
+import { useState } from 'react';
+import {
+  AccidentsReportView,
+  AffectedHouseholdsReportView,
+  PWDReportView,
+  SeniorsReportView,
+} from '@/features/Reports';
 import RoleGuard from '@/components/roleGuard';
-import { useAuth } from '@/context/authContext';
-import { hazardTypes } from '@/utils/hazardTypes';
 
-const titleMap = {
-  pwd: 'List of Persons with Disability',
-  senior: 'List of Senior Citizens',
-  accident: 'List of Reported Accidents',
-  ...hazardTypes.reduce((map, type) => {
-    map[type] = `Reported Hazards: ${type}`;
-    return map;
-  }, {}),
-};
-
+/**
+ * Report navigation and display component
+ * 
+ * Features:
+ * - Tabbed interface for selecting reports
+ * - Feature-integrated report views
+ * - Role-based access control
+ */
 function ReportsPageContent() {
   const [selectedReport, setSelectedReport] = useState('pwd');
-  const { profile } = useAuth();
 
-  // Use hazards report hook for hazard data
-  const { affectedHouseholds, loading, legendProp } = useHazardsReport(
-    hazardTypes.includes(selectedReport) ? selectedReport : null
-  );
+  // Report tabs configuration
+  const reportTabs = [
+    {
+      id: 'pwd',
+      label: 'PWD',
+      title: 'Persons with Disability Report',
+      description: 'Members identified as PWD',
+    },
+    {
+      id: 'senior',
+      label: 'Seniors',
+      title: 'Senior Citizens Report',
+      description: 'Members aged 60 and above',
+    },
+    {
+      id: 'accident',
+      label: 'Accidents',
+      title: 'Accident Reports',
+      description: 'All reported accidents',
+    },
+    {
+      id: 'affected-households',
+      label: 'Affected Households',
+      title: 'Hazard-Affected Household Report',
+      description: 'Households affected by the selected hazard layer',
+    },
+  ];
 
-  const renderTable = () => {
-    const title = titleMap[selectedReport];
+  /**
+   * Render selected report
+   * Uses feature-based components from features/Reports/
+   */
+  const renderSelectedReport = () => {
+    switch (selectedReport) {
+      case 'pwd':
+        return <PWDReportView />;
 
-    // PWD Table
-    if (selectedReport === 'pwd') {
-      return <PWDTable title={title} />;
+      case 'senior':
+        return <SeniorsReportView />;
+
+      case 'accident':
+        return <AccidentsReportView />;
+
+      case 'affected-households':
+        return <AffectedHouseholdsReportView />;
+
+      default:
+        return <PWDReportView />;
     }
-
-    // Senior Table
-    if (selectedReport === 'senior') {
-      return <SeniorTable title={title} />;
-    }
-
-    // Accident Table
-    if (selectedReport === 'accident') {
-      return <AccidentTable title={title} />;
-    }
-
-    // Hazard Table
-    if (hazardTypes.includes(selectedReport)) {
-      return (
-        <HazardTable
-          data={affectedHouseholds}
-          title={title}
-          loading={loading}
-          legendProp={legendProp}
-          formatValue={(val) => val ?? 'N/A'}
-        />
-      );
-    }
-
-    return null;
   };
 
   return (
-    <div className="p-4">
-      {/* Report selection buttons */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {['pwd', 'senior', 'accident']
-          .filter((key) => profile?.role !== 'Brgy-Secretary' || key !== 'accident')
-          .map((key) => (
-            <button
-              key={key}
-              onClick={() => setSelectedReport(key)}
-              className={`px-4 py-2 rounded cursor-pointer ${
-                selectedReport === key
-                  ? 'bg-green-600 text-white font-bold'
-                  : 'bg-gray-300 text-gray-800 hover:bg-green-300'
-              }`}
-            >
-              {titleMap[key].split('(')[0].replace('List of ', '').trim()}
-            </button>
-          ))}
-
-        {profile?.role !== 'Brgy-Secretary' && (
-          <select
-            onChange={(e) => setSelectedReport(e.target.value)}
-            value={hazardTypes.includes(selectedReport) ? selectedReport : ''}
-            className={`px-2 py-1 rounded cursor-pointer outline-none transition-all duration-200 ${
-              hazardTypes.includes(selectedReport)
-                ? 'bg-green-600 text-white font-bold'
-                : 'bg-gray-300 text-gray-800 hover:bg-green-400'
-            }`}
-          >
-            <option value="" disabled className="text-gray-500 bg-white">
-              Select Hazard
-            </option>
-            {hazardTypes.map((hazard) => (
-              <option key={hazard} value={hazard} className="text-black bg-white">
-                {hazard}
-              </option>
-            ))}
-          </select>
-        )}
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
+        <p className="text-gray-600 mt-2">View and manage household reports</p>
       </div>
 
-      {/* Render table */}
-      <div className="bg-white rounded shadow p-4 overflow-x-auto print:border print:border-gray-300">
-        {renderTable()}
+      {/* Report Navigation Tabs */}
+      <div className="mb-6">
+        <div className="flex gap-2 flex-wrap border-b border-gray-200">
+          {reportTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setSelectedReport(tab.id)}
+              className={`px-4 py-3 font-medium border-b-2 transition-all ${
+                selectedReport === tab.id
+                  ? 'border-blue-600 text-blue-600 bg-blue-50'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Report Description */}
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-sm text-blue-900">
+          {reportTabs.find((t) => t.id === selectedReport)?.description}
+        </p>
+      </div>
+
+      {/* Report Content */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6">
+          {renderSelectedReport()}
+        </div>
       </div>
     </div>
   );
 }
 
+/**
+ * Main Reports Page Component
+ * 
+ * Wraps content with role-based access guard
+ * MDRRMC-Admin, MDRRMC-Personnel, and Brgy-Secretary can access
+ */
 export default function ReportsPage() {
   return (
-    <RoleGuard allowedRoles={['MDRRMC-Personnel', 'Brgy-Secretary']}>
+    <RoleGuard allowedRoles={['MDRRMC-Admin', 'MDRRMC-Personnel', 'Brgy-Secretary']}>
       <ReportsPageContent />
     </RoleGuard>
   );

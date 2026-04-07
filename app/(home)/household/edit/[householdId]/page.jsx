@@ -1,217 +1,259 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  doc,
-  getDoc,
-  collection,
-  getDocs,
-  setDoc,
-} from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
-import { db } from '@/lib/firebaseConfig';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/authContext';
+import HouseholdForm from '@/features/Households/components/Forms/HouseholdForm';
+import {
+  createMember,
+  deleteMember,
+  fetchHousehold,
+  fetchMembers,
+  updateHousehold,
+  updateMember,
+} from '@/features/Households/services/householdApi';
 
-// Components
-import FormSectionSidebar from '@/features/Households/components/formSectionSidebar';
-import GeographicIdentification from '@/features/Households/components/Forms/geographic-information';
-import DemographicCharacteristics from '@/features/Households/components/Forms/demographic-characteristics';
-import Migration from '@/features/Households/components/Forms/migration';
-import Education from '@/features/Households/components/Forms/education';
-import Community from '@/features/Households/components/Forms/community';
-import Economic from '@/features/Households/components/Forms/economic';
-import Entreprenuerialship from '@/features/Households/components/Forms/entreprenuerial';
-import Agriculture from '@/features/Households/components/Forms/agriculture';
-import FamilyIncome from '@/features/Households/components/Forms/family-income';
-import FoodConsumption from '@/features/Households/components/Forms/food-consumption';
-import FoodSecurity from '@/features/Households/components/Forms/food-security';
-import FinancialInclusion from '@/features/Households/components/Forms/financial-inclusion';
-import Health from '@/features/Households/components/Forms/health';
-import ClimateChange from '@/features/Households/components/Forms/disasterpreparedness';
-import Environmental from '@/features/Households/components/Forms/ecommerce';
-import CrimeVictimization from '@/features/Households/components/Forms/crime-victimization';
-import SocialProtection from '@/features/Households/components/Forms/social-protection';
-import WaterSanitation from '@/features/Households/components/Forms/water-sanitation';
-import HousingCharacteristics from '@/features/Households/components/Forms/housing-characteristics';
-import Refusal from '@/features/Households/components/Forms/refusal-specialcases';
-
-const formSections = {
-  'Geographic Identification': GeographicIdentification,
-  'Demographic Characteristics': DemographicCharacteristics,
-  'Migration': Migration,
-  'Education and Literacy': Education,
-  'Community and Political': Community,
-  'Economic Characteristics': Economic,
-  'Entreprenuerial And Household Sustenance Activities': Entreprenuerialship,
-  'Agriculture And Fishery Activities': Agriculture,
-  'Family Income': FamilyIncome,
-  'Food Consumption Expenditure': FoodConsumption,
-  'Food Security': FoodSecurity,
-  'Financial Inclusion': FinancialInclusion,
-  'Health': Health,
-  'Climate Change and Disaster Risk Management': ClimateChange,
-  'E-commerce and Digital Economy': Environmental,
-  'Crime Victimization': CrimeVictimization,
-  'Social Protection Programs': SocialProtection,
-  'Water Sanitation and Hygiene': WaterSanitation,
-  'Housing Characteristics': HousingCharacteristics,
-  'Refusal and Special Cases': Refusal,
-};
-
-function EditHouseholdFormPage({ params }) {
-  const router = useRouter();
-  const { user, profile } = useAuth();
-  const { householdId } = React.use(params);
-  const userRole = profile?.role;
-
-  const [currentSection, setCurrentSection] = useState('Geographic Identification');
-  const [loading, setLoading] = useState(true);
-  const [savedMembers, setSavedMembers] = useState([]);
-  const [householdData, setHouseholdData] = useState(null);
-  const [isUpdated, setIsUpdated] = useState(false);
-
-  const sectionKeys = Object.keys(formSections);
-
-  useEffect(() => {
-    const loadHouseholdData = async () => {
-      if (!householdId) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // Verify household exists and load all household data
-        const hhRef = doc(db, 'households', householdId);
-        const hhSnap = await getDoc(hhRef);
-
-        if (!hhSnap.exists()) {
-          alert('Household not found');
-          router.push('/household');
-          return;
-        }
-
-        // Store all household data
-        setHouseholdData(hhSnap.data());
-
-        // Load members for this household
-        const membersSnap = await getDocs(
-          collection(db, 'households', householdId, 'members')
-        );
-        const members = membersSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        setSavedMembers(members);
-        setCurrentSection(hhSnap.data()?.lastSection || 'Geographic Identification');
-      } catch (error) {
-        console.error('❌ Error loading household data:', error);
-        alert('Failed to load household data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadHouseholdData();
-  }, [householdId, router]);
-
-  const goToNext = async () => {
-    const currentIndex = sectionKeys.indexOf(currentSection);
-    const nextSection = sectionKeys[currentIndex + 1];
-
-    if (nextSection) {
-      setCurrentSection(nextSection);
-      if (householdId) {
-        await setDoc(
-          doc(db, 'households', householdId),
-          {
-            lastSection: nextSection,
-            updatedAt: new Date(),
-          },
-          { merge: true }
-        );
-      }
-    } else {
-      if (householdId) {
-        await setDoc(
-          doc(db, 'households', householdId),
-          {
-            lastSection: sectionKeys[sectionKeys.length - 1],
-            updatedAt: new Date(),
-          },
-          { merge: true }
-        );
-      }
-      setIsUpdated(true);
-    }
+function toInitialValues(household, members) {
+  return {
+    householdId: household.householdId,
+    locationData: {
+      barangay: household.barangay || '',
+      sitio: household.sitio || '',
+      homes: household.homes || [],
+    },
+    headData: {
+      headLastName: household.headLastName || '',
+      headFirstName: household.headFirstName || '',
+      headMiddleName: household.headMiddleName || '',
+      headSuffix: household.headSuffix || '',
+      headAge: household.headAge ?? '',
+      headSex: household.headSex || '',
+      contactNumber: household.contactNumber || '',
+    },
+    members: members.map((member, index) => ({
+      id: member.memberId || `member-${index}`,
+      memberId: member.memberId || null,
+      lastName: member.lastName || '',
+      firstName: member.firstName || '',
+      middleName: member.middleName || '',
+      suffix: member.suffix || '',
+      relation: member.relationshipToHead || member.relation || '',
+      sex: member.sex || '',
+      birthDate: member.birthDate || member.birthdate || '',
+      age: member.age ?? '',
+      education: member.education || '',
+      occupation: member.occupation || '',
+      otherInfo: member.otherInfo || '',
+      isPWD: member.isPWD || false,
+    })),
   };
+}
 
-  const SectionComponent = formSections[currentSection] || (() => <div>Section not found</div>);
+function buildMemberPayload(member) {
+  return {
+    firstName: member.firstName || '',
+    middleName: member.middleName || '',
+    lastName: member.lastName || '',
+    suffix: member.suffix || '',
+    relationshipToHead: member.relation || '',
+    sex: member.sex || '',
+    birthDate: member.birthDate || '',
+    age:
+      member.age === '' || member.age === null || member.age === undefined
+        ? 0
+        : Number(member.age),
+    education: member.education || '',
+    occupation: member.occupation || '',
+    otherInfo: member.otherInfo || '',
+    isPWD: Boolean(member.isPWD),
+  };
+}
 
-  if (loading || !user || !profile) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="flex flex-col items-center">
-          <svg
-            className="animate-spin h-10 w-10 text-green-600 mb-3"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-          </svg>
-          <p className="text-gray-600 text-sm">Loading form, please wait...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (userRole !== 'Brgy-Secretary' && userRole !== 'MDRRMC-Admin') {
-    return (
-      <div className="p-6 text-red-500 text-center">
-        ❌ Access Denied: This page is restricted to <strong>Secretary</strong> and <strong>Admin</strong> users.
-      </div>
-    );
-  }
-
-  if (isUpdated) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold text-green-700">✅ Household updated successfully!</h1>
-          <p className="text-gray-600 mt-2">Your changes have been saved.</p>
-          <button
-            onClick={() => router.push('/household')}
-            className="mt-6 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Back to Households
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+function PageLoader({ text = 'Loading household...' }) {
   return (
-    <div className="flex h-screen">
-      <FormSectionSidebar current={currentSection} setSection={setCurrentSection} />
-      <main className="flex-1 p-6 bg-white rounded-r-lg shadow text-sm border-t border-gray-200 overflow-y-auto h-screen">
-        <div className="h-full overflow-y-auto pr-2">
-          <h2 className="text-2xl font-bold mb-1">{currentSection}</h2>
-          <p className="text-gray-500 text-sm mb-4">Editing Household #{householdId}</p>
-          <SectionComponent
-            householdId={householdId}
-            householdData={householdData}
-            members={savedMembers}
-            setSavedMembers={setSavedMembers}
-            user={user}
-            goToNext={goToNext}
-            isEditing={true}
+    <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex flex-col items-center">
+        <svg
+          className="mb-3 h-10 w-10 animate-spin text-emerald-600"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
           />
-        </div>
-      </main>
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v8z"
+          />
+        </svg>
+        <p className="text-sm text-slate-500">{text}</p>
+      </div>
     </div>
   );
 }
 
-export default EditHouseholdFormPage;
+function ErrorState({ message }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="w-full max-w-2xl rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
+        <h2 className="text-lg font-semibold text-red-600">Failed to load household</h2>
+        <p className="mt-2 text-sm text-slate-500">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+function AccessDenied() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="w-full max-w-xl rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
+        <h2 className="text-lg font-semibold text-red-600">Access Denied</h2>
+        <p className="mt-2 text-sm text-slate-500">
+          This page is restricted to Secretary and Admin users.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function EditHouseholdPage() {
+  const { user, profile } = useAuth();
+  const router = useRouter();
+  const params = useParams();
+  const householdId = params?.householdId;
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [initialValues, setInitialValues] = useState(null);
+  const [originalMembers, setOriginalMembers] = useState([]);
+
+  const initialStep = useMemo(() => {
+    if (typeof window === 'undefined') return 'location';
+    return window.location.hash === '#members' ? 'members' : 'location';
+  }, []);
+
+  useEffect(() => {
+    if (!user || !profile || !householdId) return;
+
+    if (!['Brgy-Secretary', 'MDRRMC-Admin'].includes(profile.role)) {
+      router.push('/');
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadHousehold() {
+      setLoading(true);
+      setError('');
+
+      try {
+        const [householdResult, membersResult] = await Promise.all([
+          fetchHousehold(householdId),
+          fetchMembers(householdId, { page: 1, limit: 100 }),
+        ]);
+
+        if (cancelled) return;
+
+        const household = householdResult?.household;
+        const members = membersResult?.members || [];
+
+        if (!household) {
+          throw new Error('Household not found');
+        }
+
+        setOriginalMembers(members);
+        setInitialValues(toInitialValues(household, members));
+      } catch (loadError) {
+        if (cancelled) return;
+        console.error('Failed to load household for editing:', loadError);
+        setError(loadError.message || 'Failed to load household data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadHousehold();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [householdId, profile, router, user]);
+
+  const handleSubmit = async ({ payload, members }) => {
+    const householdPayload = { ...payload };
+    delete householdPayload.members;
+
+    if (profile?.role === 'Brgy-Secretary') {
+      delete householdPayload.barangay;
+    }
+
+    await updateHousehold(householdId, householdPayload);
+
+    const originalById = new Map(
+      originalMembers
+        .filter((member) => member?.memberId)
+        .map((member) => [member.memberId, member])
+    );
+
+    const submittedExistingIds = new Set();
+
+    for (const member of members) {
+      const memberPayload = buildMemberPayload(member);
+
+      if (member.memberId && originalById.has(member.memberId)) {
+        submittedExistingIds.add(member.memberId);
+        await updateMember(householdId, member.memberId, memberPayload);
+      } else {
+        await createMember(householdId, memberPayload);
+      }
+    }
+
+    for (const originalMember of originalMembers) {
+      if (
+        originalMember?.memberId &&
+        !submittedExistingIds.has(originalMember.memberId)
+      ) {
+        await deleteMember(householdId, originalMember.memberId);
+      }
+    }
+
+    return { householdId };
+  };
+
+  if (loading || !user) {
+    return <PageLoader text="Loading household edit form..." />;
+  }
+
+  if (error) {
+    return <ErrorState message={error} />;
+  }
+
+  if (!['Brgy-Secretary', 'MDRRMC-Admin'].includes(profile?.role)) {
+    return <AccessDenied />;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 py-4 md:py-6">
+      <div className="mx-auto max-w-6xl px-4">
+        <HouseholdForm
+          userId={user?.uid}
+          mode="edit"
+          initialStep={initialStep}
+          initialValues={initialValues}
+          onSubmit={handleSubmit}
+          onComplete={() => {
+            router.push('/household');
+          }}
+          onCancel={() => router.back()}
+        />
+      </div>
+    </div>
+  );
+}

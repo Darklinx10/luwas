@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { FiMail, FiUser } from 'react-icons/fi';
+import { FiMail } from 'react-icons/fi';
 import RequiredField from '@/components/Required';
 import { useForgotPassword } from '@/features/Authentication/hooks/useForgotPassword';
+
+const fieldShell =
+  'flex items-center rounded-xl border border-slate-300 bg-white px-4 py-3 shadow-sm transition focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100';
 
 export default function ForgotPassForm() {
   const {
@@ -17,10 +20,10 @@ export default function ForgotPassForm() {
 
   if (showPageLoader) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-b from-green-50 to-white">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center">
           <svg
-            className="animate-spin h-10 w-10 text-green-600 mb-3"
+            className="mb-3 h-10 w-10 animate-spin text-emerald-600"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -39,21 +42,21 @@ export default function ForgotPassForm() {
               d="M4 12a8 8 0 018-8v8z"
             />
           </svg>
-          <p className="text-gray-600 text-sm">{redirectMessage}</p>
+          <p className="text-sm text-slate-500">{redirectMessage}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-b from-white to-green-50 border border-gray-200 p-6 sm:p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto">
-      <div className="flex flex-col items-center mb-8">
-        <FiUser className="text-green-600 text-6xl md:text-7xl mb-3" />
-        <h2 className="text-2xl md:text-3xl font-extrabold text-green-700">
-          Forgot Password
-        </h2>
-        <p className="text-gray-500 text-sm mt-1">
-          Enter your email to reset your password
+    <div className="mx-auto w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8 md:p-10">
+      <div className="mb-8 text-center">
+        <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100">
+          Password Recovery
+        </span>
+        <h2 className="mt-4 text-2xl font-bold text-slate-800">Forgot Password</h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Enter your email address and we’ll help you reset your password.
         </p>
       </div>
 
@@ -64,38 +67,35 @@ export default function ForgotPassForm() {
           required
           showError={!email.trim() && !loading}
         >
-          <div className="flex items-center border border-gray-300 rounded-xl px-4 py-3 md:py-4 focus-within:ring-2 focus-within:ring-[#0BAD4A]/80 bg-white shadow-sm">
-            <FiMail className="text-gray-500 mr-3 text-lg md:text-xl" />
+          <div className={fieldShell}>
+            <FiMail className="mr-3 text-lg text-slate-400" />
             <input
               type="email"
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full outline-none text-sm md:text-base bg-transparent"
+              className="w-full bg-transparent text-sm text-slate-700 outline-none"
               required
               autoComplete="email"
             />
           </div>
         </RequiredField>
 
-        <p className="text-sm md:text-base text-center text-gray-600 mt-2">
+        <p className="text-center text-sm text-slate-500">
           Remembered your password?{' '}
-          <Link href="/login" className="text-[#0BAD4A] font-medium hover:underline">
+          <Link href="/login" className="font-medium text-emerald-600 hover:underline">
             Sign in
           </Link>
         </p>
 
         <button
           type="submit"
-          className="w-full bg-[#0BAD4A] hover:bg-[#0a9c43] text-white font-semibold py-3 md:py-4 rounded-xl shadow-md transition flex justify-center items-center text-sm md:text-base"
+          className="flex w-full items-center justify-center rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-70"
           disabled={loading}
         >
           {loading ? (
-            <svg
-              className="animate-spin h-5 w-5 md:h-6 md:w-6 text-white"
-              viewBox="0 0 24 24"
-            >
+            <svg className="h-5 w-5 animate-spin text-white" viewBox="0 0 24 24">
               <circle
                 className="opacity-25"
                 cx="12"

@@ -1,8 +1,8 @@
 /**
  * app/api/hazards/route.js
  *
- * Public hazard data API endpoint
- * GET: Fetch hazards by type (visible to all users - admin and personnel)
+ * Protected hazard data API endpoint
+ * GET: Fetch hazards by type for authenticated LUWAS users
  *
  * Firestore structure (Firestore-only, no Cloud Storage):
  * hazards/
@@ -18,11 +18,27 @@
  *         - colorSettings (object)
  */
 
-import { adminDb } from '@/lib/firebaseAdmin';
 import { NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebaseAdmin';
+import { getSessionUser } from '@/lib/auth/getSessionUser';
 
 export async function GET(request) {
     try {
+        const user = await getSessionUser(request);
+        if (!user) {
+            return NextResponse.json(
+                { error: 'Unauthorized: Authentication required' },
+                { status: 401 }
+            );
+        }
+
+        if (!['Brgy-Secretary', 'MDRRMC-Personnel', 'MDRRMC-Admin'].includes(user.role)) {
+            return NextResponse.json(
+                { error: 'Forbidden: Hazard access required' },
+                { status: 403 }
+            );
+        }
+
         const { searchParams } = new URL(request.url);
         const hazardType = searchParams.get('type');
 

@@ -8,35 +8,190 @@ function getColorScale(geojson, legendProp, colorSettings) {
   if (!legendProp) return () => '#3388ff';
 
   const values = geojson.features
-    .map(f => f.properties[legendProp.key])
-    .filter(v => v !== undefined && v !== null);
+    .map((feature) => feature.properties[legendProp.key])
+    .filter((value) => value !== undefined && value !== null);
 
   if (legendProp.type === 'numeric') {
     if (!values.length) return () => '#3388ff';
+
     const min = Math.min(...values);
     const max = Math.max(...values);
     const start = colorSettings?.min || '#00ff00';
     const end = colorSettings?.max || '#ff0000';
+
     if (min === max) return () => start;
 
-    const hexToRgb = hex => {
+    const hexToRgb = (hex) => {
       const bigint = parseInt(hex.replace('#', ''), 16);
       return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
     };
+
     const [r1, g1, b1] = hexToRgb(start);
     const [r2, g2, b2] = hexToRgb(end);
 
-    return value => {
+    return (value) => {
       if (typeof value !== 'number') return '#3388ff';
+
       const ratio = (value - min) / (max - min);
       const r = Math.round(r1 + ratio * (r2 - r1));
       const g = Math.round(g1 + ratio * (g2 - g1));
       const b = Math.round(b1 + ratio * (b2 - b1));
+
       return `rgb(${r},${g},${b})`;
     };
   }
 
-  return value => colorSettings?.[value] || '#3388ff';
+  return (value) => colorSettings?.[value] || '#3388ff';
+}
+
+function buildDefaultColorSettings(data, legendProp) {
+  if (!legendProp || !data?.features?.length) return {};
+
+  if (legendProp.type === 'numeric') {
+    return {
+      min: '#00ff00',
+      max: '#ff0000',
+    };
+  }
+
+  const uniqueValues = [...new Set(data.features.map((f) => f.properties[legendProp.key]))];
+  const palette = ['#3388ff', '#ff0000', '#00ff00', '#ffff00', '#ff00ff', '#00ffff'];
+
+  return Object.fromEntries(
+    uniqueValues.map((value, index) => [value, palette[index % palette.length]])
+  );
+}
+
+function detectLegendProp(data) {
+  if (!data?.features?.length) return null;
+
+  if (data?.legendProp?.key) {
+    return data.legendProp;
+  }
+
+  const keys = Object.keys(data.features[0]?.properties || {});
+  if (!keys.length) return null;
+
+  const key = keys[0];
+  const sampleValue = data.features[0]?.properties?.[key];
+
+  return {
+    key,
+    type: typeof sampleValue === 'number' ? 'numeric' : 'categorical',
+  };
+}
+
+function createCollapsedPanel() {
+  const collapsedDiv = L.DomUtil.create('div', 'group');
+
+  collapsedDiv.innerHTML = `
+    <button
+      type="button"
+      class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+      aria-label="Expand hazard panel"
+    >
+      <span>Hazard Info</span>
+    </button>
+  `;
+
+  return collapsedDiv;
+}
+
+function createExpandedPanel({
+  activeHazard,
+  isEmpty,
+  description,
+  legendProp,
+  data,
+  finalColorSettings,
+}) {
+  const expandedDiv = L.DomUtil.create(
+    'div',
+    'w-[calc(100vw-2rem)] max-w-none overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:w-[22rem] md:w-[24rem] lg:w-[26rem]'
+  );
+
+  const header = L.DomUtil.create(
+    'div',
+    'flex items-start justify-between border-b border-slate-200 px-4 py-4',
+    expandedDiv
+  );
+
+  const titleWrap = L.DomUtil.create('div', '', header);
+  const title = L.DomUtil.create('h4', 'text-base font-semibold text-slate-800', titleWrap);
+  title.textContent = activeHazard;
+
+  const desc = L.DomUtil.create('p', 'mt-1 text-sm text-slate-500', titleWrap);
+  desc.textContent = isEmpty
+    ? 'No hazard layer available'
+    : description || 'No description available';
+
+  const collapseBtn = L.DomUtil.create(
+    'button',
+    'rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700',
+    header
+  );
+  collapseBtn.type = 'button';
+  collapseBtn.setAttribute('aria-label', 'Collapse hazard panel');
+  collapseBtn.textContent = '−';
+
+  const body = L.DomUtil.create(
+    'div',
+    'max-h-[40vh] space-y-3 overflow-auto p-4 sm:max-h-[45vh] lg:max-h-[50vh]',
+    expandedDiv
+  );
+
+  if (!isEmpty) {
+    const sectionTitle = L.DomUtil.create(
+      'div',
+      'text-xs font-semibold uppercase tracking-[0.08em] text-slate-400',
+      body
+    );
+    sectionTitle.textContent = `Legend (${legendProp.key})`;
+
+    if (legendProp.type === 'numeric') {
+      const values = data.features
+        .map((feature) => feature.properties[legendProp.key])
+        .filter((value) => typeof value === 'number');
+
+      const min = values.length ? Math.min(...values) : 'N/A';
+      const max = values.length ? Math.max(...values) : 'N/A';
+
+      [
+        { label: String(min), color: finalColorSettings.min || '#00ff00' },
+        { label: String(max), color: finalColorSettings.max || '#ff0000' },
+      ].forEach((item) => {
+        const row = L.DomUtil.create(
+          'div',
+          'flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2',
+          body
+        );
+
+        const swatch = L.DomUtil.create('div', 'h-4 w-4 rounded-sm border border-slate-200', row);
+        swatch.style.backgroundColor = item.color;
+
+        const text = L.DomUtil.create('span', 'text-sm text-slate-700', row);
+        text.textContent = item.label;
+      });
+    } else {
+      const uniqueValues = [...new Set(data.features.map((f) => f.properties[legendProp.key]))];
+
+      uniqueValues.forEach((value) => {
+        const row = L.DomUtil.create(
+          'div',
+          'flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2',
+          body
+        );
+
+        const swatch = L.DomUtil.create('div', 'h-4 w-4 rounded-sm border border-slate-200', row);
+        swatch.style.backgroundColor = finalColorSettings?.[value] || '#3388ff';
+
+        const text = L.DomUtil.create('span', 'text-sm text-slate-700', row);
+        text.textContent = String(value);
+      });
+    }
+  }
+
+  return { expandedDiv, collapseBtn };
 }
 
 export default function HazardLayer({
@@ -55,6 +210,7 @@ export default function HazardLayer({
   useEffect(() => {
     if (!map || !activeHazard) {
       resetStates();
+      removeLayers();
       return;
     }
 
@@ -62,8 +218,8 @@ export default function HazardLayer({
 
     const loadHazard = async () => {
       setLoading(true);
+
       try {
-        // Fetch hazards from public API (visible to all users)
         const response = await fetch(`/api/hazards?type=${encodeURIComponent(activeHazard)}`, {
           method: 'GET',
           credentials: 'include',
@@ -77,114 +233,50 @@ export default function HazardLayer({
         const data = await response.json();
         if (isCancelled) return;
 
-        // Remove old layers
         removeLayers();
 
-        // Determine legend property
-        let legendProp = data?.legendProp?.key ? data.legendProp : null;
-        if (!legendProp && data?.features?.length) {
-          const keys = Object.keys(data.features[0]?.properties || {});
-          if (keys.length) {
-            const key = keys[0];
-            legendProp = {
-              key,
-              type: typeof data.features[0].properties[key] === 'number' ? 'numeric' : 'categorical',
-            };
-          }
-        }
-
-        // Handle empty hazard
+        const legendProp = detectLegendProp(data);
         const isEmpty = !data || !data.features?.length || !legendProp;
 
-        // Build color settings
-        let finalColorSettings = {};
-        if (!isEmpty) {
-          finalColorSettings = data.colorSettings || {};
-          if (legendProp.type === 'numeric') {
-            finalColorSettings.min = finalColorSettings.min || '#00ff00';
-            finalColorSettings.max = finalColorSettings.max || '#ff0000';
-          } else {
-            const uniqueValues = [...new Set(data.features.map(f => f.properties[legendProp.key]))];
-            if (Object.keys(finalColorSettings).length === 0) {
-              const palette = ['#3388ff', '#ff0000', '#00ff00', '#ffff00', '#ff00ff', '#00ffff'];
-              finalColorSettings = Object.fromEntries(uniqueValues.map((val, i) => [val, palette[i % palette.length]]));
-            }
-          }
+        let finalColorSettings = data?.colorSettings || {};
+        if (!isEmpty && Object.keys(finalColorSettings).length === 0) {
+          finalColorSettings = buildDefaultColorSettings(data, legendProp);
+        } else if (!isEmpty && legendProp.type === 'numeric') {
+          finalColorSettings.min = finalColorSettings.min || '#00ff00';
+          finalColorSettings.max = finalColorSettings.max || '#ff0000';
         }
 
-        // Set parent states
         setHazardGeoJSON?.(isEmpty ? null : data);
         setLegendProp?.(isEmpty ? null : legendProp);
-        setColorSettings?.(finalColorSettings);
+        setColorSettings?.(isEmpty ? {} : finalColorSettings);
 
-        // Add legend control
         const legendControl = L.control({ position: 'bottomright' });
+
         legendControl.onAdd = () => {
           const container = L.DomUtil.create('div', 'relative z-[1000]');
-          let collapsed = isMobile ;
+          let collapsed = !!isMobile;
 
-          // Collapsed chat bubble
-          const collapsedDiv = L.DomUtil.create('div', 'group absolute right-4 bottom-4');
-          collapsedDiv.innerHTML = `
-            <button class="p-2 rounded-full bg-white shadow hover:bg-gray-200 flex items-center justify-center" aria-label="Expand panel">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 6H3c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14l4 4V8c0-1.1-.9-2-2-2z" fill="white" stroke="currentColor"/>
-              </svg>
-            </button>
-            <span class="absolute -left-36 bottom-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-              Hazard Info
-            </span>
-          `;
+          const collapsedDiv = createCollapsedPanel();
+          const { expandedDiv, collapseBtn } = createExpandedPanel({
+            activeHazard,
+            isEmpty,
+            description: data?.description,
+            legendProp,
+            data,
+            finalColorSettings,
+          });
 
-          // Expanded panel
-          const expandedDiv = L.DomUtil.create(
-            'div',
-            `absolute right-4 bottom-4 bg-white rounded shadow text-sm transition-all duration-300 ease-in-out p-4 max-h-[300px] overflow-auto w-[90vw] max-w-sm ${isMobile ? '' : 'w-[90vw] max-w-sm sm:max-w-md'}`
-          );
+          collapsedDiv.style.display = collapsed ? 'block' : 'none';
           expandedDiv.style.display = collapsed ? 'none' : 'block';
-          expandedDiv.innerHTML = `
-            <button class="absolute top-2 right-2 p-1 rounded hover:bg-gray-200" aria-label="Collapse panel">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </button>
-            <h4 class="font-semibold mt-5 mb-2 text-lg">${activeHazard}</h4>
-            <p class="text-gray-500 italic">${isEmpty ? 'No hazard layer available' : data.description || 'No description available'}</p>
-          `;
 
-          // Add legend items if not empty
-          if (!isEmpty) {
-            let legendHTML = '';
-            if (legendProp.type === 'numeric') {
-              const values = data.features.map(f => f.properties[legendProp.key]);
-              legendHTML += `<div class="font-semibold mb-1">Legend (${legendProp.key})</div>
-                <div class="flex items-center mb-1">
-                  <div style="background:${finalColorSettings.min};width:20px;height:20px;margin-right:4px;"></div> ${Math.min(...values)}
-                </div>
-                <div class="flex items-center mb-1">
-                  <div style="background:${finalColorSettings.max};width:20px;height:20px;margin-right:4px;"></div> ${Math.max(...values)}
-                </div>`;
-            } else {
-              legendHTML += `<div class="font-semibold mb-1">Legend (${legendProp.key})</div>`;
-              [...new Set(data.features.map(f => f.properties[legendProp.key]))].forEach(val => {
-                const color = finalColorSettings[val] || '#3388ff';
-                legendHTML += `
-                  <div class="flex items-center mb-1">
-                    <div style="background:${color};width:20px;height:20px;margin-right:4px;"></div> ${val}
-                  </div>`;
-              });
-            }
-            expandedDiv.innerHTML += legendHTML;
-          }
-
-          // Toggle logic
           const expandBtn = collapsedDiv.querySelector('button');
-          const collapseBtn = expandedDiv.querySelector('button');
+
           L.DomEvent.on(expandBtn, 'click', () => {
             collapsed = false;
             collapsedDiv.style.display = 'none';
             expandedDiv.style.display = 'block';
           });
+
           L.DomEvent.on(collapseBtn, 'click', () => {
             collapsed = true;
             collapsedDiv.style.display = 'block';
@@ -193,6 +285,7 @@ export default function HazardLayer({
 
           container.appendChild(collapsedDiv);
           container.appendChild(expandedDiv);
+
           L.DomEvent.disableClickPropagation(container);
           L.DomEvent.disableScrollPropagation(container);
 
@@ -202,28 +295,30 @@ export default function HazardLayer({
         legendControl.addTo(map);
         infoLegendRef.current = legendControl;
 
-        // Add GeoJSON if not empty
         if (!isEmpty) {
           const colorFn = getColorScale(data, legendProp, finalColorSettings);
+
           geoJsonLayerRef.current = L.geoJSON(data, {
-            style: feature => ({
+            style: (feature) => ({
               color: 'transparent',
               weight: 1,
               fillColor: colorFn(feature.properties[legendProp.key]),
               fillOpacity: 0.6,
             }),
             onEachFeature: (feature, layer) => {
-              const val = feature.properties?.[legendProp.key] ?? 'N/A';
-              layer.bindPopup(`<strong>${activeHazard}</strong>: ${val}`);
+              const value = feature.properties?.[legendProp.key] ?? 'N/A';
+              layer.bindPopup(`<strong>${activeHazard}</strong>: ${value}`);
             },
           }).addTo(map);
         }
-
-        setLoading(false);
-      } catch (err) {
+      } catch (error) {
         if (!isCancelled) {
-          console.error(`Error loading hazard "${activeHazard}":`, err);
+          console.error(`Error loading hazard "${activeHazard}":`, error);
           resetStates();
+          removeLayers();
+        }
+      } finally {
+        if (!isCancelled) {
           setLoading(false);
         }
       }
@@ -242,6 +337,7 @@ export default function HazardLayer({
         map.removeLayer(geoJsonLayerRef.current);
         geoJsonLayerRef.current = null;
       }
+
       if (infoLegendRef.current) {
         map.removeControl(infoLegendRef.current);
         infoLegendRef.current = null;
@@ -254,7 +350,16 @@ export default function HazardLayer({
       setColorSettings?.({});
       setAffectedHouseholds?.([]);
     }
-  }, [activeHazard, map, setLoading, setHazardGeoJSON, setLegendProp, setColorSettings, setAffectedHouseholds, isMobile]);
+  }, [
+    activeHazard,
+    map,
+    setLoading,
+    setHazardGeoJSON,
+    setLegendProp,
+    setColorSettings,
+    setAffectedHouseholds,
+    isMobile,
+  ]);
 
   return null;
 }

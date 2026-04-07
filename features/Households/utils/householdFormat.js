@@ -1,3 +1,5 @@
+import { buildFullName } from '@/lib/utils/nameNormalizer';
+
 /**
  * Normalize text to title case (first letter capitalized, rest lowercase)
  * @param {string} value - Text to normalize
@@ -34,18 +36,7 @@ export function capitalizeWords(value = '') {
  * @returns {string} Formatted full name
  */
 export function formatFullName({ firstName = '', middleName = '', lastName = '', suffix = '' } = {}) {
-  const first = capitalizeWords(firstName);
-  const middle = capitalizeWords(middleName);
-  const last = capitalizeWords(lastName);
-  const suf = capitalizeWords(suffix);
-
-  if (!last && !first) return '';
-
-  const givenNames = [first, middle].filter(Boolean).join(' ');
-  const formattedName = last ? `${last}, ${givenNames}` : givenNames;
-  const withSuffix = suf ? `${formattedName} ${suf}` : formattedName;
-
-  return withSuffix.trim();
+  return buildFullName(firstName, middleName, lastName, suffix);
 }
 
 /**

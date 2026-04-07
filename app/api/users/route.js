@@ -25,6 +25,7 @@ import { NextResponse } from 'next/server';
 import admin from '@/lib/firebaseAdmin';
 import { getSessionUser } from '@/lib/auth/getSessionUser';
 import { logFirestoreError, analyzeFirestoreError } from '@/lib/api/firestoreErrorHandler';
+import { normalizePerson, buildFullName, compareNames } from '@/lib/utils/nameNormalizer';
 
 export const runtime = 'nodejs';
 
@@ -36,6 +37,15 @@ const ALLOWED_ROLES_FOR_CREATION = ['Brgy-Secretary', 'MDRRMC-Personnel'];
 
 // Regex for basic email validation
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function capitalizeWords(value = '') {
+  return String(value || '')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
 
 /**
  * Validate required fields and formats
@@ -171,15 +181,13 @@ export async function GET(req) {
       });
     }
 
-    // 6. Sort by last name, then first name
+    // 6. Sort by last name, then first name using global name comparator
     users.sort((a, b) => {
-      const lastA = (a.lastName || '').toLowerCase();
-      const lastB = (b.lastName || '').toLowerCase();
-      if (lastA !== lastB) return lastA.localeCompare(lastB);
-
-      const firstA = (a.firstName || '').toLowerCase();
-      const firstB = (b.firstName || '').toLowerCase();
-      return firstA.localeCompare(firstB);
+      return compareNames(
+        { firstName: a.firstName, lastName: a.lastName, middleName: a.middleName },
+        { firstName: b.firstName, lastName: b.lastName, middleName: b.middleName },
+        'asc'
+      );
     });
 
     // 7. Apply pagination
@@ -188,21 +196,30 @@ export async function GET(req) {
     const startIndex = (page - 1) * limit;
     const paginatedUsers = users.slice(startIndex, startIndex + limit);
 
-    // 8. Build fullName for display
-    const responseUsers = paginatedUsers.map(u => ({
-      id: u.id,
-      uid: u.uid,
-      firstName: u.firstName,
-      middleName: u.middleName,
-      lastName: u.lastName,
-      fullName: `${u.firstName}${u.middleName ? ' ' + u.middleName : ''} ${u.lastName}`,
-      email: u.email,
-      contactNumber: u.contactNumber,
-      barangay: u.barangay,
-      municipality: u.municipality,
-      role: u.role,
-      createdAt: u.createdAt,
-    }));
+    // 8. Build fullName for display using global builder
+    const responseUsers = paginatedUsers.map((u) => {
+      const normalizedNames = normalizePerson(u.firstName, u.middleName, u.lastName, '');
+
+      return {
+        id: u.id,
+        uid: u.uid,
+        firstName: normalizedNames.firstName,
+        middleName: normalizedNames.middleName,
+        lastName: normalizedNames.lastName,
+        fullName: buildFullName(
+          normalizedNames.firstName,
+          normalizedNames.middleName,
+          normalizedNames.lastName,
+          normalizedNames.suffix
+        ),
+        email: u.email,
+        contactNumber: u.contactNumber,
+        barangay: capitalizeWords(u.barangay),
+        municipality: capitalizeWords(u.municipality),
+        role: u.role,
+        createdAt: u.createdAt,
+      };
+    });
 
     return NextResponse.json({
       users: responseUsers,
@@ -273,11 +290,18 @@ export async function POST(req) {
     // 2. Parse request body
     const body = await req.json();
 
-    // 3. Normalize inputs
+    // 3. Normalize inputs - apply name normalization
+    const normalizedNames = normalizePerson(
+      body.firstName?.trim() || '',
+      body.middleName?.trim() || '',
+      body.lastName?.trim() || '',
+      ''
+    );
+
     const userData = {
-      firstName: body.firstName?.trim() || '',
-      middleName: body.middleName?.trim() || '',
-      lastName: body.lastName?.trim() || '',
+      firstName: normalizedNames.firstName,
+      middleName: normalizedNames.middleName,
+      lastName: normalizedNames.lastName,
       email: body.email?.trim().toLowerCase() || '',
       password: body.password || '',
       role: body.role || '',
@@ -315,7 +339,7 @@ export async function POST(req) {
       authUser = await admin.auth().createUser({
         email: userData.email,
         password: userData.password,
-        displayName: `${userData.firstName} ${userData.middleName} ${userData.lastName}`.trim(),
+        displayName: buildFullName(userData.firstName, userData.middleName, userData.lastName, ''),
       });
     } catch (authError) {
       return NextResponse.json(
@@ -350,7 +374,7 @@ export async function POST(req) {
         contactNumber: userData.contactNumber,
         status: 'active',
         // ✅ Initialize profile fields with defaults
-        displayName: `${userData.firstName}${userData.middleName ? ' ' + userData.middleName : ''} ${userData.lastName}`.trim(),
+        displayName: buildFullName(userData.firstName, userData.middleName, userData.lastName, ''),
         dateOfBirth: '',
         gender: '',
         profilePhoto: '',

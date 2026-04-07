@@ -28,11 +28,26 @@
 import { NextResponse } from 'next/server';
 import admin from '@/lib/firebaseAdmin';
 import { getSessionUser } from '@/lib/auth/getSessionUser';
+import { buildFullName, normalizePerson } from '@/lib/utils/nameNormalizer';
 
 export const runtime = 'nodejs';
 
 const MIN_NAME_LENGTH = 2;
 const MAX_NAME_LENGTH = 50;
+
+function capitalizeWords(value = '') {
+  return String(value || '')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+async function getUserIdFromParams(params) {
+  const resolvedParams = await params;
+  return resolvedParams?.userId || null;
+}
 
 /**
  * GET /api/users/[userId] - Fetch single user
@@ -56,7 +71,7 @@ export async function GET(req, { params }) {
     }
 
     // 2. Get userId from URL
-    const userId = params.userId;
+    const userId = await getUserIdFromParams(params);
     if (!userId) {
       return NextResponse.json(
         { error: 'User ID is required' },
@@ -75,17 +90,29 @@ export async function GET(req, { params }) {
     }
 
     const userData = userDoc.data();
+    const normalizedNames = normalizePerson(
+      userData.firstName,
+      userData.middleName,
+      userData.lastName,
+      ''
+    );
 
     // 4. Return user data
     return NextResponse.json({
       uid: userId,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      middleName: userData.middleName,
+      firstName: normalizedNames.firstName,
+      lastName: normalizedNames.lastName,
+      middleName: normalizedNames.middleName,
+      fullName: buildFullName(
+        normalizedNames.firstName,
+        normalizedNames.middleName,
+        normalizedNames.lastName,
+        normalizedNames.suffix
+      ),
       email: userData.email,
       role: userData.role,
-      barangay: userData.barangay,
-      municipality: userData.municipality,
+      barangay: capitalizeWords(userData.barangay),
+      municipality: capitalizeWords(userData.municipality),
       contactNumber: userData.contactNumber,
       status: userData.status,
       createdAt: userData.createdAt,
@@ -123,7 +150,7 @@ export async function PATCH(req, { params }) {
     }
 
     // 2. Get userId from URL
-    const userId = params.userId;
+    const userId = await getUserIdFromParams(params);
     if (!userId) {
       return NextResponse.json(
         { error: 'User ID is required' },
@@ -143,12 +170,20 @@ export async function PATCH(req, { params }) {
       );
     }
 
+    const currentUserData = userDoc.data() || {};
+
     // 5. Build update object - only allow certain fields
     const updateData = {};
+    const nextNames = normalizePerson(
+      body.firstName !== undefined ? body.firstName : currentUserData.firstName,
+      body.middleName !== undefined ? body.middleName : currentUserData.middleName,
+      body.lastName !== undefined ? body.lastName : currentUserData.lastName,
+      ''
+    );
 
     // Validate and add editable fields
     if (body.firstName !== undefined) {
-      const firstName = body.firstName?.trim() || '';
+      const firstName = nextNames.firstName;
       if (firstName.length < MIN_NAME_LENGTH || firstName.length > MAX_NAME_LENGTH) {
         return NextResponse.json(
           { error: `First name must be ${MIN_NAME_LENGTH}-${MAX_NAME_LENGTH} characters` },
@@ -159,7 +194,7 @@ export async function PATCH(req, { params }) {
     }
 
     if (body.lastName !== undefined) {
-      const lastName = body.lastName?.trim() || '';
+      const lastName = nextNames.lastName;
       if (lastName.length < MIN_NAME_LENGTH || lastName.length > MAX_NAME_LENGTH) {
         return NextResponse.json(
           { error: `Last name must be ${MIN_NAME_LENGTH}-${MAX_NAME_LENGTH} characters` },
@@ -170,7 +205,7 @@ export async function PATCH(req, { params }) {
     }
 
     if (body.middleName !== undefined) {
-      updateData.middleName = body.middleName?.trim() || '';
+      updateData.middleName = nextNames.middleName;
     }
 
     if (body.contactNumber !== undefined) {
@@ -185,11 +220,11 @@ export async function PATCH(req, { params }) {
     }
 
     if (body.barangay !== undefined) {
-      updateData.barangay = body.barangay?.trim() || '';
+      updateData.barangay = capitalizeWords(body.barangay);
     }
 
     if (body.municipality !== undefined) {
-      updateData.municipality = body.municipality?.trim() || '';
+      updateData.municipality = capitalizeWords(body.municipality);
     }
 
     // 6. Reject attempts to edit restricted fields
@@ -212,6 +247,12 @@ export async function PATCH(req, { params }) {
 
     updateData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
     updateData.updatedBy = user.uid;
+    updateData.displayName = buildFullName(
+      nextNames.firstName,
+      nextNames.middleName,
+      nextNames.lastName,
+      nextNames.suffix
+    );
 
     await admin.firestore().collection('users').doc(userId).update(updateData);
 
@@ -253,7 +294,7 @@ export async function DELETE(req, { params }) {
     }
 
     // 2. Get userId from URL
-    const userId = params.userId;
+    const userId = await getUserIdFromParams(params);
     if (!userId) {
       return NextResponse.json(
         { error: 'User ID is required' },
