@@ -27,6 +27,20 @@ import { getSessionUser } from '@/lib/auth/getSessionUser';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { logFirestoreError, analyzeFirestoreError } from '@/lib/api/firestoreErrorHandler';
 
+const DASHBOARD_HOUSEHOLD_FIELDS = [
+  'headFirstName',
+  'headLastName',
+  'barangay',
+  'totalResidents',
+  'totalFamilies',
+  'totalMale',
+  'totalFemale',
+  'totalPWDs',
+  'totalSeniors',
+  'ageBrackets',
+  'hasMapLocation',
+];
+
 export async function GET(request) {
   console.log('📊 GET /api/dashboard called');
 
@@ -39,8 +53,8 @@ export async function GET(request) {
     );
   }
 
-  // 🔐 Only Secretary, Personnel, and Admin can view dashboard
-  if (!['Brgy-Secretary', 'MDRRMC-Personnel', 'MDRRMC-Admin'].includes(user.role)) {
+  // 🔐 Only Secretary and Personnel can view dashboard
+  if (!['Brgy-Secretary', 'MDRRMC-Personnel'].includes(user.role)) {
     return NextResponse.json(
       { error: 'Forbidden: Dashboard access required' },
       { status: 403 }
@@ -63,6 +77,7 @@ export async function GET(request) {
       }
       householdsQuery = householdsQuery.where('barangay', '==', user.barangay);
     }
+    householdsQuery = householdsQuery.select(...DASHBOARD_HOUSEHOLD_FIELDS);
 
     console.log(`🔍 Fetching households...`);
 
@@ -103,7 +118,7 @@ export async function GET(request) {
       const data = doc.data();
 
       // Skip if no basic household info
-      if (!data.householdId && !data.headFirstName && !data.barangay) {
+      if (!data.headFirstName && !data.headLastName && !data.barangay) {
         return;
       }
 
@@ -134,18 +149,8 @@ export async function GET(request) {
       }
 
       // Count households with map locations
-      if (data.homes && Array.isArray(data.homes) && data.homes.length > 0) {
-        const hasValidLocation = data.homes.some(
-          (home) =>
-            home &&
-            home.latitude !== undefined &&
-            home.longitude !== undefined &&
-            home.latitude !== null &&
-            home.longitude !== null
-        );
-        if (hasValidLocation) {
-          mappedHouseholds++;
-        }
+      if (Boolean(data.hasMapLocation)) {
+        mappedHouseholds++;
       }
 
       // Group by barangay
@@ -179,15 +184,16 @@ export async function GET(request) {
       'Tsunami',
     ];
 
-    const hazardSnaps = await Promise.all(
-      hazardTypes.map((h) =>
-        adminDb.collection('hazards').doc(h).collection('hazardInfo').count().get()
-      )
-    );
+    const [hazardSnaps, accidentsSnap] = await Promise.all([
+      Promise.all(
+        hazardTypes.map((h) =>
+          adminDb.collection('hazards').doc(h).collection('hazardInfo').count().get()
+        )
+      ),
+      adminDb.collection('accidents').count().get(),
+    ]);
 
     const totalHazards = hazardSnaps.reduce((sum, snap) => sum + (snap.data().count || 0), 0);
-
-    const accidentsSnap = await adminDb.collection('accidents').count().get();
     const totalAccidents = accidentsSnap.data().count || 0;
 
     console.log(`✅ Hazards: ${totalHazards}, Accidents: ${totalAccidents}`);

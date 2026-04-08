@@ -79,7 +79,7 @@ export default function UploadHouseholdsModal({
             <>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-sm text-slate-700">
-                  Select a <strong>CSV, Excel, or JSON file</strong> containing
+                  Select an <strong>Excel or JSON file</strong> containing
                   household and member data.
                 </p>
               </div>
@@ -89,9 +89,10 @@ export default function UploadHouseholdsModal({
                   File Requirements
                 </p>
                 <ul className="space-y-1 text-sm text-blue-800">
-                  <li>• Two sheets/tabs: “Households” and “Members”</li>
-                  <li>• Required columns: Household ID, Member ID, Head names</li>
-                  <li>• Optional: Geographic coordinates (latitude/longitude)</li>
+                  <li>Excel files need two sheets/tabs: Household and Members</li>
+                  <li>JSON files must include `households` and `members` arrays</li>
+                  <li>Required columns: Household ID, Member ID, Head names</li>
+                  <li>Optional: Geographic coordinates (latitude/longitude)</li>
                 </ul>
               </div>
 
@@ -106,12 +107,12 @@ export default function UploadHouseholdsModal({
                     {file ? file.name : 'Click to choose a file'}
                   </span>
                   <span className="mt-1 text-xs text-slate-500">
-                    Accepted: .xlsx, .xls, .csv, .json
+                    Accepted: .xlsx, .xls, .json
                   </span>
 
                   <input
                     type="file"
-                    accept=".xlsx,.xls,.csv,.json"
+                    accept=".xlsx,.xls,.json"
                     onChange={handleFileChange}
                     className="hidden"
                     disabled={upload.isUploading}

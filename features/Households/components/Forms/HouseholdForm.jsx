@@ -87,6 +87,48 @@ function buildInitialMembers(initialValues) {
   }));
 }
 
+function buildNormalizedMemberPayload(member = {}) {
+  const normalizedMember = normalizePerson(
+    member.firstName,
+    member.middleName,
+    member.lastName,
+    member.suffix
+  );
+
+  let memberAge = member.age;
+  if (member.birthDate && !memberAge) {
+    const birth = new Date(member.birthDate);
+    const today = new Date();
+    memberAge = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      memberAge--;
+    }
+  }
+
+  return {
+    memberId: member.memberId || null,
+    firstName: normalizedMember.firstName || '',
+    lastName: normalizedMember.lastName || '',
+    middleName: normalizedMember.middleName || '',
+    suffix: normalizedMember.suffix || '',
+    fullName: buildFullName(
+      normalizedMember.firstName,
+      normalizedMember.middleName,
+      normalizedMember.lastName,
+      normalizedMember.suffix
+    ),
+    relationshipToHead: member.relation || '',
+    sex: member.sex || '',
+    birthDate: member.birthDate || '',
+    age: parseInt(memberAge, 10) || 0,
+    education: member.education || '',
+    occupation: member.occupation || '',
+    isPWD: Boolean(member.isPWD),
+    otherInfo: member.otherInfo || '',
+  };
+}
+
 const STEPS = [
   { key: 'location', label: 'Family Location' },
   { key: 'head', label: 'Head Information' },
@@ -101,6 +143,7 @@ export default function HouseholdForm({
   initialStep = 'location',
   mode = 'create',
   onSubmit: onSubmitProp,
+  selectedMemberId = '',
 }) {
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [isSaving, setIsSaving] = useState(false);
@@ -138,46 +181,9 @@ export default function HouseholdForm({
         (home) => home.latitude && home.longitude
       );
 
-      const normalizedMembers = members.map((member) => {
-        const normalizedMember = normalizePerson(
-          member.firstName,
-          member.middleName,
-          member.lastName,
-          member.suffix
-        );
-
-        let memberAge = member.age;
-        if (member.birthDate && !memberAge) {
-          const birth = new Date(member.birthDate);
-          const today = new Date();
-          memberAge = today.getFullYear() - birth.getFullYear();
-          const monthDiff = today.getMonth() - birth.getMonth();
-          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-            memberAge--;
-          }
-        }
-
-        return {
-          firstName: normalizedMember.firstName || '',
-          lastName: normalizedMember.lastName || '',
-          middleName: normalizedMember.middleName || '',
-          suffix: normalizedMember.suffix || '',
-          fullName: buildFullName(
-            normalizedMember.firstName,
-            normalizedMember.middleName,
-            normalizedMember.lastName,
-            normalizedMember.suffix
-          ),
-          relationshipToHead: member.relation || '',
-          sex: member.sex || '',
-          birthDate: member.birthDate || '',
-          age: parseInt(memberAge) || 0,
-          education: member.education || '',
-          occupation: member.occupation || '',
-          isPWD: member.isPWD || false,
-          otherInfo: member.otherInfo || '',
-        };
-      });
+      const normalizedMembers = members.map((member) =>
+        buildNormalizedMemberPayload(member)
+      );
 
       const payload = {
         headFirstName: normalizedHead.firstName || '',
@@ -194,7 +200,13 @@ export default function HouseholdForm({
       };
 
       const result = onSubmitProp
-        ? await onSubmitProp({ payload, locationData, headData, members })
+        ? await onSubmitProp({
+            payload,
+            locationData,
+            headData,
+            members,
+            normalizedMembers,
+          })
         : await createHousehold(payload);
 
       const resolvedHouseholdId = result?.householdId || initialValues?.householdId;
@@ -318,6 +330,7 @@ export default function HouseholdForm({
             onBack={() => setCurrentStep('head')}
             onCancel={handleCancel}
             isSaving={isSaving}
+            focusedMemberId={selectedMemberId}
           />
         )}
       </div>

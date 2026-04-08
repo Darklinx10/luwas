@@ -40,6 +40,7 @@ export default function LocationForm({
   const cityOptions = selectedProvince?.cities || [];
   const selectedCity = cityOptions.find((c) => c.name === locationData.city);
   const barangayOptions = selectedCity?.barangays || [];
+  const canUseBarangaySelect = Boolean(selectedCity && barangayOptions.length > 0);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -115,11 +116,7 @@ export default function LocationForm({
   const validateLocation = () => {
     const errors = {};
 
-    if (!locationData.region) errors.region = true;
-    if (!locationData.province) errors.province = true;
-    if (!locationData.city) errors.city = true;
     if (!locationData.barangay) errors.barangay = true;
-    if (!locationData.zipcode) errors.zipcode = true;
 
     let hasValidHome = false;
     locationData.homes.forEach((home, index) => {
@@ -138,7 +135,7 @@ export default function LocationForm({
 
   const handleNext = () => {
     if (!validateLocation()) {
-      toast.error('Please complete the required location fields and home coordinates');
+      toast.error('Please provide the barangay and at least one mapped home location');
       return;
     }
     onNext();
@@ -154,7 +151,7 @@ export default function LocationForm({
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <RequiredField htmlFor="region" label="Region" required showError={showErrors.region}>
+        <FormField htmlFor="region" label="Region (Optional)">
           <select
             id="region"
             name="region"
@@ -169,9 +166,9 @@ export default function LocationForm({
               </option>
             ))}
           </select>
-        </RequiredField>
+        </FormField>
 
-        <RequiredField htmlFor="province" label="Province" required showError={showErrors.province}>
+        <FormField htmlFor="province" label="Province (Optional)">
           <select
             id="province"
             name="province"
@@ -187,9 +184,9 @@ export default function LocationForm({
               </option>
             ))}
           </select>
-        </RequiredField>
+        </FormField>
 
-        <RequiredField htmlFor="city" label="Municipality / City" required showError={showErrors.city}>
+        <FormField htmlFor="city" label="Municipality / City (Optional)">
           <select
             id="city"
             name="city"
@@ -205,27 +202,38 @@ export default function LocationForm({
               </option>
             ))}
           </select>
-        </RequiredField>
+        </FormField>
 
         <RequiredField htmlFor="barangay" label="Barangay" required showError={showErrors.barangay}>
-          <select
-            id="barangay"
-            name="barangay"
-            value={locationData.barangay}
-            onChange={handleChange}
-            className={inputClass}
-            disabled={!selectedCity}
-          >
-            <option value="">Select Barangay</option>
-            {barangayOptions.map((barangay) => (
-              <option key={barangay.name} value={barangay.name}>
-                {barangay.name}
-              </option>
-            ))}
-          </select>
+          {canUseBarangaySelect ? (
+            <select
+              id="barangay"
+              name="barangay"
+              value={locationData.barangay}
+              onChange={handleChange}
+              className={inputClass}
+            >
+              <option value="">Select Barangay</option>
+              {barangayOptions.map((barangay) => (
+                <option key={barangay.name} value={barangay.name}>
+                  {barangay.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              id="barangay"
+              name="barangay"
+              type="text"
+              value={locationData.barangay}
+              onChange={handleChange}
+              className={inputClass}
+              placeholder="Enter barangay"
+            />
+          )}
         </RequiredField>
 
-        <RequiredField htmlFor="zipcode" label="Zipcode" required showError={showErrors.zipcode}>
+        <FormField htmlFor="zipcode" label="Zipcode (Optional)">
           <input
             id="zipcode"
             name="zipcode"
@@ -235,7 +243,7 @@ export default function LocationForm({
             className={inputClass}
             placeholder="e.g. 4800"
           />
-        </RequiredField>
+        </FormField>
       </div>
 
       <div className="border-t border-slate-200 pt-6">

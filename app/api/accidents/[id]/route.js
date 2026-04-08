@@ -11,6 +11,23 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { getSessionUser } from '@/lib/auth/getSessionUser';
 
+function sanitizeStableImageUrl(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.startsWith('blob:') || trimmed.startsWith('data:')) {
+    return '';
+  }
+
+  return trimmed;
+}
+
 function serializeTimestamps(obj) {
   if (!obj || typeof obj !== 'object') return obj;
 
@@ -119,6 +136,13 @@ export async function PATCH(request, { params }) {
         { error: 'Forbidden: No access to this accident' },
         { status: 403 }
       );
+    }
+
+    const currentImageUrl = sanitizeStableImageUrl(accident.imageUrl);
+    if ('imageUrl' in updates) {
+      // No protected upload backend exists yet, so preserve the existing saved image
+      // and ignore any browser-driven attempt to replace it.
+      updates.imageUrl = currentImageUrl;
     }
 
     await docRef.update({

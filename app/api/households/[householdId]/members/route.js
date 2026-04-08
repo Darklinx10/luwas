@@ -198,9 +198,11 @@ export async function POST(request, { params: paramsPromise }) {
     );
   }
 
+  let householdId = 'unknown';
+
   try {
     const params = await paramsPromise;
-    const householdId = params.householdId;
+    householdId = params.householdId;
 
     if (!householdId) {
       return NextResponse.json(
@@ -232,7 +234,7 @@ export async function POST(request, { params: paramsPromise }) {
     const payload = await request.json();
 
     // Validate required fields
-    const required = ['firstName', 'lastName'];
+    const required = ['firstName'];
     for (const field of required) {
       if (!payload[field]) {
         return NextResponse.json(
@@ -253,11 +255,11 @@ export async function POST(request, { params: paramsPromise }) {
     );
   } catch (error) {
     console.error(
-      `POST /api/households/${params.householdId}/members error:`,
+      `POST /api/households/${householdId}/members error:`,
       error
     );
     return NextResponse.json(
-      { error: 'Failed to create member' },
+      { error: error?.message || 'Failed to create member' },
       { status: 500 }
     );
   }

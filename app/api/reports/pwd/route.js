@@ -38,7 +38,7 @@ export async function GET(request) {
   }
 
   // 🔐 Only Secretary and Personnel can view reports
-  if (!['Brgy-Secretary', 'MDRRMC-Personnel', 'MDRRMC-Admin'].includes(user.role)) {
+  if (!['Brgy-Secretary', 'MDRRMC-Personnel'].includes(user.role)) {
     console.log(`❌ Forbidden: User role ${user.role} not allowed`);
     return NextResponse.json(
       { error: 'Forbidden: Report access required' },
@@ -66,7 +66,7 @@ export async function GET(request) {
       }
       console.log(`🏘️ Fetching PWD members for Secretary in barangay: ${barangay}`);
     } else {
-      console.log('👮 Fetching PWD members for Personnel/Admin (all barangays)');
+      console.log('👮 Fetching PWD members for Personnel (all barangays)');
     }
 
     // Fetch all PWD members (with optional barangay filter)

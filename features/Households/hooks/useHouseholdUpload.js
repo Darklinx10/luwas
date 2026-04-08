@@ -42,7 +42,7 @@ export function useHouseholdUpload() {
       return;
     }
 
-    const validExtensions = ['csv', 'json', 'xlsx', 'xls'];
+    const validExtensions = ['json', 'xlsx', 'xls'];
     const ext = file.name.split('.').pop().toLowerCase();
     if (!validExtensions.includes(ext)) {
       toast.error(`Invalid file type. Supported: ${validExtensions.join(', ')}`);

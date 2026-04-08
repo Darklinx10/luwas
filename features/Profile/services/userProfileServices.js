@@ -6,18 +6,31 @@
  * NO client-side Firestore writes for profile data
  */
 
+function sanitizePersistedProfilePhoto(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith('blob:')) {
+    return '';
+  }
+
+  return trimmed;
+}
+
 // 🔐 Update user profile through server-side API
 // Server validates permissions, sanitizes input, and updates Firestore safely
 export async function updateUserProfile(profileData, photoFile) {
   try {
     // 1. If there's a photo file, upload separately and get URL
-    let profilePhotoUrl = profileData.profilePhoto;
+    let profilePhotoUrl = sanitizePersistedProfilePhoto(profileData.profilePhoto);
 
     if (photoFile) {
       // Photo upload would happen here
-      // For now, this is handled client-side, but should be moved to server
+      // For now, local preview is allowed but no upload happens yet.
       // TODO: Create /api/profile/upload-photo endpoint
-      console.warn('Photo upload should be handled server-side in production');
+      console.warn('Custom profile photo upload is not implemented yet; only stable non-blob URLs can be saved.');
     }
 
     // 2. Prepare data for server (exclude sensitive fields)

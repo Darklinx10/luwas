@@ -62,13 +62,6 @@ export function useHouseholds() {
   const [loadingMembers, setLoadingMembers] = useState({});
   const [membersData, setMembersData] = useState({});
 
-  const [editMemberModal, setEditMemberModal] = useState({
-    isOpen: false,
-    member: null,
-    householdId: '',
-    updating: false,
-  });
-
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   const fetchPage = useCallback(async () => {
@@ -236,77 +229,6 @@ export function useHouseholds() {
     [fetchPage]
   );
 
-  const handleEditMember = useCallback((householdId, member) => {
-    setEditMemberModal({
-      isOpen: true,
-      householdId,
-      member: { ...member },
-      updating: false,
-    });
-  }, []);
-
-  const closeEditMember = useCallback(() => {
-    setEditMemberModal({
-      isOpen: false,
-      householdId: '',
-      member: null,
-      updating: false,
-    });
-  }, []);
-
-  const handleEditFieldChange = useCallback((event) => {
-    const { name, value } = event.target;
-
-    setEditMemberModal((prev) => ({
-      ...prev,
-      member: {
-        ...prev.member,
-        [name]: value,
-      },
-    }));
-  }, []);
-
-  const handleSaveEditMember = useCallback(async () => {
-    const current = editMemberModal;
-
-    if (!current.householdId || !current.member?.memberId) {
-      toast.error('Missing member information');
-      return;
-    }
-
-    try {
-      setEditMemberModal((prev) => ({
-        ...prev,
-        updating: true,
-      }));
-
-      const { householdId, member } = current;
-      const { memberId, createdAt, updatedAt, ...payload } = member;
-
-      await householdApi.updateMember(householdId, memberId, payload);
-      toast.success('Member updated successfully');
-
-      const normalizedUpdatedMember = normalizeMember({ ...member, ...payload });
-
-      setMembersData((prev) => ({
-        ...prev,
-        [householdId]: (prev[householdId] || [])
-          .map((item) => (item.memberId === memberId ? normalizedUpdatedMember : item))
-          .sort(compareMemberNames),
-      }));
-
-      closeEditMember();
-      await fetchPage();
-    } catch (error) {
-      console.error(error);
-      toast.error(error.message || 'Failed to update member');
-      setEditMemberModal((prev) => ({
-        ...prev,
-        updating: false,
-      }));
-    }
-  }, [closeEditMember, editMemberModal, fetchPage]);
-
   const handleUploadHouseholdData = useCallback(() => {
     setUploadModalOpen(true);
   }, []);
@@ -356,13 +278,7 @@ export function useHouseholds() {
 
     handleDeleteHousehold,
     handleDeleteMember,
-    handleEditMember,
-    handleEditFieldChange,
-    handleSaveEditMember,
     handleAddHouseholdClick,
-
-    editMemberModal,
-    closeEditMember,
 
     uploadModalOpen,
     setUploadModalOpen,

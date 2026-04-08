@@ -1,12 +1,7 @@
 'use client';
 
 import React from 'react';
-
-/**
- * features/Reports/components/Shared/ReportPagination.jsx
- *
- * Shared pagination component for report navigation
- */
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 export default function ReportPagination({
   currentPage,
@@ -15,29 +10,34 @@ export default function ReportPagination({
   hasPrevPage,
   onPrevious,
   onNext,
-  onPageChange,
 }) {
   return (
-    <div className="flex items-center justify-between mt-6 p-4 bg-gray-50 rounded-lg">
+    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-sm text-slate-500">
+        Page <span className="font-semibold text-slate-700">{currentPage}</span> of{' '}
+        <span className="font-semibold text-slate-700">{totalPages}</span>
+      </div>
+
       <div className="flex gap-2">
         <button
+          type="button"
           onClick={onPrevious}
           disabled={!hasPrevPage}
-          className="px-4 py-2 bg-blue-600 text-white rounded disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-blue-700"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
+          <FiChevronLeft size={16} />
           Previous
         </button>
+
         <button
+          type="button"
           onClick={onNext}
           disabled={!hasNextPage}
-          className="px-4 py-2 bg-blue-600 text-white rounded disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-blue-700"
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Next
+          <FiChevronRight size={16} />
         </button>
-      </div>
-      <div className="text-sm text-gray-600">
-        Page <span className="font-semibold">{currentPage}</span> of{' '}
-        <span className="font-semibold">{totalPages}</span>
       </div>
     </div>
   );

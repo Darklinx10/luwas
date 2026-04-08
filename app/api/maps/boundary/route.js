@@ -2,7 +2,7 @@
  * app/api/maps/boundary/route.js
  *
  * Boundary GeoJSON API endpoint
- * GET: Fetch boundary from Firestore (mapSettings/config - boundary field)
+ * GET: Fetch boundary from Firestore for authenticated users
  * POST: Upload new boundary (admin only)
  *
  * Firestore structure:
@@ -22,6 +22,13 @@ import { NextResponse } from 'next/server';
 
 export async function GET(request) {
     try {
+        const user = await checkAuth();
+        if (!user) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
         console.log('🗺️ GET /api/maps/boundary called');
 
         // Fetch boundary from Firestore: mapSettings/config

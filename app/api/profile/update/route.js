@@ -3,15 +3,25 @@
  * Server-side profile update endpoint
  *
  * Protected endpoint that:
- * - Validates session token
- * - Checks user permissions
- * - Validates input data
+ * - Validates session via getSessionUser({ allowPendingProfile: true })
+ * - Allows incomplete-profile users to finish their own profile
+ * - Applies barangay restrictions based on current role/profile state
+ * - Validates submitted input from the current edit-profile form
  * - Updates profile in Firestore (Server SDK only)
  * - Returns updated profile
  *
  * Usage:
  * POST /api/profile/update
- * Body: { firstName, middleName, lastName, dateOfBirth, gender, contactNumber, barangay, email }
+ * Body: {
+ *   firstName,
+ *   middleName,
+ *   lastName,
+ *   dateOfBirth,
+ *   gender,
+ *   contactNumber,
+ *   barangay,
+ *   profilePhoto
+ * }
  * Returns: { success: true, profile: {...} }
  */
 
@@ -39,10 +49,28 @@ const PROTECTED_FIELDS = {
   status: 'System field',
 };
 
+function sanitizeProfilePhotoValue(value) {
+  if (typeof value !== 'string') {
+    return { shouldPersist: true, value: '' };
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return { shouldPersist: true, value: '' };
+  }
+
+  if (trimmed.startsWith('blob:')) {
+    return { shouldPersist: false, value: '' };
+  }
+
+  return { shouldPersist: true, value: trimmed };
+}
+
 export async function POST(request) {
   try {
     // 1. Validate session
-    const user = await getSessionUser();
+    const user = await getSessionUser({ allowPendingProfile: true });
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -78,20 +106,8 @@ export async function POST(request) {
       );
     }
 
-    // ✅ dateOfBirth and gender are optional (may not be set initially)
-    // if (!dateOfBirth || !dateOfBirth.trim()) {
-    //   return NextResponse.json(
-    //     { error: 'Date of birth is required' },
-    //     { status: 400 }
-    //   );
-    // }
-
-    // if (!gender || !gender.trim()) {
-    //   return NextResponse.json(
-    //     { error: 'Gender is required' },
-    //     { status: 400 }
-    //   );
-    // }
+    // The current edit-profile form submits dateOfBirth and gender.
+    // This handler normalizes both values as trimmed strings below.
 
     if (!contactNumber || !contactNumber.trim()) {
       return NextResponse.json(
@@ -127,13 +143,18 @@ export async function POST(request) {
       contactNumber: contactNumber.trim(),
       // Note: Email is NOT updated here - use Firebase Auth
       // Note: Barangay can only be updated by admins or is fixed for secretaries
-      profilePhoto: profilePhoto || '',
       updatedAt: new Date().toISOString(),
     };
 
-    // 7. Only admins can update barangay
+    const sanitizedProfilePhoto = sanitizeProfilePhotoValue(profilePhoto);
+    if (sanitizedProfilePhoto.shouldPersist) {
+      updateData.profilePhoto = sanitizedProfilePhoto.value;
+    }
+
+    // 7. Only admins can update barangay after activation.
+    // Incomplete-profile users can set their initial barangay here.
     if (barangay && barangay !== user.barangay) {
-      if (user.role !== 'MDRRMC-Admin') {
+      if (!user.needsProfileCompletion && user.role !== 'MDRRMC-Admin') {
         return NextResponse.json(
           { error: 'Only admins can update barangay' },
           { status: 403 }
@@ -158,8 +179,8 @@ export async function POST(request) {
       message: 'Profile updated successfully',
       profile: {
         uid: user.uid,
-        email: user.email,  // From session, not from form
-        role: user.role,    // Unchanged by this endpoint
+        email: user.email, // From session, not from form
+        role: user.role, // Unchanged by this endpoint
         ...updatedProfile,
       },
     });
@@ -189,12 +210,12 @@ export async function POST(request) {
 }
 
 /**
- * GET: Optional - Get current user's profile
- * Can be used to refresh profile before editing
+ * GET: Fetch the current user's profile, including pending-profile users.
+ * Can be used to refresh profile data before editing.
  */
 export async function GET() {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser({ allowPendingProfile: true });
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },

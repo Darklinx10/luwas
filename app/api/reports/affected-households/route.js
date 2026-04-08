@@ -17,6 +17,23 @@ import { compareNames } from '@/lib/utils/nameNormalizer';
 import { formatHouseholdName } from '@/features/Map/utils/formatHouseholdName';
 import { hazardTypes as orderedHazardTypes } from '@/utils/hazardTypes';
 
+const AFFECTED_HOUSEHOLD_FIELDS = [
+  'homes',
+  'barangay',
+  'sitio',
+  'contactNumber',
+  'headFirstName',
+  'headMiddleName',
+  'headLastName',
+  'headSuffix',
+  'headFullName',
+  'totalResidents',
+  'totalMale',
+  'totalFemale',
+  'totalPWDs',
+  'totalSeniors',
+];
+
 function compareAffectedRows(a, b) {
   const nameComparison = compareNames(
     {
@@ -112,7 +129,7 @@ export async function GET(request) {
     );
   }
 
-  if (!['Brgy-Secretary', 'MDRRMC-Personnel', 'MDRRMC-Admin'].includes(user.role)) {
+  if (!['Brgy-Secretary', 'MDRRMC-Personnel'].includes(user.role)) {
     return NextResponse.json(
       { error: 'Forbidden: Report access required' },
       { status: 403 }
@@ -123,8 +140,8 @@ export async function GET(request) {
     const url = new URL(request.url);
     const requestedHazardType = String(url.searchParams.get('hazardType') || '').trim();
 
-    const hazardsSnap = await adminDb.collection('hazards').get();
-    const availableHazardTypes = hazardsSnap.docs.map((doc) => doc.id);
+    const hazardRefs = await adminDb.collection('hazards').listDocuments();
+    const availableHazardTypes = hazardRefs.map((docRef) => docRef.id);
     const extraHazardTypes = availableHazardTypes
       .filter((type) => !orderedHazardTypes.includes(type))
       .sort((a, b) => a.localeCompare(b));
@@ -164,6 +181,7 @@ export async function GET(request) {
       .collection('hazards')
       .doc(selectedHazardType)
       .collection('hazardInfo')
+      .select('geojsonData', 'legendProp')
       .get();
 
     const { features, legendProp } = parseHazardInfo(hazardInfoSnap.docs);
@@ -172,6 +190,7 @@ export async function GET(request) {
     if (user.role === 'Brgy-Secretary') {
       householdsQuery = householdsQuery.where('barangay', '==', user.barangay);
     }
+    householdsQuery = householdsQuery.select(...AFFECTED_HOUSEHOLD_FIELDS);
 
     const householdSnap = await householdsQuery.get();
     const affectedHouseholds = [];

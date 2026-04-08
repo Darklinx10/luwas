@@ -1,5 +1,5 @@
-export function getPostLoginRedirect({ isNewUser, role }) {
-  if (isNewUser) {
+export function getPostLoginRedirect({ isNewUser, role, needsProfileCompletion }) {
+  if (isNewUser || needsProfileCompletion || !role) {
     return {
       path: '/profile/edit-profile',
       message: 'Redirecting to complete your profile...',

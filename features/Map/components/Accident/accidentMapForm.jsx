@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { storage } from '@/lib/firebaseConfig';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'react-toastify';
 import { mapApi } from '../../services/mapApi';
 
@@ -49,13 +47,10 @@ export default function AccidentMapForm({ onSubmit }) {
 
     setLoading(true);
     try {
-      let imageUrl = null;
+      const imageUrl = '';
 
-      // Upload image if provided
       if (file) {
-        const storageRef = ref(storage, `accidents/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        imageUrl = await getDownloadURL(storageRef);
+        toast.info('Accident image upload is not available yet. The record will be saved without a new image.');
       }
 
       // ✅ FIXED: Use API instead of direct Firestore - includes auth, audit trail, server timestamp

@@ -5,9 +5,14 @@ import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
 const PUBLIC_ONLY_PATHS = ['/login', '/forgotpass'];
 const ADMIN_ONLY_PATHS = ['/users', '/hazards'];
 const ADMIN_BLOCKED_PATHS = ['/dashboard', '/reports'];
+const ALLOWED_ROLES = ['MDRRMC-Admin', 'MDRRMC-Personnel', 'Brgy-Secretary'];
 
-function getHomeByRole(role) {
-  return role === 'MDRRMC-Admin' ? '/household' : '/dashboard';
+function getHomeBySession(session) {
+  if (!session || session.needsProfileCompletion) {
+    return '/profile/edit-profile';
+  }
+
+  return session.role === 'MDRRMC-Admin' ? '/household' : '/dashboard';
 }
 
 export async function middleware(req) {
@@ -47,9 +52,27 @@ export async function middleware(req) {
     if (!userData.activeSessionToken) return null;
     if (userData.activeSessionToken !== sessionToken) return null;
 
+    const role = userData.role || decoded.role || null;
+    if (role && !ALLOWED_ROLES.includes(role)) return null;
+
+    const status = userData.status || (role ? 'active' : 'pending');
+    const needsProfileCompletion = !role || status === 'pending';
+
+    if (!needsProfileCompletion && status !== 'active') return null;
+
+    if (
+      role === 'Brgy-Secretary' &&
+      status === 'active' &&
+      !userData.barangay
+    ) {
+      return null;
+    }
+
     return {
       uid,
-      role: userData.role || decoded.role || null,
+      role,
+      status,
+      needsProfileCompletion,
     };
   }
 
@@ -67,23 +90,36 @@ export async function middleware(req) {
       return NextResponse.next();
     }
 
-    return redirect(getHomeByRole(session.role));
+    return redirect(getHomeBySession(session));
   }
 
   // 2. Unauthorized page
-  // If user is not logged in, don't allow access
+  // Logged-out users should go to login.
+  // Logged-in active users may view this page when access is denied elsewhere.
+  // Incomplete-profile users should still finish profile setup first.
   if (pathname.startsWith('/unauthorized')) {
     if (!session) {
       return redirect('/login');
     }
 
-    // Logged-in users should not manually stay here
-    return redirect(getHomeByRole(session.role));
+    if (session.needsProfileCompletion) {
+      return redirect('/profile/edit-profile');
+    }
+
+    return NextResponse.next();
   }
 
   // 3. All remaining matched routes are protected
   if (!session) {
     return redirect('/login');
+  }
+
+  if (session.needsProfileCompletion) {
+    if (pathname.startsWith('/profile/edit-profile')) {
+      return NextResponse.next();
+    }
+
+    return redirect('/profile/edit-profile');
   }
 
   const role = session.role;

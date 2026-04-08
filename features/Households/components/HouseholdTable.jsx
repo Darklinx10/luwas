@@ -78,34 +78,34 @@ export default function HouseholdTable({
 
   return (
     <div className="overflow-x-auto">
-      <div className="max-h-[560px] overflow-auto">
-        <table className="min-w-full text-left">
+      <div className="max-h-[560px] overflow-y-auto">
+        <table className="w-full text-left">
           <thead className="sticky top-0 z-10 bg-slate-50">
             <tr className="text-xs uppercase tracking-[0.08em] text-slate-500">
               <th className="border-b border-slate-200 px-3 py-3 print:hidden" />
-              <th className="border-b border-slate-200 px-4 py-3 font-semibold">No.</th>
-              <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[220px]">
+              <th className="border-b border-slate-200 px-3 py-3 font-semibold">No.</th>
+              <th className="min-w-[180px] border-b border-slate-200 px-3 py-3 font-semibold">
                 Family Head
               </th>
-              <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[160px]">
+              <th className="min-w-[120px] border-b border-slate-200 px-3 py-3 font-semibold">
                 Barangay
               </th>
-              <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[140px]">
+              <th className="min-w-[110px] border-b border-slate-200 px-3 py-3 font-semibold">
                 Sitio
               </th>
-              <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[90px]">
+              <th className="min-w-[80px] border-b border-slate-200 px-3 py-3 font-semibold">
                 Sex
               </th>
-              <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[160px]">
+              <th className="min-w-[130px] border-b border-slate-200 px-3 py-3 font-semibold">
                 Contact
               </th>
-              <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[80px]">
+              <th className="min-w-[70px] border-b border-slate-200 px-3 py-3 font-semibold">
                 Age
               </th>
-              <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[150px] print:hidden">
+              <th className="min-w-[110px] border-b border-slate-200 px-3 py-3 font-semibold print:hidden">
                 Map
               </th>
-              <th className="border-b border-slate-200 px-4 py-3 text-center font-semibold min-w-[120px] print:hidden">
+              <th className="min-w-[90px] border-b border-slate-200 px-3 py-3 text-center font-semibold print:hidden">
                 Actions
               </th>
             </tr>
@@ -147,10 +147,10 @@ export default function HouseholdTable({
 
                     <td className="border-b border-slate-200 px-4 py-4">
                       <div>
-                        <p className="text-sm font-semibold text-slate-800">
+                        <p className="truncate text-sm font-semibold text-slate-800">
                           {fullName || '-'}
                         </p>
-                        <p className="mt-0.5 text-xs text-slate-500">
+                        <p className="mt-0.5 truncate text-xs text-slate-500">
                           Household ID: {hh.householdId || '-'}
                         </p>
                       </div>
@@ -178,12 +178,12 @@ export default function HouseholdTable({
 
                     <td className="border-b border-slate-200 px-4 py-4 print:hidden">
                       {hh.homes?.length ? (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                           {hh.homes.map((home, idx) => (
                             <button
                               key={`${hh.householdId}-home-${idx}`}
                               onClick={() => onMapClick(hh, home)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100"
+                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100"
                               title={`View ${home.label ?? `Home ${idx + 1}`} on map`}
                             >
                               <FiMapPin size={13} />

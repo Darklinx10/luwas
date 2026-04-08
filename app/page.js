@@ -17,6 +17,11 @@ export default function HomePage() {
       return;
     }
 
+    if (user?.needsProfileCompletion) {
+      router.replace('/profile/edit-profile');
+      return;
+    }
+
     router.replace(role === 'MDRRMC-Admin' ? '/household' : '/dashboard');
   }, [user, role, loading, router]);
 

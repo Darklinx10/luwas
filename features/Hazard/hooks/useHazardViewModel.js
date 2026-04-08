@@ -74,6 +74,7 @@ export const useHazardViewModel = () => {
       } catch (error) {
         console.error('Error uploading hazard:', error);
         toast.error(error.message || 'Failed to upload hazard');
+        throw error;
       } finally {
         setLoadingUpload(false);
       }

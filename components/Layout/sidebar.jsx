@@ -35,7 +35,7 @@ const NAV_SECTIONS = [
         href: "/map",
         label: "Maps",
         icon: IoMapSharp,
-        allowedRoles: ["MDRRMC-Admin", "MDRRMC-Personnel"],
+        allowedRoles: ["MDRRMC-Admin", "MDRRMC-Personnel", "Brgy-Secretary"],
       },
       {
         href: "/reports",
@@ -107,7 +107,7 @@ export default function Sidebar({ sidebarOpen }) {
       className={`
         flex h-full flex-col border-r border-slate-200 bg-white shadow-sm
         transition-all duration-300 ease-in-out
-        ${effectiveSidebarOpen ? "w-[272=px]" : "w-[72px]"}
+        ${effectiveSidebarOpen ? "w-[272px]" : "w-[72px]"}
       `}
     >
       {/* Header */}

@@ -171,11 +171,9 @@ export default function AddHazardModal({
     try {
       await handleUploadAndSave(legendProp, colorSettings);
       resetForm();
-      toast.success('Hazard layer saved successfully!');
       onClose();
     } catch (error) {
       console.error('Error saving hazard layer:', error);
-      toast.error('Failed to save hazard layer.');
     }
   };
 

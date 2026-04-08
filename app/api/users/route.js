@@ -34,6 +34,17 @@ const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 const MIN_PASSWORD_LENGTH = 8;
 const ALLOWED_ROLES_FOR_CREATION = ['Brgy-Secretary', 'MDRRMC-Personnel'];
+const USER_LIST_FIELDS = [
+  'firstName',
+  'middleName',
+  'lastName',
+  'email',
+  'contactNumber',
+  'barangay',
+  'municipality',
+  'role',
+  'createdAt',
+];
 
 // Regex for basic email validation
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -150,7 +161,11 @@ export async function GET(req) {
     const search = (searchParams.get('search') || '').trim().toLowerCase();
 
     // 3. Fetch users from Firestore
-    const usersRef = admin.firestore().collection('users');
+    const usersRef = admin
+      .firestore()
+      .collection('users')
+      .where('role', 'in', ALLOWED_ROLES_FOR_CREATION)
+      .select(...USER_LIST_FIELDS);
     const snapshot = await usersRef.get();
 
     let users = snapshot.docs.map(doc => ({
@@ -160,9 +175,7 @@ export async function GET(req) {
     }));
 
     // 4. Filter by allowed roles (don't show MDRRMC-Admin users to regular admins viewing list)
-    users = users.filter(u => 
-      ['Brgy-Secretary', 'MDRRMC-Personnel'].includes(u.role)
-    );
+    users = users.filter((u) => ALLOWED_ROLES_FOR_CREATION.includes(u.role));
 
     // 5. Apply search filter (server-side)
     if (search) {

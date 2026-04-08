@@ -1,18 +1,12 @@
 'use client';
 
 import React from 'react';
+import { FiDownload, FiPrinter } from 'react-icons/fi';
 import { usePWDReport } from '../../hooks/usePWDReport';
 import ReportTable from '../Shared/ReportTable';
 import ReportSearch from '../Shared/ReportSearch';
 import ReportPagination from '../Shared/ReportPagination';
 import { formatFullName } from '@/features/Households/utils/householdFormat';
-
-/**
- * features/Reports/components/PWD/PWDReportView.jsx
- *
- * PWD (Persons with Disability) Report component
- * Integrated into household module via Feature-based architecture
- */
 
 const renderMemberFullName = (member) =>
   member.fullName ||
@@ -68,7 +62,6 @@ export default function PWDReportView() {
     loading,
     error,
     page,
-    search,
     totalCount,
     totalPages,
     hasNextPage,
@@ -81,7 +74,7 @@ export default function PWDReportView() {
 
   const handleSearch = (value) => {
     setSearch(value);
-    setPage(1); // Reset to page 1 on search
+    setPage(1);
   };
 
   const handleNextPage = () => {
@@ -96,11 +89,50 @@ export default function PWDReportView() {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownloadCSV = () => {
+    if (!members.length) return;
+
+    const headers = [
+      'Name',
+      'Barangay',
+      'Sitio',
+      'Sex',
+      'Contact Number',
+      'Age',
+      'Household Head',
+    ];
+
+    const rows = members.map((member) =>
+      [
+        `"${String(renderMemberFullName(member)).replace(/"/g, '""')}"`,
+        `"${String(member.householdBarangay || 'N/A').replace(/"/g, '""')}"`,
+        `"${String(member.householdSitio || 'N/A').replace(/"/g, '""')}"`,
+        `"${String(member.sex || 'N/A').replace(/"/g, '""')}"`,
+        `"${String(member.contactNumber || 'N/A').replace(/"/g, '""')}"`,
+        `"${String(member.age ?? 'N/A').replace(/"/g, '""')}"`,
+        `"${String(member.headFullName || 'N/A').replace(/"/g, '""')}"`,
+      ].join(',')
+    );
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const link = document.createElement('a');
+
+    link.href = URL.createObjectURL(blob);
+    link.download = 'pwd-report.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
   if (isIndexError) {
     return (
-      <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <h3 className="text-lg font-semibold text-yellow-900 mb-2">Index Error</h3>
-        <p className="text-yellow-800 mb-4">
+      <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
+        <h3 className="text-lg font-semibold text-yellow-900">Index Error</h3>
+        <p className="mt-2 text-sm text-yellow-800">
           Check the server logs for Firestore composite index creation link.
         </p>
         {indexErrorLink && (
@@ -108,12 +140,12 @@ export default function PWDReportView() {
             href={indexErrorLink}
             target="_blank"
             rel="noreferrer"
-            className="text-sm text-yellow-900 underline"
+            className="mt-3 inline-block text-sm font-medium text-yellow-900 underline"
           >
             Open Firebase index creation page
           </a>
         )}
-        <p className="text-sm text-yellow-700">
+        <p className="mt-2 text-sm text-yellow-700">
           The system will automatically retry once the index is created.
         </p>
       </div>
@@ -121,62 +153,104 @@ export default function PWDReportView() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">
-          PWD (Persons with Disability) Report
-        </h2>
-        <p className="text-gray-600 mt-1">
-          Total members: <span className="font-semibold">{totalCount}</span>
-        </p>
+    <div className="space-y-6" id="print-section">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">
+              PWD (Persons with Disability) Report
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Total members: <span className="font-semibold text-slate-700">{totalCount}</span>
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FiPrinter size={16} />
+              Print
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadCSV}
+              disabled={loading || members.length === 0}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FiDownload size={16} />
+              Download CSV
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Search */}
-      <ReportSearch
-        placeholder="Search by member, household head, barangay, or contact..."
-        onSearch={handleSearch}
-      />
+      <div className="print:hidden">
+        <ReportSearch
+          placeholder="Search by member, household head, barangay, or contact..."
+          onSearch={handleSearch}
+        />
+      </div>
 
-      {/* Error */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-900 font-semibold">Error</p>
-          <p className="text-red-700">{error}</p>
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+          <p className="font-semibold text-red-900">Error</p>
+          <p className="mt-1 text-sm text-red-700">{error}</p>
         </div>
       )}
 
-      {/* Loading */}
       {loading && (
-        <div className="text-center py-8">
-          <div className="inline-block">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-14 shadow-sm">
+          <div className="flex flex-col items-center">
+            <svg
+              className="mb-3 h-10 w-10 animate-spin text-emerald-600"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8z"
+              />
+            </svg>
+            <p className="text-sm text-slate-500">Loading PWD members...</p>
           </div>
-          <p className="text-gray-600 mt-4">Loading PWD members...</p>
         </div>
       )}
 
-      {/* Table */}
       {!loading && members.length > 0 && (
         <>
           <ReportTable members={members} columns={PWD_COLUMNS} />
 
-          {/* Pagination */}
-          <ReportPagination
-            currentPage={page}
-            totalPages={totalPages}
-            hasNextPage={hasNextPage}
-            hasPrevPage={hasPrevPage}
-            onPrevious={handlePrevPage}
-            onNext={handleNextPage}
-          />
+          <div className="print:hidden">
+            <ReportPagination
+              currentPage={page}
+              totalPages={totalPages}
+              hasNextPage={hasNextPage}
+              hasPrevPage={hasPrevPage}
+              onPrevious={handlePrevPage}
+              onNext={handleNextPage}
+            />
+          </div>
         </>
       )}
 
-      {/* Empty State */}
       {!loading && members.length === 0 && !error && (
-        <div className="text-center py-8 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">No PWD members found</p>
+        <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center shadow-sm">
+          <p className="text-sm text-slate-500">No PWD members found</p>
         </div>
       )}
     </div>

@@ -29,6 +29,24 @@ import { adminDb } from '@/lib/firebaseAdmin';
 import { formatHouseholdName } from '@/features/Map/utils/formatHouseholdName';
 import { logFirestoreError, analyzeFirestoreError } from '@/lib/api/firestoreErrorHandler';
 
+const HOUSEHOLD_MARKER_FIELDS = [
+  'homes',
+  'hasMapLocation',
+  'headFullName',
+  'headFirstName',
+  'headMiddleName',
+  'headLastName',
+  'headSuffix',
+  'barangay',
+  'sitio',
+  'contactNumber',
+  'totalResidents',
+  'totalMale',
+  'totalFemale',
+  'totalPWDs',
+  'totalSeniors',
+];
+
 export async function GET(request) {
   console.log('🗺️ GET /api/maps/household-markers called');
 
@@ -75,6 +93,7 @@ export async function GET(request) {
     if (barangayFilter) {
       query = query.where('barangay', '==', barangayFilter);
     }
+    query = query.select(...HOUSEHOLD_MARKER_FIELDS);
 
     console.log('📤 Executing Firestore query for households...');
     const snapshot = await query.get();

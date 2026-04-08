@@ -61,12 +61,16 @@ export function useLogin({ setShowPageLoader, setRedirectMessage } = {}) {
 
       await createServerSession(idToken);
 
-      authContext?.setProfile?.(profile);
+      const sessionData = await authContext?.refreshSession?.();
+      const sessionUser = sessionData?.user || profile;
+
+      authContext?.setProfile?.(sessionUser);
       saveRememberMe(email.trim(), rememberMe);
 
       const redirect = getPostLoginRedirect({
         isNewUser,
-        role: profile?.role,
+        role: sessionUser?.role,
+        needsProfileCompletion: sessionUser?.needsProfileCompletion,
       });
 
       setShowPageLoader?.(true);

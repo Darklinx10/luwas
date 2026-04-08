@@ -11,6 +11,12 @@ import { adminDb } from '@/lib/firebaseAdmin';
 import { getSessionUser } from '@/lib/auth/getSessionUser';
 import { analyzeFirestoreError, logFirestoreError } from '@/lib/api/firestoreErrorHandler';
 
+function getPersistedAccidentImageUrl() {
+  // No protected image-upload backend exists yet for accident records.
+  // New accident creation must not trust a client-supplied image URL.
+  return '';
+}
+
 function serializeTimestamps(obj) {
   if (!obj || typeof obj !== 'object') return obj;
 
@@ -120,6 +126,7 @@ export async function POST(request) {
     const newAccident = {
       ...accidentData,
       barangay,
+      imageUrl: getPersistedAccidentImageUrl(),
       createdBy: user.uid,
       createdByRole: user.role,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

@@ -24,7 +24,7 @@ const AgeBracketChart = dynamic(() => import('@/features/Dashboard/components/Ag
 
 export default function DashboardPageWrapper() {
   return (
-    <RoleGuard allowedRoles={['Brgy-Secretary', 'MDRRMC-Personnel', 'MDRRMC-Admin']}>
+    <RoleGuard allowedRoles={['Brgy-Secretary', 'MDRRMC-Personnel']}>
       <DashboardPage />
     </RoleGuard>
   );

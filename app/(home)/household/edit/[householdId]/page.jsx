@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/authContext';
 import HouseholdForm from '@/features/Households/components/Forms/HouseholdForm';
 import {
@@ -12,6 +12,21 @@ import {
   updateHousehold,
   updateMember,
 } from '@/features/Households/services/householdApi';
+
+async function fetchAllMembersForEdit(householdId) {
+  const members = [];
+  let page = 1;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const result = await fetchMembers(householdId, { page, limit: 100 });
+    members.push(...(result?.members || []));
+    hasNextPage = Boolean(result?.hasNextPage);
+    page += 1;
+  }
+
+  return members;
+}
 
 function toInitialValues(household, members) {
   return {
@@ -46,26 +61,6 @@ function toInitialValues(household, members) {
       otherInfo: member.otherInfo || '',
       isPWD: member.isPWD || false,
     })),
-  };
-}
-
-function buildMemberPayload(member) {
-  return {
-    firstName: member.firstName || '',
-    middleName: member.middleName || '',
-    lastName: member.lastName || '',
-    suffix: member.suffix || '',
-    relationshipToHead: member.relation || '',
-    sex: member.sex || '',
-    birthDate: member.birthDate || '',
-    age:
-      member.age === '' || member.age === null || member.age === undefined
-        ? 0
-        : Number(member.age),
-    education: member.education || '',
-    occupation: member.occupation || '',
-    otherInfo: member.otherInfo || '',
-    isPWD: Boolean(member.isPWD),
   };
 }
 
@@ -127,17 +122,36 @@ export default function EditHouseholdPage() {
   const { user, profile } = useAuth();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const householdId = params?.householdId;
+  const selectedMemberId = searchParams.get('memberId') || '';
+  const [hashStep, setHashStep] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [initialValues, setInitialValues] = useState(null);
   const [originalMembers, setOriginalMembers] = useState([]);
 
-  const initialStep = useMemo(() => {
-    if (typeof window === 'undefined') return 'location';
-    return window.location.hash === '#members' ? 'members' : 'location';
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const syncHash = () => {
+      setHashStep(window.location.hash || '');
+    };
+
+    syncHash();
+    window.addEventListener('hashchange', syncHash);
+
+    return () => window.removeEventListener('hashchange', syncHash);
   }, []);
+
+  const initialStep = useMemo(() => {
+    if (selectedMemberId || hashStep === '#members') {
+      return 'members';
+    }
+
+    return 'location';
+  }, [hashStep, selectedMemberId]);
 
   useEffect(() => {
     if (!user || !profile || !householdId) return;
@@ -156,13 +170,13 @@ export default function EditHouseholdPage() {
       try {
         const [householdResult, membersResult] = await Promise.all([
           fetchHousehold(householdId),
-          fetchMembers(householdId, { page: 1, limit: 100 }),
+          fetchAllMembersForEdit(householdId),
         ]);
 
         if (cancelled) return;
 
         const household = householdResult?.household;
-        const members = membersResult?.members || [];
+        const members = Array.isArray(membersResult) ? membersResult : [];
 
         if (!household) {
           throw new Error('Household not found');
@@ -186,8 +200,9 @@ export default function EditHouseholdPage() {
     };
   }, [householdId, profile, router, user]);
 
-  const handleSubmit = async ({ payload, members }) => {
+  const handleSubmit = async ({ payload }) => {
     const householdPayload = { ...payload };
+    const normalizedMembers = Array.isArray(payload.members) ? payload.members : [];
     delete householdPayload.members;
 
     if (profile?.role === 'Brgy-Secretary') {
@@ -204,12 +219,14 @@ export default function EditHouseholdPage() {
 
     const submittedExistingIds = new Set();
 
-    for (const member of members) {
-      const memberPayload = buildMemberPayload(member);
+    for (const member of normalizedMembers) {
+      const memberPayload = { ...member };
+      const memberId = memberPayload.memberId || null;
+      delete memberPayload.memberId;
 
-      if (member.memberId && originalById.has(member.memberId)) {
-        submittedExistingIds.add(member.memberId);
-        await updateMember(householdId, member.memberId, memberPayload);
+      if (memberId && originalById.has(memberId)) {
+        submittedExistingIds.add(memberId);
+        await updateMember(householdId, memberId, memberPayload);
       } else {
         await createMember(householdId, memberPayload);
       }
@@ -247,6 +264,7 @@ export default function EditHouseholdPage() {
           mode="edit"
           initialStep={initialStep}
           initialValues={initialValues}
+          selectedMemberId={selectedMemberId}
           onSubmit={handleSubmit}
           onComplete={() => {
             router.push('/household');

@@ -24,6 +24,14 @@ import { NextResponse } from 'next/server';
  */
 export async function GET(request) {
     try {
+        const user = await checkAuth();
+        if (!user) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
         const docRef = adminDb.collection('settings').doc('mapCenter');
         const docSnap = await docRef.get();
 

@@ -20,6 +20,10 @@ const DEFAULT_AVATARS = [
   'https://cdn-icons-png.flaticon.com/512/13482/13482227.png',
 ];
 
+function isBlobUrl(value = '') {
+  return typeof value === 'string' && value.trim().startsWith('blob:');
+}
+
 export function useUserProfile() {
   const router = useRouter();
   const { profile, setProfile, refreshSession } = useAuth();
@@ -28,6 +32,7 @@ export function useUserProfile() {
     firstName: '',
     middleName: '',
     lastName: '',
+    email: '',
     dateOfBirth: '',
     gender: '',
     contactNumber: '',
@@ -48,6 +53,7 @@ export function useUserProfile() {
       firstName: profile.firstName || '',
       middleName: profile.middleName || '',
       lastName: profile.lastName || '',
+      email: profile.email || '',
       dateOfBirth: profile.dateOfBirth || '',
       gender: profile.gender || '',
       contactNumber: profile.contactNumber || '',
@@ -79,7 +85,8 @@ export function useUserProfile() {
 
     setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
-    // Don't update form.profilePhoto here - handle in submission
+    // Keep the saved profilePhoto unchanged until a real upload backend exists.
+    toast.info('Custom photo is preview-only for now and will not be saved yet.');
   };
 
   const handleAvatarClick = (avatarUrl) => {
@@ -103,10 +110,14 @@ export function useUserProfile() {
 
     setLoading(true);
     try {
+      const persistedProfilePhoto = isBlobUrl(form.profilePhoto)
+        ? ''
+        : (form.profilePhoto || '').trim();
+
       // 1. Prepare form data for submission
       const profileData = {
         ...form,
-        profilePhoto: photoPreview,  // Use preview URL (avatar or uploaded URL)
+        profilePhoto: persistedProfilePhoto,
       };
 
       // 2. Call server-side update endpoint
@@ -121,12 +132,15 @@ export function useUserProfile() {
 
       // 4. Reload session to ensure fresh data from server
       // This will call /api/auth/me and update context with fresh profile
-      await refreshSession();
+      const sessionData = await refreshSession();
+      const needsProfileCompletion = !!sessionData?.user?.needsProfileCompletion;
 
       toast.success('Profile updated successfully!');
-      
-      // 5. Redirect back to profile page
-      router.push('/profile');
+
+      // 5. Keep incomplete users on the completion form.
+      if (!needsProfileCompletion) {
+        router.push('/profile');
+      }
     } catch (error) {
       console.error('[useUserProfile] Profile update failed:', error);
       
