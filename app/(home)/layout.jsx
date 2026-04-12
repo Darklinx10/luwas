@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import useIsMobile from '@/hooks/useMobile';
 
 export default function DashboardLayout({ children }) {
-  const isMobile = useIsMobile();  // <--- use the hook here
+  const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const { role } = useAuth();
@@ -22,26 +22,24 @@ export default function DashboardLayout({ children }) {
   }, [isMobile]);
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
+    <div className="flex h-screen overflow-hidden">
       <div
         className={`transition-transform duration-300 ease-in-out
-          fixed z-40 inset-y-0 left-0 pl-2 bg-dashboard-bg shadow-md
+          fixed inset-y-0 left-0 z-40 bg-dashboard-bg shadow-md
           transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          w-20 md:w-64
+          w-[72px] md:w-[272px]
         `}
       >
         <Sidebar sidebarOpen={sidebarOpen} userRole={role} />
       </div>
 
-      {/* Content area */}
       <div
-        className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${
-          sidebarOpen ? 'ml-22 md:ml-66' : 'ml-0 sm:ml-0 md:ml-0'
+        className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out ${
+          sidebarOpen ? 'ml-[72px] md:ml-[272px]' : 'ml-0'
         }`}
       >
         <Topbar toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-        <main className="flex-1 bg-gradient-to-t from-green-50 to-white p-6 overflow-y-auto">
+        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-gradient-to-t from-green-50 to-white p-6">
           {children}
         </main>
       </div>

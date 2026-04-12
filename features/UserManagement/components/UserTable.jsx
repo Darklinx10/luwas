@@ -68,17 +68,17 @@ export default function UserTable({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-left">
+    <div className="w-full">
+      <table className="w-full table-fixed text-left">
         <thead className="bg-slate-50">
           <tr className="text-xs uppercase tracking-[0.08em] text-slate-500">
-            <th className="border-b border-slate-200 px-4 py-3 font-semibold">No.</th>
-            <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[220px]">User</th>
-            <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[220px]">Email</th>
-            <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[160px]">Barangay</th>
-            <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[160px]">Role</th>
-            <th className="border-b border-slate-200 px-4 py-3 font-semibold min-w-[160px]">Contact</th>
-            <th className="border-b border-slate-200 px-4 py-3 text-center font-semibold min-w-[120px]">
+            <th className="w-12 border-b border-slate-200 px-3 py-2.5 font-semibold">No.</th>
+            <th className="w-[22%] border-b border-slate-200 px-3 py-2.5 font-semibold">User</th>
+            <th className="w-[24%] border-b border-slate-200 px-3 py-2.5 font-semibold">Email</th>
+            <th className="w-[16%] border-b border-slate-200 px-3 py-2.5 font-semibold">Barangay</th>
+            <th className="w-[15%] border-b border-slate-200 px-3 py-2.5 font-semibold">Role</th>
+            <th className="w-[15%] border-b border-slate-200 px-3 py-2.5 font-semibold">Contact</th>
+            <th className="w-24 border-b border-slate-200 px-3 py-2.5 text-center font-semibold">
               Actions
             </th>
           </tr>
@@ -87,43 +87,43 @@ export default function UserTable({
         <tbody>
           {users.map((user, index) => (
             <tr key={user.id} className="transition hover:bg-slate-50">
-              <td className="border-b border-slate-200 px-4 py-4 text-sm text-slate-600">
+              <td className="border-b border-slate-200 px-3 py-3 text-xs text-slate-600 align-top">
                 {(page - 1) * pageSize + index + 1}
               </td>
 
-              <td className="border-b border-slate-200 px-4 py-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 font-semibold text-emerald-700">
+              <td className="border-b border-slate-200 px-3 py-3 align-top">
+                <div className="flex items-start gap-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-semibold text-emerald-700">
                     {(user.fullName || user.firstName || 'U').charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-semibold leading-snug text-slate-800">
                       {user.fullName || 'N/A'}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
+                    <p className="mt-0.5 break-all text-[11px] leading-snug text-slate-500">
                       ID: {user.id || 'N/A'}
                     </p>
                   </div>
                 </div>
               </td>
 
-              <td className="border-b border-slate-200 px-4 py-4">
-                <div className="flex items-center gap-2 text-sm text-slate-700">
-                  <FiMail className="text-slate-400" size={14} />
-                  <span>{user.email || 'N/A'}</span>
+              <td className="border-b border-slate-200 px-3 py-3 align-top">
+                <div className="flex items-start gap-2 text-sm text-slate-700">
+                  <FiMail className="mt-0.5 shrink-0 text-slate-400" size={13} />
+                  <span className="break-all leading-snug">{user.email || 'N/A'}</span>
                 </div>
               </td>
 
-              <td className="border-b border-slate-200 px-4 py-4">
-                <div className="flex items-center gap-2 text-sm text-slate-700">
-                  <FiMapPin className="text-slate-400" size={14} />
-                  <span>{user.barangay || 'N/A'}</span>
+              <td className="border-b border-slate-200 px-3 py-3 align-top">
+                <div className="flex items-start gap-2 text-sm text-slate-700">
+                  <FiMapPin className="mt-0.5 shrink-0 text-slate-400" size={13} />
+                  <span className="break-words leading-snug">{user.barangay || 'N/A'}</span>
                 </div>
               </td>
 
-              <td className="border-b border-slate-200 px-4 py-4">
+              <td className="border-b border-slate-200 px-3 py-3 align-top">
                 <span
-                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getRoleBadgeClass(
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${getRoleBadgeClass(
                     user.role
                   )}`}
                 >
@@ -131,29 +131,29 @@ export default function UserTable({
                 </span>
               </td>
 
-              <td className="border-b border-slate-200 px-4 py-4">
-                <div className="flex items-center gap-2 text-sm text-slate-700">
-                  <FiPhone className="text-slate-400" size={14} />
-                  <span>{user.contactNumber || 'N/A'}</span>
+              <td className="border-b border-slate-200 px-3 py-3 align-top">
+                <div className="flex items-start gap-2 text-sm text-slate-700">
+                  <FiPhone className="mt-0.5 shrink-0 text-slate-400" size={13} />
+                  <span className="break-words leading-snug">{user.contactNumber || 'N/A'}</span>
                 </div>
               </td>
 
-              <td className="border-b border-slate-200 px-4 py-4">
+              <td className="border-b border-slate-200 px-3 py-3 align-top">
                 <div className="flex items-center justify-center gap-2">
                   <button
                     onClick={() => handleEdit(user)}
-                    className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 p-2 text-blue-700 transition hover:bg-blue-100"
+                    className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 p-1.5 text-blue-700 transition hover:bg-blue-100"
                     title="Edit user"
                   >
-                    <FiEdit size={16} />
+                    <FiEdit size={14} />
                   </button>
 
                   <button
                     onClick={() => handleDelete(user.id)}
-                    className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 p-2 text-red-700 transition hover:bg-red-100"
+                    className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 p-1.5 text-red-700 transition hover:bg-red-100"
                     title="Delete user"
                   >
-                    <FiTrash2 size={16} />
+                    <FiTrash2 size={14} />
                   </button>
                 </div>
               </td>

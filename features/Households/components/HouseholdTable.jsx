@@ -77,9 +77,9 @@ export default function HouseholdTable({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <div className="max-h-[560px] overflow-y-auto">
-        <table className="w-full text-left">
+    <div className="overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="min-w-[1040px] w-full text-left">
           <thead className="sticky top-0 z-10 bg-slate-50">
             <tr className="text-xs uppercase tracking-[0.08em] text-slate-500">
               <th className="border-b border-slate-200 px-3 py-3 print:hidden" />

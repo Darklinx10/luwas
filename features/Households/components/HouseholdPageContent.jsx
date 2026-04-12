@@ -104,8 +104,8 @@ export default function HouseholdPageContent() {
 
   return (
     <RoleGuard allowedRoles={['Brgy-Secretary', 'MDRRMC-Personnel', 'MDRRMC-Admin']}>
-      <div className="min-h-screen bg-slate-50 p-4 md:p-6">
-        <div className="mx-auto w-full max-w-7xl space-y-6">
+      <div className="min-h-full overflow-x-hidden bg-slate-50 p-4 md:p-6">
+        <div className="mx-auto min-w-0 w-full max-w-7xl space-y-6">
           {/* Page Header */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -230,7 +230,7 @@ export default function HouseholdPageContent() {
           {/* Table Section */}
           <div
             id="print-section"
-            className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-5 py-4">
               <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
                 <div>

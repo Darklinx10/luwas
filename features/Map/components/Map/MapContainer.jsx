@@ -5,7 +5,7 @@ import L from 'leaflet';
 import 'leaflet.heat';
 import 'leaflet/dist/leaflet.css';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LayersControl, MapContainer, Marker, TileLayer } from 'react-leaflet';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -15,6 +15,8 @@ import {
   FiHome,
   FiLayers,
   FiMap,
+  FiMaximize2,
+  FiMinimize2,
   FiUpload,
 } from 'react-icons/fi';
 
@@ -120,6 +122,27 @@ function OverviewItem({ label, value }) {
   );
 }
 
+function MapFullscreenControl({ isFullscreen, onToggle }) {
+  return (
+    <div className="pointer-events-none absolute right-[10px] bottom-[10px] z-[1000]">
+      <div className="pointer-events-auto overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        >
+          {isFullscreen ? <FiMinimize2 size={16} /> : <FiMaximize2 size={16} />}
+          <span className="hidden md:inline">
+            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function MapContainerComponent() {
   const mapState = useMapState();
 
@@ -127,7 +150,10 @@ export default function MapContainerComponent() {
   const { boundaryGeoJSON, defaultCenter, setBoundaryGeoJSON } = useMap();
 
   const mapRef = useRef(null);
+  const mapShellRef = useRef(null);
+  const resizeTimeoutsRef = useRef([]);
   const router = useRouter();
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const isMDRRMCAdmin = role === 'MDRRMC-Admin';
   const isPersonnel = role === 'MDRRMC-Personnel';
@@ -171,9 +197,136 @@ export default function MapContainerComponent() {
     fetchBoundary();
   }, [setBoundaryGeoJSON]);
 
+  const invalidateMapSize = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    window.requestAnimationFrame(() => {
+      map.invalidateSize({ pan: false, debounceMoveend: true });
+    });
+  }, []);
+
+  const scheduleMapResize = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    resizeTimeoutsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    resizeTimeoutsRef.current = [];
+
+    invalidateMapSize();
+
+    [120, 280, 480].forEach((delay) => {
+      const timeoutId = window.setTimeout(() => {
+        invalidateMapSize();
+      }, delay);
+
+      resizeTimeoutsRef.current.push(timeoutId);
+    });
+  }, [invalidateMapSize]);
+
+  useEffect(() => {
+    const getFullscreenElement = () =>
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.msFullscreenElement ||
+      null;
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(getFullscreenElement() === mapShellRef.current);
+      scheduleMapResize();
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, [scheduleMapResize]);
+
+  useEffect(() => {
+    scheduleMapResize();
+  }, [isFullscreen, scheduleMapResize]);
+
+  useEffect(() => {
+    const handleWindowResize = () => {
+      scheduleMapResize();
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+
+    return () => {
+      window.removeEventListener('resize', handleWindowResize);
+    };
+  }, [scheduleMapResize]);
+
+  useEffect(() => {
+    const mapShell = mapShellRef.current;
+    if (!mapShell || typeof ResizeObserver === 'undefined') return undefined;
+
+    const resizeObserver = new ResizeObserver(() => {
+      scheduleMapResize();
+    });
+
+    resizeObserver.observe(mapShell);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [scheduleMapResize]);
+
+  useEffect(
+    () => () => {
+      resizeTimeoutsRef.current.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+    },
+    []
+  );
+
   const handleAccidentSubmit = (data) => {
     addAccidentToState(data);
     mapState.setAddingAccident(false);
+  };
+
+  const toggleFullscreen = async () => {
+    const container = mapShellRef.current;
+    if (!container) return;
+
+    const fullscreenElement =
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.msFullscreenElement ||
+      null;
+
+    try {
+      if (fullscreenElement === container) {
+        const exitFullscreen =
+          document.exitFullscreen ||
+          document.webkitExitFullscreen ||
+          document.msExitFullscreen;
+
+        if (exitFullscreen) {
+          await exitFullscreen.call(document);
+        }
+      } else {
+        const requestFullscreen =
+          container.requestFullscreen ||
+          container.webkitRequestFullscreen ||
+          container.msRequestFullscreen;
+
+        if (requestFullscreen) {
+          await requestFullscreen.call(container);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to toggle fullscreen:', error);
+      toast.error('Unable to toggle fullscreen mode right now.');
+    }
   };
 
   useEffect(() => {
@@ -476,22 +629,33 @@ export default function MapContainerComponent() {
           </div>
 
           <div className="p-4">
-            <MapContainer
-              key={profile?.role}
-              center={defaultCenter}
-              zoom={12.5}
-              scrollWheelZoom
+            <div
+              ref={mapShellRef}
+              className={`relative overflow-hidden ${
+                isFullscreen ? 'bg-slate-950' : 'rounded-2xl'
+              }`}
               style={{
-                height: '72vh',
-                minHeight: '540px',
+                height: isFullscreen ? '100dvh' : '72vh',
+                minHeight: isFullscreen ? '100dvh' : '540px',
                 width: '100%',
-                cursor: 'pointer',
-                borderRadius: '16px',
-              }}
-              whenCreated={(mapInstance) => {
-                mapRef.current = mapInstance;
               }}
             >
+              <MapContainer
+                key={profile?.role}
+                center={defaultCenter}
+                zoom={12.5}
+                scrollWheelZoom
+                style={{
+                  height: '100%',
+                  minHeight: '100%',
+                  width: '100%',
+                  cursor: 'pointer',
+                  borderRadius: isFullscreen ? '0px' : '16px',
+                }}
+                whenCreated={(mapInstance) => {
+                  mapRef.current = mapInstance;
+                }}
+              >
               <LayersControl position="topright">
                 <BaseLayer checked name="OpenStreetMap">
                   <TileLayer
@@ -507,6 +671,11 @@ export default function MapContainerComponent() {
                   />
                 </BaseLayer>
               </LayersControl>
+
+              <MapFullscreenControl
+                isFullscreen={isFullscreen}
+                onToggle={toggleFullscreen}
+              />
 
               <BoundaryLayer boundaryGeoJSON={boundaryGeoJSON} />
 
@@ -595,7 +764,8 @@ export default function MapContainerComponent() {
                 legendProp={mapState.legendProp}
                 colorSettings={mapState.colorSettings}
               />
-            </MapContainer>
+              </MapContainer>
+            </div>
           </div>
         </div>
 
