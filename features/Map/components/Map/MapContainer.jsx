@@ -124,7 +124,7 @@ function OverviewItem({ label, value }) {
 
 function MapFullscreenControl({ isFullscreen, onToggle }) {
   return (
-    <div className="pointer-events-none absolute right-[10px] bottom-[10px] z-[1000]">
+    <div className="pointer-events-none absolute right-[10px] bottom-[50px] z-[1000]">
       <div className="pointer-events-auto overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <button
           type="button"
