@@ -75,6 +75,39 @@ function inferLegendProp(features = []) {
   };
 }
 
+function parseStoredGeoJSON(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    return JSON.parse(value);
+  }
+
+  return value;
+}
+
+function getGeoJSONFeatures(geojson) {
+  if (geojson?.type === 'FeatureCollection' && Array.isArray(geojson.features)) {
+    return geojson.features;
+  }
+
+  if (geojson?.type === 'Feature') {
+    return [geojson];
+  }
+
+  return [];
+}
+
+function isPolygonFeature(feature) {
+  return (
+    feature?.type === 'Feature' &&
+    ['Polygon', 'MultiPolygon'].includes(feature?.geometry?.type) &&
+    Array.isArray(feature?.geometry?.coordinates) &&
+    feature.geometry.coordinates.length > 0
+  );
+}
+
 function parseHazardInfo(infoDocs = []) {
   const features = [];
   let legendProp = null;
@@ -91,10 +124,8 @@ function parseHazardInfo(infoDocs = []) {
     }
 
     try {
-      const geojson = JSON.parse(data.geojsonData);
-      if (Array.isArray(geojson?.features)) {
-        features.push(...geojson.features);
-      }
+      const geojson = parseStoredGeoJSON(data.geojsonData);
+      features.push(...getGeoJSONFeatures(geojson).filter(isPolygonFeature));
     } catch (error) {
       console.error(`Failed to parse hazard GeoJSON for ${doc.ref.parent.parent?.id}:`, error);
     }
@@ -108,7 +139,7 @@ function parseHazardInfo(infoDocs = []) {
 
 function findMatchedFeature(point, features = []) {
   return features.find((feature) => {
-    if (!feature?.geometry?.coordinates?.length) {
+    if (!isPolygonFeature(feature)) {
       return false;
     }
 
@@ -118,6 +149,24 @@ function findMatchedFeature(point, features = []) {
       return false;
     }
   });
+}
+
+async function getReportHazardTypes() {
+  try {
+    const hazardRefs = await adminDb.collection('hazards').listDocuments();
+    const availableHazardTypes = hazardRefs.map((docRef) => docRef.id);
+    const extraHazardTypes = availableHazardTypes
+      .filter((type) => !orderedHazardTypes.includes(type))
+      .sort((a, b) => a.localeCompare(b));
+
+    return [
+      ...orderedHazardTypes,
+      ...extraHazardTypes,
+    ];
+  } catch (error) {
+    console.error('Failed to list hazard type documents:', error);
+    return orderedHazardTypes;
+  }
 }
 
 export async function GET(request) {
@@ -140,15 +189,7 @@ export async function GET(request) {
     const url = new URL(request.url);
     const requestedHazardType = String(url.searchParams.get('hazardType') || '').trim();
 
-    const hazardRefs = await adminDb.collection('hazards').listDocuments();
-    const availableHazardTypes = hazardRefs.map((docRef) => docRef.id);
-    const extraHazardTypes = availableHazardTypes
-      .filter((type) => !orderedHazardTypes.includes(type))
-      .sort((a, b) => a.localeCompare(b));
-    const hazardTypes = [
-      ...orderedHazardTypes,
-      ...extraHazardTypes,
-    ];
+    const hazardTypes = await getReportHazardTypes();
 
     if (hazardTypes.length === 0) {
       return NextResponse.json({
@@ -185,6 +226,17 @@ export async function GET(request) {
       .get();
 
     const { features, legendProp } = parseHazardInfo(hazardInfoSnap.docs);
+
+    if (features.length === 0) {
+      return NextResponse.json({
+        success: true,
+        hazardTypes,
+        selectedHazardType,
+        legendProp,
+        affectedHouseholds: [],
+        count: 0,
+      });
+    }
 
     let householdsQuery = adminDb.collection('households');
     if (user.role === 'Brgy-Secretary') {

@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/authContext';
+import { downloadCsvFile, printTable } from '@/lib/utils/clientExport';
 import {
   deleteAccidentReport,
   fetchAccidentById,
@@ -24,6 +25,14 @@ import ReportPagination from '@/features/Reports/components/Shared/ReportPaginat
 
 const MapPopup = dynamic(() => import('@/components/mapPopUP'), { ssr: false });
 const PAGE_SIZE = 10;
+const ACCIDENT_EXPORT_HEADERS = [
+  'No.',
+  'Type',
+  'Severity',
+  'Description',
+  'Barangay',
+  'Date & Time',
+];
 
 function getAccidentPosition(accident = {}) {
   if (accident?.position?.lat !== undefined && accident?.position?.lng !== undefined) {
@@ -49,6 +58,21 @@ function normalizeDateTimeLocal(value) {
   }
 
   return String(value).slice(0, 16);
+}
+
+function formatAccidentDateTime(value) {
+  return value ? new Date(value).toLocaleString() : 'N/A';
+}
+
+function buildAccidentExportRows(accidents = []) {
+  return accidents.map((accident, index) => [
+    index + 1,
+    accident.type || 'N/A',
+    accident.severity || 'N/A',
+    accident.description || 'N/A',
+    accident.barangay || 'N/A',
+    formatAccidentDateTime(accident.datetime),
+  ]);
 }
 
 export default function AccidentTable({ title = 'Accident Reports' }) {
@@ -206,30 +230,37 @@ export default function AccidentTable({ title = 'Accident Reports' }) {
     }
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    if (!filteredAccidents.length) {
+      toast.info('No accident records available to print.');
+      return;
+    }
+
+    printTable({
+      title,
+      subtitle: searchTerm
+        ? `Filtered by search: ${searchTerm.trim()}`
+        : 'All matching accident records',
+      headers: ACCIDENT_EXPORT_HEADERS,
+      rows: buildAccidentExportRows(filteredAccidents),
+      summaryLines: [`Total accident records: ${filteredAccidents.length}`],
+    });
+  };
 
   const handleDownloadCSV = () => {
     if (!filteredAccidents.length) return;
 
-    const headers = 'Type,Severity,Description,DateTime,Barangay';
-    const rows = filteredAccidents.map((accident) =>
-      [
+    downloadCsvFile({
+      filename: 'accident-report.csv',
+      headers: ACCIDENT_EXPORT_HEADERS.slice(1),
+      rows: filteredAccidents.map((accident) => [
         accident.type || '',
         accident.severity || '',
-        `"${String(accident.description || '').replace(/"/g, '""')}"`,
+        accident.description || '',
         accident.datetime || '',
         accident.barangay || '',
-      ].join(',')
-    );
-
-    const csv = [headers, ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const link = document.createElement('a');
-
-    link.href = URL.createObjectURL(blob);
-    link.download = 'accident-report.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+      ]),
+    });
   };
 
   return (
@@ -273,16 +304,16 @@ export default function AccidentTable({ title = 'Accident Reports' }) {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={handlePrint}
-                disabled={loading}
+                disabled={loading || filteredAccidents.length === 0}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FiPrinter size={16} />
-                Print
+                Print All
               </button>
 
               <button
                 onClick={handleDownloadCSV}
-                disabled={loading}
+                disabled={loading || filteredAccidents.length === 0}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FiDownload size={16} />

@@ -52,6 +52,7 @@ export async function GET(request) {
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '10', 10)));
     const search = String(url.searchParams.get('search') || '').trim();
+    const exportAll = url.searchParams.get('exportAll') === 'true';
 
     // Determine barangay filter for Secretary role
     let barangay = null;
@@ -105,8 +106,22 @@ export async function GET(request) {
       console.log(`✅ Search filter returned ${filteredMembers.length} members`);
     }
 
-    // Calculate pagination
     const totalMembers = filteredMembers.length;
+    if (exportAll) {
+      return NextResponse.json({
+        success: true,
+        members: filteredMembers,
+        totalMembers,
+        totalPages: 1,
+        currentPage: 1,
+        pageSize: totalMembers,
+        hasNextPage: false,
+        hasPrevPage: false,
+        isIndexError: false,
+      });
+    }
+
+    // Calculate pagination
     const totalPages = Math.max(1, Math.ceil(totalMembers / limit));
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + limit;

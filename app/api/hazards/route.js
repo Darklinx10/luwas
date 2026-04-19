@@ -74,6 +74,9 @@ const normalizeTimestamp = (value) => {
 const getHazardCollection = (hazardType) =>
   adminDb.collection('hazards').doc(hazardType).collection('hazardInfo');
 
+const getHazardDocument = (hazardType) =>
+  adminDb.collection('hazards').doc(hazardType);
+
 const isValidHazardType = (hazardType) =>
   typeof hazardType === 'string' && hazardTypes.includes(hazardType);
 
@@ -181,10 +184,98 @@ const buildHazardSummary = (hazardType, infoDoc) => {
   };
 };
 
+const getTimestampMilliseconds = (value) => {
+  if (!value) return 0;
+
+  if (typeof value.toMillis === 'function') {
+    return value.toMillis();
+  }
+
+  if (typeof value.seconds === 'number') {
+    return value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1000000);
+  }
+
+  if (typeof value._seconds === 'number') {
+    return value._seconds * 1000 + Math.floor((value._nanoseconds || 0) / 1000000);
+  }
+
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  return 0;
+};
+
+const writeHazardTypeMetadata = async (hazardType, infoDocs = []) => {
+  let layerCount = 0;
+  let totalFeatures = 0;
+  let latestLayer = null;
+  let latestLayerMilliseconds = 0;
+
+  infoDocs.forEach((infoDoc) => {
+    const data = infoDoc.data() || {};
+    const featureCount = Number(data.features || 0);
+    const layerMilliseconds = getTimestampMilliseconds(data.createdAt);
+
+    layerCount += 1;
+    totalFeatures += Number.isFinite(featureCount) ? featureCount : 0;
+
+    if (layerMilliseconds >= latestLayerMilliseconds) {
+      latestLayerMilliseconds = layerMilliseconds;
+      latestLayer = {
+        id: infoDoc.id,
+        data,
+      };
+    }
+  });
+
+  await getHazardDocument(hazardType).set(
+    {
+      type: hazardType,
+      layerCount,
+      totalFeatures,
+      latestLayerId: latestLayer?.id || '',
+      latestDescription: latestLayer?.data?.description || '',
+      latestCreatedAt: latestLayerMilliseconds
+        ? new Date(latestLayerMilliseconds)
+        : null,
+      updatedAt: new Date(),
+    },
+    { merge: true }
+  );
+};
+
+const refreshHazardTypeMetadata = async (hazardType) => {
+  const infoSnapshot = await getHazardCollection(hazardType).get();
+  await writeHazardTypeMetadata(hazardType, infoSnapshot.docs);
+};
+
+const ensureHazardTypeMetadata = async (hazardType, infoDocs = []) => {
+  if (infoDocs.length === 0) {
+    return;
+  }
+
+  const hazardDoc = await getHazardDocument(hazardType).get();
+  const metadata = hazardDoc.exists ? hazardDoc.data() || {} : {};
+
+  if (
+    metadata.type &&
+    typeof metadata.layerCount === 'number' &&
+    typeof metadata.totalFeatures === 'number'
+  ) {
+    return;
+  }
+
+  await writeHazardTypeMetadata(hazardType, infoDocs);
+};
+
 const getHazardSummaries = async () => {
   const hazardsByType = await Promise.all(
     hazardTypes.map(async (hazardType) => {
       const infoSnapshot = await getHazardCollection(hazardType).get();
+
+      await ensureHazardTypeMetadata(hazardType, infoSnapshot.docs);
+
       return infoSnapshot.docs.map((infoDoc) =>
         buildHazardSummary(hazardType, infoDoc)
       );
@@ -420,6 +511,8 @@ export async function POST(request) {
       createdAt: new Date(),
     });
 
+    await refreshHazardTypeMetadata(hazardType);
+
     return NextResponse.json(
       {
         success: true,
@@ -480,6 +573,7 @@ export async function DELETE(request) {
     }
 
     await docRef.delete();
+    await refreshHazardTypeMetadata(hazardType);
 
     return NextResponse.json({
       success: true,

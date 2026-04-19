@@ -1,11 +1,21 @@
 'use client';
 
 import ReportPagination from '@/features/Reports/components/Shared/ReportPagination';
+import { downloadCsvFile, printTable } from '@/lib/utils/clientExport';
 import { capitalizeWords } from '@/utils/capitalize';
 import { useEffect, useMemo, useState } from 'react';
 import { FiDownload, FiHome, FiPrinter, FiSearch } from 'react-icons/fi';
 
 const PAGE_SIZE = 10;
+const HAZARD_EXPORT_HEADERS = [
+  'No.',
+  'Household',
+  'Barangay',
+  'Sitio',
+  'Contact Number',
+  'Home',
+  'Hazard Value',
+];
 
 function useDebounce(value, delay = 300) {
   const [debounced, setDebounced] = useState(value);
@@ -56,39 +66,55 @@ export default function HazardTable({
     return filteredData.slice(startIndex, startIndex + PAGE_SIZE);
   }, [currentPage, filteredData]);
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    if (!filteredData.length) {
+      return;
+    }
+
+    printTable({
+      title,
+      subtitle: debouncedSearch.trim()
+        ? `Filtered by search: ${debouncedSearch.trim()}`
+        : 'All matching hazard-affected household records',
+      headers: [
+        ...HAZARD_EXPORT_HEADERS.slice(0, 6),
+        legendProp?.key || HAZARD_EXPORT_HEADERS[6],
+      ],
+      rows: filteredData.map((household, index) => [
+        index + 1,
+        capitalizeWords(household.name || 'Unnamed'),
+        capitalizeWords(household.barangay || 'N/A'),
+        capitalizeWords(household.sitio || '-'),
+        household.contactNumber || 'N/A',
+        household.homeLabel ?? 'Primary Home',
+        legendProp?.key ? formatValue(household[legendProp.key]) : 'N/A',
+      ]),
+      summaryLines: [`Total locations: ${filteredData.length}`],
+    });
+  };
 
   const handleDownloadCSV = () => {
     if (!filteredData.length) return;
 
-    const headers = [
-      'Household',
-      'Barangay',
-      'Sitio',
-      'Contact Number',
-      'Home',
-      legendProp?.key || 'Value',
-    ];
-
-    const rows = filteredData.map((h) =>
-      [
-        `"${String(h.name || '').replace(/"/g, '""')}"`,
-        `"${String(h.barangay || '').replace(/"/g, '""')}"`,
-        `"${String(h.sitio || '').replace(/"/g, '""')}"`,
-        `"${String(h.contactNumber || '').replace(/"/g, '""')}"`,
-        `"${String(h.homeLabel ?? 'Primary Home').replace(/"/g, '""')}"`,
-        `"${String(legendProp?.key ? formatValue(h[legendProp.key]) : 'N/A').replace(/"/g, '""')}"`,
-      ].join(',')
-    );
-
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'hazard-report.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
+    downloadCsvFile({
+      filename: 'hazard-report.csv',
+      headers: [
+        'Household',
+        'Barangay',
+        'Sitio',
+        'Contact Number',
+        'Home',
+        legendProp?.key || 'Value',
+      ],
+      rows: filteredData.map((household) => [
+        household.name || '',
+        household.barangay || '',
+        household.sitio || '',
+        household.contactNumber || '',
+        household.homeLabel ?? 'Primary Home',
+        legendProp?.key ? formatValue(household[legendProp.key]) : 'N/A',
+      ]),
+    });
   };
 
   return (
@@ -130,16 +156,16 @@ export default function HazardTable({
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={handlePrint}
-                disabled={loading}
+                disabled={loading || filteredData.length === 0}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FiPrinter size={16} />
-                Print
+                Print All
               </button>
 
               <button
                 onClick={handleDownloadCSV}
-                disabled={loading}
+                disabled={loading || filteredData.length === 0}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FiDownload size={16} />

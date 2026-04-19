@@ -1,8 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { FiDownload, FiPrinter } from 'react-icons/fi';
+import { toast } from 'react-toastify';
+import { downloadCsvFile, openPrintWindow, printTable } from '@/lib/utils/clientExport';
 import { usePWDReport } from '../../hooks/usePWDReport';
+import { fetchPWDReport } from '../../services/reportService';
 import ReportTable from '../Shared/ReportTable';
 import ReportSearch from '../Shared/ReportSearch';
 import ReportPagination from '../Shared/ReportPagination';
@@ -56,6 +59,28 @@ const PWD_COLUMNS = [
   },
 ];
 
+const PWD_EXPORT_HEADERS = [
+  'Name',
+  'Barangay',
+  'Sitio',
+  'Sex',
+  'Contact Number',
+  'Age',
+  'Household Head',
+];
+
+function buildPWDExportRows(members = []) {
+  return members.map((member) => [
+    renderMemberFullName(member),
+    member.householdBarangay || 'N/A',
+    member.householdSitio || 'N/A',
+    member.sex || 'N/A',
+    member.contactNumber || 'N/A',
+    member.age ?? 'N/A',
+    member.headFullName || 'N/A',
+  ]);
+}
+
 export default function PWDReportView() {
   const {
     members,
@@ -68,9 +93,11 @@ export default function PWDReportView() {
     hasPrevPage,
     isIndexError,
     indexErrorLink,
+    search,
     setPage,
     setSearch,
   } = usePWDReport();
+  const [actionLoading, setActionLoading] = useState('');
 
   const handleSearch = (value) => {
     setSearch(value);
@@ -89,43 +116,65 @@ export default function PWDReportView() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    let printWindow = null;
+
+    try {
+      printWindow = openPrintWindow('PWD Report');
+      setActionLoading('print');
+
+      const data = await fetchPWDReport({ search, exportAll: true });
+      const exportMembers = data.members || [];
+
+      if (!exportMembers.length) {
+        printWindow.close();
+        toast.info('No PWD members available to print.');
+        return;
+      }
+
+      printTable({
+        printWindow,
+        title: 'PWD (Persons with Disability) Report',
+        subtitle: search ? `Filtered by search: ${search}` : 'All matching PWD records',
+        headers: PWD_EXPORT_HEADERS,
+        rows: buildPWDExportRows(exportMembers),
+        summaryLines: [`Total members: ${data.totalMembers || exportMembers.length}`],
+      });
+    } catch (error) {
+      if (printWindow) {
+        printWindow.close();
+      }
+
+      console.error(error);
+      toast.error(error.message || 'Failed to print PWD report.');
+    } finally {
+      setActionLoading('');
+    }
   };
 
-  const handleDownloadCSV = () => {
-    if (!members.length) return;
+  const handleDownloadCSV = async () => {
+    try {
+      setActionLoading('download');
 
-    const headers = [
-      'Name',
-      'Barangay',
-      'Sitio',
-      'Sex',
-      'Contact Number',
-      'Age',
-      'Household Head',
-    ];
+      const data = await fetchPWDReport({ search, exportAll: true });
+      const exportMembers = data.members || [];
 
-    const rows = members.map((member) =>
-      [
-        `"${String(renderMemberFullName(member)).replace(/"/g, '""')}"`,
-        `"${String(member.householdBarangay || 'N/A').replace(/"/g, '""')}"`,
-        `"${String(member.householdSitio || 'N/A').replace(/"/g, '""')}"`,
-        `"${String(member.sex || 'N/A').replace(/"/g, '""')}"`,
-        `"${String(member.contactNumber || 'N/A').replace(/"/g, '""')}"`,
-        `"${String(member.age ?? 'N/A').replace(/"/g, '""')}"`,
-        `"${String(member.headFullName || 'N/A').replace(/"/g, '""')}"`,
-      ].join(',')
-    );
+      if (!exportMembers.length) {
+        toast.info('No PWD members available to download.');
+        return;
+      }
 
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const link = document.createElement('a');
-
-    link.href = URL.createObjectURL(blob);
-    link.download = 'pwd-report.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+      downloadCsvFile({
+        filename: 'pwd-report.csv',
+        headers: PWD_EXPORT_HEADERS,
+        rows: buildPWDExportRows(exportMembers),
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'Failed to download PWD report.');
+    } finally {
+      setActionLoading('');
+    }
   };
 
   if (isIndexError) {
@@ -169,21 +218,21 @@ export default function PWDReportView() {
             <button
               type="button"
               onClick={handlePrint}
-              disabled={loading}
+              disabled={loading || actionLoading !== '' || totalCount === 0}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <FiPrinter size={16} />
-              Print
+              {actionLoading === 'print' ? 'Preparing...' : 'Print All'}
             </button>
 
             <button
               type="button"
               onClick={handleDownloadCSV}
-              disabled={loading || members.length === 0}
+              disabled={loading || actionLoading !== '' || totalCount === 0}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <FiDownload size={16} />
-              Download CSV
+              {actionLoading === 'download' ? 'Preparing...' : 'Download CSV'}
             </button>
           </div>
         </div>

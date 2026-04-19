@@ -6,6 +6,7 @@ export function buildHouseholdQuery(params = {}) {
   if (params.search) query.set('search', params.search);
   if (params.sort) query.set('sort', params.sort);
   if (params.order) query.set('order', params.order);
+  if (params.exportAll) query.set('exportAll', 'true');
 
   return query.toString();
 }

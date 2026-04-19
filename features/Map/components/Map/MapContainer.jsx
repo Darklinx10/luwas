@@ -122,6 +122,54 @@ function OverviewItem({ label, value }) {
   );
 }
 
+function LeafletFullscreenControl({ isFullscreen, onToggle }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const control = L.control({ position: 'topright' });
+
+    control.onAdd = function () {
+      const container = L.DomUtil.create(
+        'div',
+        'leaflet-bar leaflet-control'
+      );
+
+      const button = L.DomUtil.create('a', '', container);
+
+      button.href = '#';
+      button.title = isFullscreen
+        ? 'Exit fullscreen'
+        : 'Enter fullscreen';
+
+      button.style.display = 'flex';
+      button.style.alignItems = 'center';
+      button.style.justifyContent = 'center';
+      button.style.width = '34px';
+      button.style.height = '34px';
+      button.style.fontSize = '18px';
+
+      button.innerHTML = isFullscreen ? '⤡' : '⤢';
+
+      L.DomEvent.disableClickPropagation(container);
+
+      L.DomEvent.on(button, 'click', (e) => {
+        L.DomEvent.preventDefault(e);
+        onToggle();
+      });
+
+      return container;
+    };
+
+    control.addTo(map);
+
+    return () => {
+      control.remove();
+    };
+  }, [map, isFullscreen, onToggle]);
+
+  return null;
+}
+
 function MapFullscreenControl({ isFullscreen, onToggle }) {
   return (
     <div className="pointer-events-none absolute right-[10px] bottom-[50px] z-[1000]">
@@ -155,8 +203,7 @@ export default function MapContainerComponent() {
   const router = useRouter();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const isMDRRMCAdmin = role === 'MDRRMC-Admin';
-  const isPersonnel = role === 'MDRRMC-Personnel';
+  const isMDRRMCAdmin = role === 'MDRRMC-Admin';  const isPersonnel = role === 'MDRRMC-Personnel';
   const isSecretary = role === 'Brgy-Secretary';
 
   const { markers: householdMarkers, loading: markersLoading } =

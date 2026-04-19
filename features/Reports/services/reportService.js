@@ -59,20 +59,28 @@ async function requestJson(path, options = {}, fallbackMessage = 'Request failed
 }
 
 export async function fetchPWDReport(params = {}) {
-  const { page = 1, limit = 10, search = '' } = params;
+  const { page = 1, limit = 10, search = '', exportAll = false } = params;
 
   return requestJson(
-    buildPath('/api/reports/pwd', { page, limit, search }),
+    buildPath('/api/reports/pwd', {
+      ...(exportAll ? {} : { page, limit }),
+      search,
+      ...(exportAll ? { exportAll: true } : {}),
+    }),
     { method: 'GET' },
     'Failed to fetch PWD report'
   );
 }
 
 export async function fetchSeniorsReport(params = {}) {
-  const { page = 1, limit = 10, search = '' } = params;
+  const { page = 1, limit = 10, search = '', exportAll = false } = params;
 
   return requestJson(
-    buildPath('/api/reports/seniors', { page, limit, search }),
+    buildPath('/api/reports/seniors', {
+      ...(exportAll ? {} : { page, limit }),
+      search,
+      ...(exportAll ? { exportAll: true } : {}),
+    }),
     { method: 'GET' },
     'Failed to fetch Seniors report'
   );

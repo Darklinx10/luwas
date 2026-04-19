@@ -53,6 +53,24 @@
   background-size: 40px 40px;
 }
 
+/* Stack controls vertically */
+.leaflet-top.leaflet-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* Fullscreen FIRST */
+.leaflet-control:nth-child(1) {
+  order: 1;
+}
+
+/* Layers BELOW */
+.leaflet-control-layers {
+  order: 2;
+  margin-top: 8px;
+}
+
 
 
 body {

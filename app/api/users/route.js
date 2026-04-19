@@ -22,7 +22,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import admin from '@/lib/firebaseAdmin';
+import admin, { adminDb } from '@/lib/firebaseAdmin';
 import { getSessionUser } from '@/lib/auth/getSessionUser';
 import { logFirestoreError, analyzeFirestoreError } from '@/lib/api/firestoreErrorHandler';
 import { normalizePerson, buildFullName, compareNames } from '@/lib/utils/nameNormalizer';
@@ -161,8 +161,7 @@ export async function GET(req) {
     const search = (searchParams.get('search') || '').trim().toLowerCase();
 
     // 3. Fetch users from Firestore
-    const usersRef = admin
-      .firestore()
+    const usersRef = adminDb
       .collection('users')
       .where('role', 'in', ALLOWED_ROLES_FOR_CREATION)
       .select(...USER_LIST_FIELDS);
@@ -376,7 +375,7 @@ export async function POST(req) {
 
     // 8. Create Firestore document
     try {
-      await admin.firestore().collection('users').doc(authUser.uid).set({
+      await adminDb.collection('users').doc(authUser.uid).set({
         firstName: userData.firstName,
         middleName: userData.middleName,
         lastName: userData.lastName,

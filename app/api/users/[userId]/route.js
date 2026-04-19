@@ -26,7 +26,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import admin from '@/lib/firebaseAdmin';
+import admin, { adminDb } from '@/lib/firebaseAdmin';
 import { getSessionUser } from '@/lib/auth/getSessionUser';
 import { buildFullName, normalizePerson } from '@/lib/utils/nameNormalizer';
 
@@ -80,7 +80,7 @@ export async function GET(req, { params }) {
     }
 
     // 3. Fetch user from Firestore
-    const userDoc = await admin.firestore().collection('users').doc(userId).get();
+    const userDoc = await adminDb.collection('users').doc(userId).get();
 
     if (!userDoc.exists) {
       return NextResponse.json(
@@ -162,7 +162,7 @@ export async function PATCH(req, { params }) {
     const body = await req.json();
 
     // 4. Get current user to prevent editing restricted fields
-    const userDoc = await admin.firestore().collection('users').doc(userId).get();
+    const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
       return NextResponse.json(
         { error: 'User not found' },
@@ -254,7 +254,7 @@ export async function PATCH(req, { params }) {
       nextNames.suffix
     );
 
-    await admin.firestore().collection('users').doc(userId).update(updateData);
+    await adminDb.collection('users').doc(userId).update(updateData);
 
     // 8. Return updated data
     return NextResponse.json({
@@ -311,7 +311,7 @@ export async function DELETE(req, { params }) {
     }
 
     // 4. Verify user exists before deletion
-    const userDoc = await admin.firestore().collection('users').doc(userId).get();
+    const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
       return NextResponse.json(
         { error: 'User not found' },
@@ -320,7 +320,7 @@ export async function DELETE(req, { params }) {
     }
 
     // 5. Delete using transaction for atomicity
-    const db = admin.firestore();
+    const db = adminDb;
     await db.runTransaction(async (transaction) => {
       // First, delete Firestore document
       const userRef = db.collection('users').doc(userId);

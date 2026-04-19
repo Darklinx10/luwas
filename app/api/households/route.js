@@ -65,6 +65,7 @@ export async function GET(request) {
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const search = (searchParams.get('search') || '').trim();
+    const exportAll = searchParams.get('exportAll') === 'true';
 
     const requestedSort = searchParams.get('sort') || 'headLastName';
     const sort = ALLOWED_SORT_FIELDS.includes(requestedSort)
@@ -80,6 +81,7 @@ export async function GET(request) {
       page,
       limit,
       search,
+      exportAll,
       requestedSort,
       sort,
       requestedOrder,
@@ -112,6 +114,7 @@ export async function GET(request) {
         sort,
         order,
         barangay: barangayFilter,
+        exportAll,
       });
     } catch (queryError) {
       // Intelligent error handling for Firestore composite index errors

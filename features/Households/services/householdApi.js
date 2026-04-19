@@ -31,8 +31,16 @@ export async function fetchHouseholds({
   search = '',
   sort = 'headLastName',
   order = 'asc',
+  exportAll = false,
 } = {}) {
-  const query = buildHouseholdQuery({ page, limit, search, sort, order });
+  const query = buildHouseholdQuery({
+    page,
+    limit,
+    search,
+    sort,
+    order,
+    ...(exportAll ? { exportAll: true } : {}),
+  });
 
   const response = await fetch(`/api/households?${query}`, {
     method: 'GET',

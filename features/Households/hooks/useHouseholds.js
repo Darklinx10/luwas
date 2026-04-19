@@ -3,11 +3,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
+import { downloadCsvFile, openPrintWindow, printTable } from '@/lib/utils/clientExport';
 import { compareNames } from '@/lib/utils/nameNormalizer';
 import * as householdApi from '../services/householdApi';
 import { normalizeHousehold, normalizeMember } from '../utils/householdFormat';
 
 const PAGE_SIZE = 10;
+const HOUSEHOLD_EXPORT_HEADERS = [
+  'No.',
+  'Household ID',
+  'Family Head',
+  'Barangay',
+  'Sitio',
+  'Sex',
+  'Contact',
+  'Age',
+  'Total Residents',
+  'Total PWDs',
+  'Total Seniors',
+];
 
 function compareHouseholdHeadNames(left = {}, right = {}) {
   return compareNames(
@@ -43,6 +57,22 @@ function compareMemberNames(left = {}, right = {}) {
   );
 }
 
+function buildHouseholdExportRows(households = []) {
+  return households.map((household, index) => [
+    index + 1,
+    household.householdId || '',
+    household.headFullName || 'Unnamed',
+    household.barangay || 'N/A',
+    household.sitio || 'N/A',
+    household.headSex || 'N/A',
+    household.contactNumber || 'N/A',
+    household.headAge ?? 'N/A',
+    Number(household.totalResidents || 0),
+    Number(household.totalPWDs || 0),
+    Number(household.totalSeniors || 0),
+  ]);
+}
+
 export function useHouseholds() {
   const router = useRouter();
   const [items, setItems] = useState([]);
@@ -51,6 +81,7 @@ export function useHouseholds() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const [totalHouseholds, setTotalHouseholds] = useState(0);
   const [totalResidents, setTotalResidents] = useState(0);
@@ -114,6 +145,93 @@ export function useHouseholds() {
     },
     [searchInput]
   );
+
+  const fetchAllFilteredHouseholds = useCallback(async () => {
+    const result = await householdApi.fetchHouseholds({
+      page: 1,
+      limit: PAGE_SIZE,
+      search,
+      sort: 'headLastName',
+      order: 'asc',
+      exportAll: true,
+    });
+
+    const households = (result.households || [])
+      .filter((household) => household && household.householdId)
+      .map((household) => normalizeHousehold(household))
+      .sort(compareHouseholdHeadNames);
+
+    return {
+      households,
+      totalHouseholds: result.totalHouseholds || households.length,
+      totalResidents: result.totalResidents || 0,
+    };
+  }, [search]);
+
+  const printAll = useCallback(async () => {
+    let printWindow = null;
+
+    try {
+      printWindow = openPrintWindow('Household Records');
+      setExporting(true);
+
+      const { households, totalHouseholds: householdCount, totalResidents: residentCount } =
+        await fetchAllFilteredHouseholds();
+
+      if (!households.length) {
+        printWindow.close();
+        toast.info('No household records available to print.');
+        return;
+      }
+
+      printTable({
+        printWindow,
+        title: 'Household Records',
+        subtitle: search
+          ? `Filtered by search: ${search}`
+          : 'All matching household records',
+        headers: HOUSEHOLD_EXPORT_HEADERS,
+        rows: buildHouseholdExportRows(households),
+        summaryLines: [
+          `Total Households: ${householdCount}`,
+          `Total Residents: ${residentCount}`,
+        ],
+      });
+    } catch (error) {
+      if (printWindow) {
+        printWindow.close();
+      }
+
+      console.error(error);
+      toast.error(error.message || 'Failed to print household records');
+    } finally {
+      setExporting(false);
+    }
+  }, [fetchAllFilteredHouseholds, search]);
+
+  const downloadCSV = useCallback(async () => {
+    try {
+      setExporting(true);
+
+      const { households } = await fetchAllFilteredHouseholds();
+
+      if (!households.length) {
+        toast.info('No household records available to download.');
+        return;
+      }
+
+      downloadCsvFile({
+        filename: 'household-records.csv',
+        headers: HOUSEHOLD_EXPORT_HEADERS,
+        rows: buildHouseholdExportRows(households),
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'Failed to download household records');
+    } finally {
+      setExporting(false);
+    }
+  }, [fetchAllFilteredHouseholds]);
 
   const toggleExpanded = useCallback(
     (householdId) => {
@@ -256,6 +374,7 @@ export function useHouseholds() {
   return {
     loading,
     submitting,
+    exporting,
     households: items,
     filteredHouseholds: items,
     expandedHouseholds,
@@ -279,6 +398,8 @@ export function useHouseholds() {
     handleDeleteHousehold,
     handleDeleteMember,
     handleAddHouseholdClick,
+    printAll,
+    downloadCSV,
 
     uploadModalOpen,
     setUploadModalOpen,

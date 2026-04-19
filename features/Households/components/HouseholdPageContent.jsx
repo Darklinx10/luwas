@@ -9,6 +9,7 @@ import {
   FiHome,
   FiMapPin,
   FiPlus,
+  FiPrinter,
   FiSearch,
   FiUpload,
   FiUsers,
@@ -197,15 +198,15 @@ export default function HouseholdPageContent() {
                 {isPersonnel && (
                   <>
                     <ToolbarButton
-                      onClick={() => window.print()}
-                      disabled={vm.loading}
-                      icon={<FiDownload size={16} />}
+                      onClick={vm.printAll}
+                      disabled={vm.loading || vm.exporting}
+                      icon={<FiPrinter size={16} />}
                     >
-                      Print
+                      Print All
                     </ToolbarButton>
                     <ToolbarButton
                       onClick={vm.downloadCSV}
-                      disabled={vm.loading}
+                      disabled={vm.loading || vm.exporting}
                       icon={<FiDownload size={16} />}
                     >
                       Download CSV
